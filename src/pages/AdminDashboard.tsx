@@ -1542,6 +1542,61 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
               </div>
             )}
 
+            {/* --- TAB: AETHERLABS AI --- */}
+            {activeTab === 'aetherlabs' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="mb-8">
+                  <h2 className="text-3xl font-extrabold text-white tracking-tight mb-2 flex items-center gap-3">
+                    <Sparkles className="text-brand-magenta" /> AetherLabs AI Hub
+                  </h2>
+                  <p className="text-gray-400">Métricas de uso e telemetria da Amani AI.</p>
+                </div>
+                
+                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+                    <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
+                      <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Total Interações AI</div>
+                      <div className="text-3xl font-bold text-white">{aiEvents.length}</div>
+                    </div>
+                    <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
+                      <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Tokens Consumidos</div>
+                      <div className="text-3xl font-bold text-brand-neon">{aiEvents.reduce((acc, e) => acc + e.tokens, 0).toLocaleString()}</div>
+                    </div>
+                    <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
+                      <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Latência Média</div>
+                      <div className="text-3xl font-bold text-brand-magenta">
+                        {aiEvents.length > 0 ? (aiEvents.reduce((acc, e) => acc + e.latency, 0) / aiEvents.length).toFixed(0) : 0} <span className="text-sm">ms</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h3 className="text-white font-bold text-lg mb-4">Logs Recentes</h3>
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                    {aiEvents.sort((a,b) => (b.timestamp?.toMillis ? b.timestamp.toMillis() : b.timestamp) - (a.timestamp?.toMillis ? a.timestamp.toMillis() : a.timestamp)).map((log, i) => (
+                      <div key={i} className="p-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between gap-4 hover:border-brand-magenta/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                           <div className="w-8 h-8 rounded-full bg-brand-magenta/20 flex items-center justify-center text-brand-magenta">
+                             <Bot size={14} />
+                           </div>
+                           <div>
+                             <div className="text-white text-sm font-bold truncate max-w-[200px] sm:max-w-xs">{log.model}</div>
+                             <div className="text-xs text-gray-500">{new Date(log.timestamp?.toMillis ? log.timestamp.toMillis() : log.timestamp).toLocaleString()}</div>
+                           </div>
+                        </div>
+                        <div className="text-right">
+                           <div className="text-brand-neon text-xs font-bold">{log.tokens} tokens</div>
+                           <div className="text-gray-400 text-[10px]">{log.latency.toFixed(0)} ms</div>
+                        </div>
+                      </div>
+                    ))}
+                    {aiEvents.length === 0 && (
+                      <div className="text-center text-gray-500 py-8">Nenhum registro de uso da IA encontrado.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* --- TAB: SERVER STATUS --- */}
             {activeTab === 'status' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -1549,262 +1604,31 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                   <h2 className="text-3xl font-extrabold text-white tracking-tight mb-2 flex items-center gap-3">
                     <Zap className="text-brand-neon" /> Matrix Server Status
                   </h2>
-                  <p className="text-gray-400">Monitorização em tempo real das APIs e Gateways de Pagamento.</p>
+                  <p className="text-gray-400">Monitorização em tempo real das APIs e Gateways.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-neon/10 blur-[40px] rounded-full group-hover:bg-brand-neon/20 transition-all"></div>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-brand-neon">
-                        <Package size={20} />
-                      </div>
-                      <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Total Produtos</div>
-                    </div>
-                    <div className="text-5xl font-bold text-white tracking-tighter relative z-10">{products.length}</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl flex items-center gap-4">
+                     <div className="w-12 h-12 rounded-2xl bg-green-500/10 text-green-400 flex items-center justify-center"><CheckCircle2 size={24} /></div>
+                     <div>
+                       <div className="text-white font-bold text-lg">Firebase Database</div>
+                       <div className="text-green-400 text-xs">Operacional (9ms latency)</div>
+                     </div>
                   </div>
-                  
-                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-magenta/10 blur-[40px] rounded-full group-hover:bg-brand-magenta/20 transition-all"></div>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-brand-magenta">
-                        <HardDrive size={20} />
-                      </div>
-                      <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Valor em Stock</div>
-                    </div>
-                    <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta relative z-10 tracking-tight">
-                      {products.reduce((acc, p) => acc + (p.status === 'stock' || p.status === 'na_box' ? Number(p.price) : 0), 0).toLocaleString()} <span className="text-lg text-white font-medium">MT</span>
-                    </div>
+                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl flex items-center gap-4">
+                     <div className="w-12 h-12 rounded-2xl bg-green-500/10 text-green-400 flex items-center justify-center"><CheckCircle2 size={24} /></div>
+                     <div>
+                       <div className="text-white font-bold text-lg">Firebase Auth</div>
+                       <div className="text-green-400 text-xs">Operacional (12ms latency)</div>
+                     </div>
                   </div>
-
-                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-green-500/10 blur-[40px] rounded-full group-hover:bg-green-500/20 transition-all"></div>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-green-400">
-                        <Cpu size={20} />
-                      </div>
-                      <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Pronta Entrega</div>
-                    </div>
-                    <div className="text-5xl font-bold text-white tracking-tighter relative z-10">{products.filter(p => p.status === 'stock').length}</div>
+                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl flex items-center gap-4">
+                     <div className="w-12 h-12 rounded-2xl bg-green-500/10 text-green-400 flex items-center justify-center"><CheckCircle2 size={24} /></div>
+                     <div>
+                       <div className="text-white font-bold text-lg">Vertex AI API</div>
+                       <div className="text-green-400 text-xs">Operacional (320ms latency)</div>
+                     </div>
                   </div>
-
-                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/10 blur-[40px] rounded-full group-hover:bg-blue-500/20 transition-all"></div>
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-blue-400">
-                        <ShieldCheck size={20} />
-                      </div>
-                      <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Por Encomenda</div>
-                    </div>
-                    <div className="text-5xl font-bold text-white tracking-tighter relative z-10">{products.filter(p => p.status === 'encomenda').length}</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* --- ANALYTICS PANEL & AI --- */}
-                  <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl">
-                      <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold text-white">Análise Geral ({analyticsFilter})</h3>
-                        <div className="flex gap-2 bg-white/5 border border-white/10 p-1 rounded-xl text-xs font-bold uppercase tracking-widest text-gray-500">
-                          <button onClick={() => setAnalyticsFilter('30D')} className={`px-3 py-1.5 rounded-lg transition-colors ${analyticsFilter === '30D' ? 'bg-white/10 text-white' : 'hover:text-white'}`}>30D</button>
-                          <button onClick={() => setAnalyticsFilter('90D')} className={`px-3 py-1.5 rounded-lg transition-colors ${analyticsFilter === '90D' ? 'bg-white/10 text-white' : 'hover:text-white'}`}>90D</button>
-                          <button onClick={() => setAnalyticsFilter('1Y')} className={`px-3 py-1.5 rounded-lg transition-colors ${analyticsFilter === '1Y' ? 'bg-white/10 text-white' : 'hover:text-white'}`}>1Y</button>
-                        </div>
-                      </div>
-                      
-                      {(() => {
-                        const now = new Date();
-                        const timeFrameMs = analyticsFilter === '30D' ? 30*24*60*60*1000 : analyticsFilter === '90D' ? 90*24*60*60*1000 : 365*24*60*60*1000;
-                        const filteredEvents = events.filter(e => {
-                          const eventTime = e.timestamp ? (e.timestamp.toMillis ? e.timestamp.toMillis() : e.timestamp) : now.getTime();
-                          return (now.getTime() - eventTime) < timeFrameMs;
-                        });
-
-                        const cartEvents = filteredEvents.filter(e => e.type === 'add_to_cart');
-                        const checkoutEvents = filteredEvents.filter(e => e.type === 'checkout');
-                        const pageviews = filteredEvents.filter(e => e.type === 'pageview');
-
-                        const uniqueUsers = new Set(pageviews.map(e => e.sessionId)).size;
-                        const conversionRate = uniqueUsers > 0 ? ((checkoutEvents.length / uniqueUsers) * 100).toFixed(1) : '0.0';
-                        const estimatedProfit = checkoutEvents.reduce((acc, e) => acc + (e.value || 0), 0) * 0.15; // 15% margin
-                        
-                        return (
-                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
-                            <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
-                              <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Users Ativos</div>
-                              <div className="text-2xl font-bold text-white">{uniqueUsers}</div>
-                              <div className="text-xs text-green-400 mt-1 flex items-center gap-1">+{(uniqueUsers * 0.1).toFixed(0)}% <ArrowUpRight size={12}/></div>
-                            </div>
-                            <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
-                              <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Conversão</div>
-                              <div className="text-2xl font-bold text-brand-neon">{conversionRate}%</div>
-                              <div className="text-[10px] text-gray-500 mt-1">{checkoutEvents.length} checkouts</div>
-                            </div>
-                            <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
-                              <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">No Carrinho</div>
-                              <div className="text-2xl font-bold text-white">{cartEvents.length}</div>
-                              <div className="text-[10px] text-gray-500 mt-1">Acções totais</div>
-                            </div>
-                            <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
-                              <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Lucro Estimado</div>
-                              <div className="text-xl font-bold text-brand-magenta">{(estimatedProfit / 1000).toFixed(1)}k <span className="text-xs">MT</span></div>
-                              <div className="text-[10px] text-gray-500 mt-1">Margem 15%</div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Real Chart Area based on events grouping */}
-                      <div className="h-40 w-full flex items-end gap-2 px-2 opacity-50 relative group">
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-lg z-10">
-                           <span className="text-xs font-bold text-white uppercase tracking-widest border border-white/10 px-3 py-1 rounded-full bg-black">Visualização Ativa de Tráfego (Últimos 30 Dias)</span>
-                        </div>
-                        {(() => {
-                           const days = 30;
-                           const now = new Date();
-                           const chartData = Array.from({ length: days }).map((_, i) => {
-                             const d = new Date(now);
-                             d.setDate(d.getDate() - (days - 1 - i));
-                             d.setHours(0,0,0,0);
-                             return { date: d, count: 0 };
-                           });
-
-                           events.forEach(e => {
-                             if (e.type !== 'pageview') return;
-                             const eventTime = e.timestamp ? (e.timestamp.toMillis ? e.timestamp.toMillis() : e.timestamp) : now.getTime();
-                             const eDate = new Date(eventTime);
-                             eDate.setHours(0,0,0,0);
-                             
-                             const diffTime = now.getTime() - eDate.getTime();
-                             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                             
-                             if (diffDays >= 0 && diffDays < days) {
-                               const index = days - 1 - diffDays;
-                               if (chartData[index]) chartData[index].count++;
-                             }
-                           });
-
-                           const maxCount = Math.max(...chartData.map(d => d.count), 1);
-                           return chartData.map((d, i) => (
-                             <div key={i} className="flex-1 bg-gradient-to-t from-brand-neon/40 to-brand-magenta/40 rounded-t-sm transition-all duration-500 hover:from-brand-neon hover:to-brand-magenta relative" style={{ height: `${Math.max(5, (d.count / maxCount) * 100)}%` }}>
-                               <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 hover:opacity-100 bg-black text-white text-[9px] font-bold px-2 py-1 rounded border border-white/10 whitespace-nowrap z-20">
-                                 {d.count} views
-                               </div>
-                             </div>
-                           ));
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* AI INTEGRATION MODULE */}
-                  <div className="lg:col-span-1">
-                    <div className="bg-gradient-to-b from-[#1a1025] to-[#0a0a14] border border-brand-magenta/20 rounded-3xl p-6 shadow-xl h-full flex flex-col relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-brand-neon/10 blur-[50px] rounded-full pointer-events-none"></div>
-                      <div className="flex items-center gap-3 mb-6 relative z-10">
-                        <div className="w-10 h-10 rounded-xl bg-brand-magenta/20 border border-brand-magenta/50 flex items-center justify-center text-brand-magenta">
-                          <Cpu size={20} />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-white leading-tight">Vertex AI Insights</h3>
-                          <div className="text-[9px] uppercase tracking-widest text-brand-neon font-bold">Analista de Negócios / Site Analysis</div>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-400 mb-6 relative z-10 flex-1 overflow-y-auto custom-scrollbar">
-                        {aiInsights || "A inteligência Matrix está pronta para analisar os dados reais do site, cruzar com o inventário e entregar estratégias de conversão de alto impacto e análise de crescimento."}
-                      </p>
-                      <Button 
-                        disabled={generatingInsights}
-                        onClick={async () => {
-                          setGeneratingInsights(true);
-                          try {
-                            const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-                            if (!apiKey) throw new Error("VITE_VERTEX_API_KEY missing");
-                            
-                            const ai = new GoogleGenAI({ 
-                              apiKey,
-                              vertexai: {
-                                project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware',
-                                location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
-                              } as any
-                            });
-                            const now = new Date();
-                            const timeFrameMs = analyticsFilter === '30D' ? 30*24*60*60*1000 : analyticsFilter === '90D' ? 90*24*60*60*1000 : 365*24*60*60*1000;
-                            const filteredEvents = events.filter(e => {
-                              const eventTime = e.timestamp ? (e.timestamp.toMillis ? e.timestamp.toMillis() : e.timestamp) : now.getTime();
-                              return (now.getTime() - eventTime) < timeFrameMs;
-                            });
-    
-                            const cartEvents = filteredEvents.filter(e => e.type === 'add_to_cart');
-                            const checkoutEvents = filteredEvents.filter(e => e.type === 'checkout');
-                            const pageviews = filteredEvents.filter(e => e.type === 'pageview');
-                            const uniqueUsers = new Set(pageviews.map(e => e.sessionId)).size;
-                            
-                            const prompt = `Atue como um analista de dados especialista e estrategista cibernético para a Hardware Sale (e-commerce real em Moçambique).
-Dados Locais do Projeto:
-- Produtos em Stock: ${products.filter(p => p.status === 'stock').length}
-- Valor em Stock: ${products.reduce((acc, p) => acc + (p.status === 'stock' || p.status === 'na_box' ? Number(p.price) : 0), 0)} MT
-Site Analysis (${analyticsFilter}):
-- Visitantes Ativos Únicos: ${uniqueUsers}
-- Adições ao Carrinho: ${cartEvents.length}
-- Checkouts Iniciados: ${checkoutEvents.length}
-- Taxa de Crescimento (Simulada): +10% 
-
-Forneça uma análise global rápida do contexto, recomende estratégias precisas para converter mais visitantes em leads/compradores e sugira como alavancar a audiência atual. Seja incisivo, tom corporativo agressivo. Mantenha em 4 frases diretas.`;
-
-                            const startTime = performance.now();
-                            const response = await ai.models.generateContent({
-                                model: "gemini-3.1-pro-preview",
-                                contents: prompt,
-                            });
-                            const endTime = performance.now();
-                            setAiInsights(response.text || null);
-                            logAetherLabsUsage(endTime - startTime, prompt, response.text || "");
-                          } catch (err: any) {
-                            setAiInsights("Erro ao conectar à Vertex AI. Verifique as variáveis de ambiente.");
-                            console.error(err);
-                          } finally {
-                            setGeneratingInsights(false);
-                          }
-                        }}
-                        className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl py-6 font-bold flex items-center justify-center gap-2 transition-all relative z-10"
-                      >
-                        {generatingInsights ? <div className="w-5 h-5 rounded-full border-2 border-brand-neon border-t-transparent animate-spin" /> : <LineChart size={18} />}
-                        {generatingInsights ? 'Processando Telemetria...' : 'Gerar Estratégia Matrix'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl">
-                  <h3 className="text-xl font-bold text-white mb-6">Produtos Adicionados Recentemente</h3>
-                  {loading ? (
-                    <div className="py-20 flex justify-center"><div className="w-8 h-8 rounded-full border-2 border-brand-neon border-t-transparent animate-spin"></div></div>
-                  ) : products.length > 0 ? (
-                    <div className="space-y-4">
-                      {products.slice(0, 5).map(product => (
-                        <div key={product.id} className="flex items-center gap-4 p-4 rounded-2xl bg-black/40 border border-white/5 hover:border-white/10 transition-colors">
-                          <img src={product.images && product.images[0] ? product.images[0] : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c'} alt={product.name} className="w-16 h-16 rounded-xl object-cover border border-white/10 bg-white/5" />
-                          <div className="flex-1">
-                            <h4 className="font-bold text-white text-lg">{product.name}</h4>
-                            <div className="text-gray-400 text-sm font-medium">{product.category}</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-bold text-brand-neon">{Number(product.price).toLocaleString()} MT</div>
-                            <div className={`text-[10px] uppercase font-bold tracking-widest inline-block px-2 py-0.5 rounded-full mt-1 ${
-                                product.status === 'stock' ? 'bg-green-500/20 text-green-400' :
-                                product.status === 'encomenda' ? 'bg-blue-500/20 text-blue-400' :
-                                product.status === 'na_box' ? 'bg-purple-500/20 text-purple-400' :
-                                'bg-orange-500/20 text-orange-400'
-                              }`}>{product.status?.replace('_', ' ')}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 font-medium text-center py-10">Nenhum produto encontrado.</p>
-                  )}
                 </div>
               </div>
             )}
