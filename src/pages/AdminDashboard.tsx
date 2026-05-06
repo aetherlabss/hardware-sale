@@ -53,6 +53,8 @@ export function AdminDashboard() {
   const [bSpecs, setBSpecs] = useState(''); // comma separated
   const [bImages, setBImages] = useState('');
 
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   const ALLOWED_ADMINS = ['admin@hardwaresales.co.mz', 'gabriel.vieira.jamal@gmail.com'];
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -132,7 +134,7 @@ Retorne um JSON válido com esta exata estrutura:
       if (parsed.subCategory) setSubCategory(parsed.subCategory);
       if (parsed.images && Array.isArray(parsed.images)) {
         const validImages = parsed.images.filter((img: string) => img && !img.includes('placeholder'));
-        setImages(validImages.join(', '));
+        setImages(validImages.join('|||'));
       } else if (parsed.image_url && !parsed.image_url.includes('placeholder')) {
         setImages(parsed.image_url);
       }
@@ -186,7 +188,10 @@ Retorne um JSON válido com esta exata estrutura:
       if (parsed.bSocket) setBSocket(parsed.bSocket);
       if (parsed.bSpecs) setBSpecs(parsed.bSpecs);
       if (parsed.images && Array.isArray(parsed.images)) {
-        setBImages(parsed.images.join(', '));
+        const validImages = parsed.images.filter((img: string) => img && !img.includes('placeholder'));
+        setBImages(validImages.join('|||'));
+      } else if (parsed.image_url && !parsed.image_url.includes('placeholder')) {
+        setBImages(parsed.image_url);
       }
     } catch (err) {
       console.error("Builder Auto-complete failed:", err);
@@ -281,7 +286,9 @@ Retorne um JSON válido com esta exata estrutura:
         const base64 = await processImage(files[i]);
         base64Images.push(base64);
       }
-      setImages(prev => prev ? `${prev}, ${base64Images.join(', ')}` : base64Images.join(', '));
+      // Combine existing images (split safely) and new images using a dedicated array approach instead of strings
+      const currentImgs = images ? images.split('|||').filter(Boolean) : [];
+      setImages([...currentImgs, ...base64Images].join('|||'));
     } catch (err) {
       console.error("Error processing image:", err);
     }
@@ -296,7 +303,8 @@ Retorne um JSON válido com esta exata estrutura:
         const base64 = await processImage(files[i]);
         base64Images.push(base64);
       }
-      setBImages(prev => prev ? `${prev}, ${base64Images.join(', ')}` : base64Images.join(', '));
+      const currentImgs = bImages ? bImages.split('|||').filter(Boolean) : [];
+      setBImages([...currentImgs, ...base64Images].join('|||'));
     } catch (err) {
       console.error("Error processing image:", err);
     }
@@ -368,7 +376,7 @@ Retorne um JSON válido com esta exata estrutura:
   const handleAddBuilderComponent = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const parsedImages = bImages.split(',').map(i => i.trim()).filter(Boolean);
+      const parsedImages = bImages.split('|||').map(i => i.trim()).filter(Boolean);
       const specsList = bSpecs.split(',').map(s => s.trim()).filter(Boolean);
       const parsedSpecs: Record<string, string> = {};
       specsList.forEach((s, i) => parsedSpecs[`Espec ${i+1}`] = s);
@@ -409,7 +417,7 @@ Retorne um JSON válido com esta exata estrutura:
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const parsedImages = images.split(',').map(i => i.trim()).filter(Boolean);
+      const parsedImages = images.split('|||').map(i => i.trim()).filter(Boolean);
       const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean);
       
       const parsedSpecs: Record<string, string> = {};
@@ -479,7 +487,7 @@ Retorne um JSON válido com esta exata estrutura:
     if (p.specs?.['Estado'] === 'Na Box (Selado)') cond = 'na_box';
     setCondition(cond);
 
-    setImages(p.images?.join(', ') || '');
+    setImages(p.images?.join('|||') || '');
     setDesc(p.desc || '');
     setTags(p.tags?.join(', ') || '');
     
@@ -582,6 +590,16 @@ Retorne um JSON válido com esta exata estrutura:
   return (
     <div className="flex h-screen bg-[#050510] text-[#f8f8fc] selection:bg-brand-neon/30 overflow-hidden font-sans">
       
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={() => setPreviewImage(null)}>
+          <button onClick={() => setPreviewImage(null)} className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-brand-neon transition-colors border border-white/20">
+            <X size={24} />
+          </button>
+          <img src={previewImage} className="max-w-full max-h-full object-contain rounded-2xl border border-white/10 shadow-2xl" onClick={e => e.stopPropagation()} />
+        </div>
+      )}
+
       {/* Mobile Sidebar Toggle */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0a0a14] border-b border-white/5 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-3">
@@ -1240,14 +1258,14 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                <Plus size={16} className="text-gray-500 mb-1" />
                                <p className="text-[10px] text-gray-400 font-bold">Arraste ou Clique (Max 4MB)</p>
                              </div>
-                             <Input value={images} onChange={e => setImages(e.target.value)} className="bg-white/5 border-white/10 h-8 text-[10px] rounded-lg mb-2" placeholder="URLs, separadas por vírgula..." />
+                             <Input value={images} onChange={e => setImages(e.target.value)} className="bg-white/5 border-white/10 h-8 text-[10px] rounded-lg mb-2" placeholder="URLs online (separadas por |||)" />
                              
                              {images && (
                                <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[80px] custom-scrollbar">
-                                 {images.split(',').map((img, i) => img.trim() && (
-                                   <div key={i} className="relative w-10 h-10 rounded-md border border-white/10 bg-black/50 overflow-hidden group shrink-0">
-                                     <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-0.5 right-0.5 bg-red-500 rounded text-white z-10 opacity-0 group-hover:opacity-100"><X size={8} /></button>
-                                     <img src={img.trim()} alt="" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=50&q=80' }} className="w-full h-full object-cover opacity-80 group-hover:opacity-100" />
+                                 {images.split('|||').map((img, i) => img.trim() && (
+                                   <div key={i} className="relative w-12 h-12 rounded-md border border-white/10 bg-black/50 overflow-hidden group shrink-0 cursor-zoom-in" onClick={() => setPreviewImage(img.trim())}>
+                                     <button type="button" onClick={(e) => { e.stopPropagation(); setImages(images.split('|||').filter((_, idx) => idx !== i).join('|||')); }} className="absolute top-0.5 right-0.5 bg-red-500 rounded text-white z-10 opacity-0 group-hover:opacity-100"><X size={10} /></button>
+                                     <img src={img.trim()} alt="" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=50&q=80' }} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                    </div>
                                  ))}
                                </div>
@@ -1416,7 +1434,18 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                <Plus size={16} className="text-gray-500 mb-1" />
                                <p className="text-[10px] text-gray-400 font-bold">Upload (Max 4MB)</p>
                              </div>
-                             <Input value={bImages} onChange={e => setBImages(e.target.value)} className="bg-white/5 border-white/10 h-8 text-[10px] rounded-lg mb-2" placeholder="URLs, separadas por vírgula..." />
+                             <Input value={bImages} onChange={e => setBImages(e.target.value)} className="bg-white/5 border-white/10 h-8 text-[10px] rounded-lg mb-2" placeholder="URLs online (separadas por |||)" />
+
+                             {bImages && (
+                               <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[80px] custom-scrollbar">
+                                 {bImages.split('|||').map((img, i) => img.trim() && (
+                                   <div key={i} className="relative w-12 h-12 rounded-md border border-white/10 bg-black/50 overflow-hidden group shrink-0 cursor-zoom-in" onClick={() => setPreviewImage(img.trim())}>
+                                     <button type="button" onClick={(e) => { e.stopPropagation(); setBImages(bImages.split('|||').filter((_, idx) => idx !== i).join('|||')); }} className="absolute top-0.5 right-0.5 bg-red-500 rounded text-white z-10 opacity-0 group-hover:opacity-100"><X size={10} /></button>
+                                     <img src={img.trim()} alt="" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=50&q=80' }} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                   </div>
+                                 ))}
+                               </div>
+                             )}
                            </div>
                            
                            {/* Actions */}
