@@ -973,157 +973,137 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                 </div>
 
                 {isAdding && (
-                  <Card className="bg-transparent border-0 shadow-none mb-12 animate-in fade-in slide-in-from-top-4">
-                    <form onSubmit={handleAddProduct} className="space-y-6">
+                  <div className="mb-8 animate-in fade-in slide-in-from-top-4">
+                    <form onSubmit={handleAddProduct} className="flex flex-col gap-4">
                       
-                      {/* AI Magic Fill Banner */}
-                      <div className="bg-gradient-to-r from-brand-neon/10 to-brand-magenta/10 rounded-[2rem] p-6 border border-brand-neon/20 shadow-[0_0_30px_rgba(168,85,247,0.15)] flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
-                        <div className="absolute inset-0 bg-brand-neon/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-neon to-brand-magenta flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(168,85,247,0.5)]">
-                          <Sparkles className="w-6 h-6 text-white" />
+                      {/* AI Magic Fill Banner - COMPACT */}
+                      <div className="bg-gradient-to-r from-brand-neon/10 to-brand-magenta/10 rounded-xl p-3 border border-brand-neon/20 flex items-center justify-between gap-4 shadow-sm">
+                        <div className="flex items-center gap-3">
+                           <Sparkles className="w-5 h-5 text-brand-neon" />
+                           <div>
+                             <h3 className="font-bold text-white text-sm">Amani Neural Fill</h3>
+                             <p className="text-xs text-gray-400 hidden sm:block">Digite o nome da peça e a IA preenche o resto.</p>
+                           </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-extrabold text-white text-lg flex items-center gap-2">Amani Neural Fill <span className="px-2 py-0.5 bg-white/10 rounded-full text-[9px] uppercase tracking-widest text-brand-neon">Magia</span></h3>
-                          <p className="text-sm text-gray-400">Escreva apenas o nome da peça ou máquina. A inteligência artificial vai pesquisar imagens transparentes e preencher todas as especificações técnicas e categoria automaticamente.</p>
-                        </div>
-                        <div className="flex flex-col sm:flex-row w-full md:w-auto gap-2 relative z-10">
-                          <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: RTX 4090 Strix" className="w-full sm:w-64 bg-black/40 border-white/10 h-12 rounded-xl text-white focus:border-brand-neon transition-colors" />
-                          <Button type="button" onClick={handleAutocomplete} disabled={!name || isAutoCompleting} className="h-12 bg-white text-black font-extrabold rounded-xl px-6 hover:bg-gray-200 transition-transform hover:scale-105 shadow-xl flex items-center justify-center gap-2 w-full sm:w-auto">
-                            {isAutoCompleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Autofill'}
+                        <div className="flex gap-2 w-full sm:w-auto">
+                          <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: RTX 4090" className="w-full sm:w-48 bg-black/40 border-white/10 h-8 rounded-lg text-white text-xs focus:border-brand-neon" />
+                          <Button type="button" onClick={handleAutocomplete} disabled={!name || isAutoCompleting} className="h-8 bg-white text-black font-bold rounded-lg px-4 text-xs hover:bg-gray-200">
+                            {isAutoCompleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Autofill'}
                           </Button>
                         </div>
                       </div>
 
-                      {/* iOS 26 Settings Group 1: General */}
-                      <div className="bg-[#0a0a14]/80 backdrop-blur-2xl border border-white/5 rounded-[2rem] overflow-hidden shadow-xl">
-                        <div className="p-6 border-b border-white/5 bg-white/[0.01]">
-                           <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Informação Base</h4>
-                        </div>
-                        <div className="p-6 space-y-6">
-                           <div className="flex flex-col md:flex-row gap-6">
-                             <div className="flex-1">
-                               <label className="block text-xs font-bold text-gray-400 mb-2">Nome do Produto</label>
-                               <Input required value={name} onChange={e => setName(e.target.value)} className="bg-transparent border-0 border-b border-white/10 rounded-none h-10 px-0 text-white text-lg focus-visible:ring-0 focus-visible:border-brand-neon transition-colors" placeholder="Nome Completo..." />
-                             </div>
-                             <div className="md:w-48">
-                               <label className="block text-xs font-bold text-gray-400 mb-2">Preço (MT)</label>
-                               <Input required type="number" value={price} onChange={e => setPrice(e.target.value)} className="bg-transparent border-0 border-b border-white/10 rounded-none h-10 px-0 text-brand-neon font-bold text-lg focus-visible:ring-0 focus-visible:border-brand-neon transition-colors" placeholder="0.00" />
-                             </div>
-                           </div>
-                           
-                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
-                             <div>
-                                <label className="block text-xs font-bold text-gray-400 mb-2">Categoria</label>
-                                <select required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon appearance-none">
-                                  <option value="Desktop's">Desktop's (PCs Completos)</option>
-                                  <option value="Displays">Displays (Monitores)</option>
-                                  <option value="Components">Components (Peças avulsas)</option>
-                                  <option value="Consolas">Consolas</option>
-                                  <option value="Laptops">Laptops</option>
-                                  <option value="Gadgets">Gadgets</option>
-                                </select>
-                             </div>
-                             <div>
-                                <label className="block text-xs font-bold text-gray-400 mb-2">Disponibilidade</label>
-                                <select required value={status} onChange={e => setStatus(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon appearance-none">
-                                  <option value="stock">Em Stock</option>
-                                  <option value="encomenda">Por Encomenda</option>
-                                </select>
-                             </div>
-                             <div>
-                                <label className="block text-xs font-bold text-gray-400 mb-2">Estado Físico</label>
-                                <select required value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon appearance-none">
-                                  <option value="novo">Novo</option>
-                                  <option value="na_box">Na Box (Selado)</option>
-                                  <option value="usado">Usado (Premium)</option>
-                                </select>
-                             </div>
-                           </div>
-                           
-                           <div className="pt-4">
-                              <label className="block text-xs font-bold text-gray-400 mb-2">Tags de Pesquisa</label>
-                              <Input value={tags} onChange={e => setTags(e.target.value)} className="bg-transparent border-0 border-b border-white/10 rounded-none h-10 px-0 text-white text-sm focus-visible:ring-0 focus-visible:border-brand-neon transition-colors" placeholder="Ex: RTX, 4K, Watercooled (Separadas por vírgula)" />
-                           </div>
-                        </div>
-                      </div>
-
-                      {/* iOS 26 Settings Group 2: Media */}
-                      <div className="bg-[#0a0a14]/80 backdrop-blur-2xl border border-white/5 rounded-[2rem] overflow-hidden shadow-xl">
-                        <div className="p-6 border-b border-white/5 bg-white/[0.01]">
-                           <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Média & Imagens</h4>
-                        </div>
-                        <div className="p-6">
-                           <div className="flex flex-col gap-4">
-                             <div className="relative border-2 border-dashed border-white/10 rounded-[1.5rem] p-10 hover:bg-white/[0.02] hover:border-brand-neon/50 transition-colors flex flex-col items-center justify-center text-center cursor-pointer group">
-                               <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                               <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:bg-brand-neon/10 group-hover:text-brand-neon transition-colors text-gray-400 shadow-inner">
-                                 <Plus size={28} />
+                      {/* Main Form Area - Dense Grid */}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        {/* Col 1 & 2: General & Specs */}
+                        <div className="lg:col-span-2 space-y-4">
+                          <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-4 shadow-sm">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                               <div className="col-span-2">
+                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nome</label>
+                                 <Input required value={name} onChange={e => setName(e.target.value)} className="bg-white/5 border-white/10 h-8 text-white text-xs rounded-lg" placeholder="Nome Completo..." />
                                </div>
-                               <p className="text-base font-bold text-white mb-1">Arraste as imagens para aqui</p>
-                               <p className="text-xs text-gray-500">ou clique para procurar no seu computador (Max 4MB)</p>
+                               <div>
+                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Preço (MT)</label>
+                                 <Input required type="number" value={price} onChange={e => setPrice(e.target.value)} className="bg-white/5 border-white/10 h-8 text-brand-neon font-bold text-xs rounded-lg" placeholder="0.00" />
+                               </div>
+                               <div>
+                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
+                                 <select required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg h-8 px-2 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none">
+                                   <option value="Desktop's">Desktop's</option>
+                                   <option value="Displays">Displays</option>
+                                   <option value="Components">Components</option>
+                                   <option value="Consolas">Consolas</option>
+                                   <option value="Laptops">Laptops</option>
+                                   <option value="Gadgets">Gadgets</option>
+                                 </select>
+                               </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-3 mb-3">
+                               <div>
+                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Disponibilidade</label>
+                                  <select required value={status} onChange={e => setStatus(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg h-8 px-2 text-xs font-bold text-white outline-none">
+                                    <option value="stock">Em Stock</option>
+                                    <option value="encomenda">Por Encomenda</option>
+                                  </select>
+                               </div>
+                               <div>
+                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Estado Físico</label>
+                                  <select required value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg h-8 px-2 text-xs font-bold text-white outline-none">
+                                    <option value="novo">Novo</option>
+                                    <option value="na_box">Na Box (Selado)</option>
+                                    <option value="usado">Usado (Premium)</option>
+                                  </select>
+                               </div>
+                               <div>
+                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Tags (Vírgula)</label>
+                                  <Input value={tags} onChange={e => setTags(e.target.value)} className="bg-white/5 border-white/10 h-8 text-xs text-white rounded-lg" placeholder="Ex: RTX, 4K" />
+                               </div>
+                            </div>
+
+                            <div>
+                               <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Descrição</label>
+                               <textarea required value={desc} onChange={e => setDesc(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white min-h-[60px] resize-y custom-scrollbar" placeholder="Descrição..." />
+                            </div>
+                          </div>
+
+                          <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-4 shadow-sm">
+                             <div className="flex justify-between items-center mb-2">
+                               <label className="block text-[10px] font-bold text-gray-500 uppercase">Especificações Técnicas</label>
+                               <button type="button" onClick={() => setSpecsList([...specsList, {key: '', value: ''}])} className="text-[10px] font-bold text-brand-neon hover:text-white flex items-center gap-1"><Plus size={10}/> Add Spec</button>
                              </div>
-                             
-                             <Input value={images} onChange={e => setImages(e.target.value)} className="bg-black/40 border-white/10 h-12 rounded-xl text-sm px-4 focus:border-brand-neon transition-colors" placeholder="Ou cole URLs externos (separados por vírgula)..." />
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+                               {specsList.map((spec, index) => (
+                                 <div key={index} className="flex items-center gap-1 group bg-white/5 p-1 rounded-md border border-white/5 hover:border-white/20 transition-colors">
+                                   <Input value={spec.key} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].key = e.target.value; setSpecsList(newSpecs); }} placeholder="Chave" className="w-1/3 bg-transparent border-0 h-6 text-[10px] px-1 text-gray-300 focus-visible:ring-0" />
+                                   <span className="text-gray-600">:</span>
+                                   <Input value={spec.value} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].value = e.target.value; setSpecsList(newSpecs); }} placeholder="Valor" className="flex-1 bg-transparent border-0 h-6 text-[10px] px-1 text-white focus-visible:ring-0" />
+                                   <button type="button" onClick={() => { const newSpecs = specsList.filter((_, i) => i !== index); setSpecsList(newSpecs.length ? newSpecs : [{key: '', value: ''}]); }} className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
+                                 </div>
+                               ))}
+                             </div>
+                          </div>
+                        </div>
+
+                        {/* Col 3: Media & Actions */}
+                        <div className="flex flex-col gap-4">
+                           <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-4 shadow-sm flex-1 flex flex-col">
+                             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Imagens</label>
+                             <div className="relative border border-dashed border-white/10 rounded-xl p-4 hover:border-brand-neon/30 transition-colors flex flex-col items-center justify-center text-center cursor-pointer mb-3 bg-white/[0.02] flex-1 min-h-[100px]">
+                               <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                               <Plus size={16} className="text-gray-500 mb-1" />
+                               <p className="text-[10px] text-gray-400 font-bold">Arraste ou Clique (Max 4MB)</p>
+                             </div>
+                             <Input value={images} onChange={e => setImages(e.target.value)} className="bg-white/5 border-white/10 h-8 text-[10px] rounded-lg mb-2" placeholder="URLs, separadas por vírgula..." />
                              
                              {images && (
-                               <div className="flex flex-wrap gap-4 mt-4">
+                               <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[80px] custom-scrollbar">
                                  {images.split(',').map((img, i) => img.trim() && (
-                                   <div key={i} className="relative w-28 h-28 rounded-2xl border border-white/10 bg-black/50 overflow-hidden group shadow-lg">
-                                     <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-2 right-2 w-7 h-7 bg-red-500/90 backdrop-blur-md text-white flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-all hover:scale-110 z-10"><X size={14} strokeWidth={2.5}/></button>
-                                     <img src={img.trim()} alt="" className="w-full h-full object-cover p-2 opacity-90 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-500" />
+                                   <div key={i} className="relative w-10 h-10 rounded-md border border-white/10 bg-black/50 overflow-hidden group shrink-0">
+                                     <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-0.5 right-0.5 bg-red-500 rounded text-white opacity-0 group-hover:opacity-100"><X size={8} /></button>
+                                     <img src={img.trim()} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100" />
                                    </div>
                                  ))}
                                </div>
                              )}
                            </div>
-                        </div>
-                      </div>
-
-                      {/* iOS 26 Settings Group 3: Specs & Desc */}
-                      <div className="bg-[#0a0a14]/80 backdrop-blur-2xl border border-white/5 rounded-[2rem] overflow-hidden shadow-xl">
-                        <div className="p-6 border-b border-white/5 bg-white/[0.01]">
-                           <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Detalhes Técnicos</h4>
-                        </div>
-                        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                           {/* Specs Builder */}
-                           <div>
-                             <div className="flex justify-between items-center mb-4">
-                               <label className="block text-xs font-bold text-gray-400">Construtor Dinâmico</label>
-                               <button type="button" onClick={() => setSpecsList([...specsList, {key: '', value: ''}])} className="text-xs font-bold text-brand-neon hover:text-brand-magenta flex items-center gap-1 transition-colors"><Plus size={14}/> Adicionar Spec</button>
-                             </div>
-                             <div className="bg-black/30 border border-white/5 rounded-2xl p-2 space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
-                               {specsList.map((spec, index) => (
-                                 <div key={index} className="flex items-center gap-2 group bg-white/[0.02] p-2 rounded-xl border border-white/5 hover:border-brand-neon/30 transition-colors">
-                                   <Input value={spec.key} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].key = e.target.value; setSpecsList(newSpecs); }} placeholder="Chave (Ex: RAM)" className="w-1/3 bg-transparent border-0 h-8 text-xs focus-visible:ring-0 px-2 font-bold text-gray-300" />
-                                   <span className="text-gray-600 font-bold">:</span>
-                                   <Input value={spec.value} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].value = e.target.value; setSpecsList(newSpecs); }} placeholder="Valor (Ex: 32GB DDR5)" className="flex-1 bg-transparent border-0 h-8 text-xs focus-visible:ring-0 px-2 text-white" />
-                                   <button type="button" onClick={() => { const newSpecs = specsList.filter((_, i) => i !== index); setSpecsList(newSpecs.length ? newSpecs : [{key: '', value: ''}]); }} className="text-gray-600 hover:text-red-500 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-500/10"><X size={14} /></button>
-                                 </div>
-                               ))}
-                             </div>
-                           </div>
                            
-                           {/* Description */}
-                           <div className="flex flex-col">
-                             <label className="block text-xs font-bold text-gray-400 mb-4">Descrição Comercial (Markdown)</label>
-                             <textarea required value={desc} onChange={e => setDesc(e.target.value)} className="flex-1 w-full bg-black/30 border border-white/5 rounded-2xl p-5 text-sm focus:outline-none focus:border-brand-neon text-white min-h-[250px] leading-relaxed resize-none custom-scrollbar" placeholder="Descreva a imponência desta peça..." />
+                           {/* Actions */}
+                           <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-3 flex justify-end gap-2 shadow-sm shrink-0">
+                              <Button type="button" onClick={() => {
+                                 setIsAdding(false);
+                                 setEditingId(null);
+                                 setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsList([{key: '', value: ''}]);
+                              }} variant="ghost" className="h-8 text-xs px-4 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border-0">Cancelar</Button>
+                              <Button type="submit" className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
+                                {editingId ? 'Atualizar' : 'Guardar Produto'}
+                              </Button>
                            </div>
                         </div>
-                      </div>
-
-                      {/* Action Bar */}
-                      <div className="sticky bottom-6 z-50 flex justify-end gap-4 p-4 bg-[#0a0a14]/90 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
-                        <Button type="button" onClick={() => {
-                           setIsAdding(false);
-                           setEditingId(null);
-                           setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsList([{key: '', value: ''}]);
-                        }} variant="ghost" className="text-white hover:bg-white/10 h-12 px-8 rounded-xl font-bold border-0">Cancelar Operação</Button>
-                        <Button type="submit" className="bg-brand-neon hover:bg-brand-magenta text-black font-extrabold h-12 px-10 rounded-xl transition-all shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:scale-105">
-                          {editingId ? 'Atualizar na Matrix' : 'Gravar no Catálogo'}
-                        </Button>
                       </div>
                     </form>
-                  </Card>
+                  </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
