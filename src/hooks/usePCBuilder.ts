@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getAssetUrl } from "../lib/assets";
+import { useStore } from "../store/useStore";
 
 export interface ComponentItem {
   id: string;
@@ -13,7 +14,7 @@ export interface ComponentItem {
   specs: string[];
 }
 
-export const mockComponents: ComponentItem[] = [
+const mockComponents: ComponentItem[] = [
   // Motherboards
   { id: "m1", type: "motherboard", name: "ROG Maximus Z790 Extreme", priceMT: 85000, socket: "LGA1700", wattage: 50, image: getAssetUrl("/rog-maximus-z790-extreme.jpg"), specs: ["E-ATX Form", "DDR5 8000+ MHz", "Thunderbolt 4"] },
   { id: "m2", type: "motherboard", name: "X670E AORUS XTREME", priceMT: 78000, socket: "AM5", wattage: 50, image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&q=80", specs: ["E-ATX Form", "18+2+2 Power Phases", "PCIe 5.0"] },
@@ -75,6 +76,70 @@ export const mockComponents: ComponentItem[] = [
 export function usePCBuilder() {
   const [searchParams] = useSearchParams();
   const preset = searchParams.get('preset');
+  const { products, initProducts } = useStore();
+
+  useEffect(() => {
+    // Only init if not loaded (the store might already be pulling them)
+    if (products.length === 0) {
+      initProducts();
+    }
+  }, [products.length, initProducts]);
+
+  const allComponents = useMemo(() => {
+    const typeMap: Record<string, string> = {
+      'CPU': 'cpu',
+      'GPU': 'gpu',
+      'Motherboard': 'motherboard',
+      'RAM': 'ram',
+      'Fonte': 'psu',
+      'Case': 'case',
+      'Armazenamento': 'storage',
+      'Air Cooler': 'cooler',
+      'Liquid Cooling': 'cooler',
+      'Fans': 'fans',
+      'Teclado': 'peripheral',
+      'Rato': 'peripheral',
+      'Headsets': 'peripheral',
+      'Mousepad': 'peripheral',
+    };
+
+    const parsedRealComponents: ComponentItem[] = products
+      .filter(p => p.category === 'Components' || p.category === 'Gadgets')
+      .map(p => {
+        // Try to get subCategory from the subCategory field or tags
+        const subC = (p as any).subCategory || (p.tags && p.tags.find((t: string) => typeMap[t])) || '';
+        const type = (typeMap[subC] as ComponentItem['type']) || 'peripheral';
+        
+        let wattage = 0;
+        if (p.specs && p.specs['TDP']) wattage = parseInt(p.specs['TDP']) || 0;
+        else if (p.specs && p.specs['Consumo']) wattage = parseInt(p.specs['Consumo']) || 0;
+        else if (type === 'psu') {
+          const cap = p.specs?.['Capacidade'] || p.specs?.['Watts'] || p.name.match(/(\d+)W/)?.[1] || '0';
+          wattage = parseInt(cap);
+        }
+
+        let socket = p.specs?.['Socket'] || p.specs?.['LGA'] || p.specs?.['Plataforma'] || undefined;
+
+        // Take first 3 values for specs preview
+        const specsList = p.specs ? Object.values(p.specs).slice(0, 3) as string[] : [];
+
+        return {
+          id: p.id,
+          type,
+          name: p.name,
+          priceMT: p.price,
+          socket,
+          wattage,
+          image: p.images?.[0] || p.image || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c',
+          specs: specsList
+        };
+      });
+
+    // Merge real products overriding mock ones if there's a lot, or just append them
+    // Here we append so users can see both if real DB is small, otherwise prioritize real.
+    // We can just concatenate them.
+    return [...parsedRealComponents, ...mockComponents];
+  }, [products]);
 
   const [selectedMotherboard, setSelectedMotherboard] = useState<ComponentItem | null>(null);
   const [selectedCPU, setSelectedCPU] = useState<ComponentItem | null>(null);
@@ -88,9 +153,9 @@ export function usePCBuilder() {
   const [selectedPeripherals, setSelectedPeripherals] = useState<ComponentItem[]>([]);
 
   useEffect(() => {
-    if (preset) {
+    if (preset && allComponents.length > 0) {
       const ids = preset.split(',');
-      const getC = (type: string) => mockComponents.find(c => c.type === type && ids.includes(c.id)) || null;
+      const getC = (type: string) => allComponents.find(c => c.type === type && ids.includes(c.id)) || null;
 
       setSelectedMotherboard(getC('motherboard'));
       setSelectedCPU(getC('cpu'));
@@ -102,15 +167,18 @@ export function usePCBuilder() {
       setSelectedCase(getC('case'));
       setSelectedFans(getC('fans'));
 
-      const pers = mockComponents.filter(c => c.type === 'peripheral' && ids.includes(c.id));
+      const pers = allComponents.filter(c => c.type === 'peripheral' && ids.includes(c.id));
       if (pers.length > 0) setSelectedPeripherals(pers);
     }
-  }, [preset]);
+  }, [preset, allComponents]);
 
   const recommendedMotherboards = useMemo(() => {
-    if (!selectedCPU) return mockComponents.filter(c => c.type === "motherboard");
-    return mockComponents.filter(c => c.type === "motherboard" && c.socket === selectedCPU.socket);
-  }, [selectedCPU]);
+    if (!selectedCPU) return allComponents.filter(c => c.type === "motherboard");
+    // Some real products might not have socket mapped perfectly, so we return all if socket missing to avoid empty lists
+    if (!selectedCPU.socket) return allComponents.filter(c => c.type === "motherboard");
+    
+    return allComponents.filter(c => c.type === "motherboard" && (!c.socket || c.socket.includes(selectedCPU.socket as string) || (selectedCPU.socket as string).includes(c.socket)));
+  }, [selectedCPU, allComponents]);
 
   const totalWattage = useMemo(() => {
     return (selectedCPU?.wattage || 0) +
@@ -126,7 +194,7 @@ export function usePCBuilder() {
   const psuWarning = useMemo(() => {
     if (!selectedPSU) return null;
     const psuCapacity = selectedPSU.wattage || parseInt(selectedPSU.name.match(/(\d+)W/)?.[1] || "0");
-    if (totalWattage > psuCapacity * 0.8) {
+    if (psuCapacity > 0 && totalWattage > psuCapacity * 0.8) {
       return `Alerta: Consumo de pico (${totalWattage}W) está marginal para eficiência desta fonte (Max ${psuCapacity}W).`;
     }
     return null;
@@ -155,7 +223,7 @@ export function usePCBuilder() {
     selectedPeripherals.reduce((acc, p) => acc + p.priceMT, 0);
 
   return {
-    mockComponents,
+    mockComponents: allComponents,
     selections: { selectedMotherboard, selectedCPU, selectedRAM, selectedStorage, selectedCooler, selectedGPU, selectedPSU, selectedCase, selectedFans, selectedPeripherals },
     setters: { setSelectedMotherboard, setSelectedCPU, setSelectedRAM, setSelectedStorage, setSelectedCooler, setSelectedGPU, setSelectedPSU, setSelectedCase, setSelectedFans, setSelectedPeripherals },
     totalPrice,

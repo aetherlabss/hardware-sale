@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { logAetherLabsUsage } from '../lib/aiTracking';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { mockComponents } from '../hooks/usePCBuilder';
+import { usePCBuilder } from '../hooks/usePCBuilder';
 
 // Lazy initialization to prevent crash on startup if API key is missing
 let aiClient: GoogleGenAI | null = null;
@@ -33,6 +33,7 @@ interface Message {
 }
 
 export function AmaniChat() {
+  const { mockComponents } = usePCBuilder();
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
