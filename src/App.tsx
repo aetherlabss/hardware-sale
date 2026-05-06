@@ -7,7 +7,9 @@ import { Checkout } from './pages/Checkout';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { Upgrade } from './pages/Upgrade';
 import { logEvent } from './lib/analytics';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import Lenis from 'lenis';
+import 'lenis/dist/lenis.css';
 
 function AnalyticsTracker({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -22,6 +24,31 @@ function AnalyticsTracker({ children }: { children: React.ReactNode }) {
 import { BuildOfTheMonth } from './pages/BuildOfTheMonth';
 
 export default function App() {
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      touchMultiplier: 2,
+    });
+
+    let rafId: number;
+    function raf(time: number) {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    }
+
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <AnalyticsTracker>

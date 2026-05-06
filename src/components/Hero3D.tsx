@@ -1,83 +1,97 @@
-import React, { useRef, useEffect } from 'react';
-import gsap from 'gsap';
+import React, { useRef, useMemo } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Points, PointMaterial } from '@react-three/drei';
+import * as THREE from 'three';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 
-export function Hero3D() {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
+function ParticleSwarm({ count = 5000 }) {
+  const pointsRef = useRef<THREE.Points>(null);
+  
+  // Generate random positions and colors for particles
+  const [positions, colors] = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
     
-    // Create an ultra-premium subtle ambient movement
-    const ctx = gsap.context(() => {
-      gsap.to('.ambient-blob-1', {
-        x: 'random(-100, 100)',
-        y: 'random(-100, 100)',
-        rotation: 'random(-45, 45)',
-        duration: 'random(10, 15)',
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-      });
-      gsap.to('.ambient-blob-2', {
-        x: 'random(-100, 100)',
-        y: 'random(-100, 100)',
-        rotation: 'random(-45, 45)',
-        duration: 'random(12, 18)',
-        repeat: -1,
-        yoyo: true,
-        ease: 'power2.inOut',
-      });
+    // Brand Colors
+    const neon = new THREE.Color('#a855f7'); // Vivid Purple
+    const magenta = new THREE.Color('#ec4899'); // Pink
+    const white = new THREE.Color('#ffffff');
+    
+    for (let i = 0; i < count; i++) {
+      const theta = THREE.MathUtils.randFloatSpread(360);
+      const phi = THREE.MathUtils.randFloatSpread(360);
+      const r = THREE.MathUtils.randFloatSpread(20) + 5;
       
-      gsap.fromTo('.grid-line-h', 
-        { scaleX: 0, opacity: 0 },
-        { scaleX: 1, opacity: 0.1, duration: 2, stagger: 0.1, ease: 'power3.inOut' }
-      );
-      gsap.fromTo('.grid-line-v', 
-        { scaleY: 0, opacity: 0 },
-        { scaleY: 1, opacity: 0.1, duration: 2, stagger: 0.1, ease: 'power3.inOut' }
-      );
-    }, containerRef);
+      const x = r * Math.sin(theta) * Math.cos(phi);
+      const y = r * Math.sin(theta) * Math.sin(phi);
+      const z = r * Math.cos(theta);
 
-    return () => ctx.revert();
-  }, []);
+      positions[i * 3] = x;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = z;
+
+      const mixedColor = Math.random() > 0.8 ? white : (Math.random() > 0.5 ? neon : magenta);
+      
+      colors[i * 3] = mixedColor.r;
+      colors[i * 3 + 1] = mixedColor.g;
+      colors[i * 3 + 2] = mixedColor.b;
+    }
+    return [positions, colors];
+  }, [count]);
+
+  useFrame((state) => {
+    if (pointsRef.current) {
+      pointsRef.current.rotation.x = Math.sin(state.clock.elapsedTime / 10) * 0.2;
+      pointsRef.current.rotation.y = Math.cos(state.clock.elapsedTime / 15) * 0.2;
+      pointsRef.current.rotation.z -= 0.001;
+      
+      // Subtle mouse tracking
+      const mouseX = (state.pointer.x * Math.PI) / 10;
+      const mouseY = (state.pointer.y * Math.PI) / 10;
+      
+      pointsRef.current.rotation.x += (mouseY - pointsRef.current.rotation.x) * 0.05;
+      pointsRef.current.rotation.y += (mouseX - pointsRef.current.rotation.y) * 0.05;
+    }
+  });
 
   return (
-    <div ref={containerRef} className="absolute inset-0 z-0 pointer-events-none overflow-hidden bg-[#020204]">
-      {/* Dynamic Grid */}
-      <div className="absolute inset-0 perspective-[1000px] flex items-center justify-center opacity-30 mix-blend-screen">
-        <div className="w-[200vw] h-[200vh] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-x-[60deg] translate-z-[-200px]">
-          {/* Horizontal Lines */}
-          <div className="absolute inset-0 flex flex-col justify-between">
-            {Array.from({ length: 40 }).map((_, i) => (
-              <div key={`h-${i}`} className="grid-line-h w-full h-[1px] bg-brand-neon origin-center" />
-            ))}
-          </div>
-          {/* Vertical Lines */}
-          <div className="absolute inset-0 flex justify-between">
-            {Array.from({ length: 40 }).map((_, i) => (
-              <div key={`v-${i}`} className="grid-line-v w-[1px] h-full bg-brand-magenta origin-center" />
-            ))}
-          </div>
-        </div>
+    <Points ref={pointsRef} positions={positions} colors={colors} stride={3} frustumCulled={false}>
+      <PointMaterial 
+        transparent 
+        vertexColors 
+        size={0.08} 
+        sizeAttenuation={true} 
+        depthWrite={false} 
+        blending={THREE.AdditiveBlending}
+      />
+    </Points>
+  );
+}
+
+export function Hero3D() {
+  return (
+    <div className="absolute inset-0 z-0 pointer-events-none bg-[#020204] overflow-hidden">
+      {/* 3D Canvas */}
+      <div className="absolute inset-0 z-10 opacity-80">
+        <Canvas camera={{ position: [0, 0, 15], fov: 60 }} dpr={[1, 2]}>
+          <ParticleSwarm count={8000} />
+          <EffectComposer>
+            <Bloom luminanceThreshold={0.1} mipmapBlur luminanceSmoothing={0.4} intensity={2.0} />
+          </EffectComposer>
+        </Canvas>
       </div>
 
       {/* Optical Flares & Gradients - AfterEffects Style */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-screen h-screen flex items-center justify-center mix-blend-screen">
-        {/* Core Flare */}
-        <div className="absolute w-[800px] h-[300px] bg-brand-neon/20 blur-[120px] rounded-full rotate-[35deg]"></div>
-        {/* Intense Center */}
-        <div className="absolute w-[400px] h-[100px] bg-white/40 blur-[60px] rounded-full"></div>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-screen h-screen flex items-center justify-center mix-blend-screen z-0">
+        <div className="absolute w-[800px] h-[300px] bg-brand-neon/20 blur-[120px] rounded-full rotate-[35deg] animate-pulse"></div>
+        <div className="absolute w-[400px] h-[100px] bg-white/10 blur-[60px] rounded-full"></div>
       </div>
       
-      {/* Ambient Moving Blobs for volumetric feel */}
-      <div className="ambient-blob-1 absolute top-[20%] left-[20%] w-[600px] h-[600px] bg-brand-magenta/15 blur-[150px] rounded-full mix-blend-screen opacity-70"></div>
-      <div className="ambient-blob-2 absolute bottom-[20%] right-[20%] w-[700px] h-[700px] bg-brand-neon/15 blur-[160px] rounded-full mix-blend-screen opacity-70"></div>
-      
       {/* Vignette Overlay to focus center */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,#020204_80%)]"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,#020204_90%)] z-20"></div>
       
-      {/* Scanlines / Noise Overlay */}
-      <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
+      {/* Noise Overlay */}
+      <div className="absolute inset-0 opacity-[0.04] mix-blend-overlay z-30" style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }}></div>
     </div>
   );
 }

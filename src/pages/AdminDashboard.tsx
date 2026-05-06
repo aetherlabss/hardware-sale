@@ -39,7 +39,7 @@ export function AdminDashboard() {
   const [tags, setTags] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [specsText, setSpecsText] = useState('');
+  const [specsList, setSpecsList] = useState<{key: string, value: string}[]>([{key: '', value: ''}]);
   const [isAutoCompleting, setIsAutoCompleting] = useState(false);
 
   const ALLOWED_ADMINS = ['admin@hardwaresales.co.mz', 'gabriel.vieira.jamal@gmail.com'];
@@ -106,7 +106,14 @@ Retorne um JSON válido com esta exata estrutura:
       
       const parsed = JSON.parse(text);
       if (parsed.desc) setDesc(parsed.desc);
-      if (parsed.specs) setSpecsText(parsed.specs);
+      if (parsed.specs) {
+        const lines = parsed.specs.split('\n');
+        const newList = lines.map((l: string) => {
+          const [k, v] = l.split(':');
+          return { key: k ? k.trim() : '', value: v ? v.trim() : '' };
+        }).filter((item: any) => item.key && item.value);
+        setSpecsList(newList.length ? newList : [{key: '', value: ''}]);
+      }
       if (parsed.tags) setTags(parsed.tags);
       if (parsed.category) setCategory(parsed.category);
       if (parsed.image_url) setImages(parsed.image_url);
@@ -198,7 +205,7 @@ Retorne um JSON válido com esta exata estrutura:
     const files = e.target.files;
     if (!files) return;
     try {
-      const base64Images = [];
+      const base64Images: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const base64 = await processImage(files[i]);
         base64Images.push(base64);
@@ -279,9 +286,8 @@ Retorne um JSON válido com esta exata estrutura:
       const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean);
       
       const parsedSpecs: Record<string, string> = {};
-      specsText.split('\n').forEach(line => {
-        const [k, v] = line.split(':');
-        if (k && v) parsedSpecs[k.trim()] = v.trim();
+      specsList.forEach(item => {
+        if (item.key && item.value) parsedSpecs[item.key.trim()] = item.value.trim();
       });
 
       // Include condition in specs directly
@@ -313,7 +319,7 @@ Retorne um JSON válido com esta exata estrutura:
       setImages('');
       setDesc('');
       setTags('');
-      setSpecsText('');
+      setSpecsList([{key: '', value: ''}]);
       setEditingId(null);
       setIsAdding(false);
     } catch (err) {
@@ -337,12 +343,14 @@ Retorne um JSON válido com esta exata estrutura:
     setDesc(p.desc || '');
     setTags(p.tags?.join(', ') || '');
     
-    // Reverse engineer specs map to text
+    // Reverse engineer specs map to list
     if (p.specs) {
-      const sp = Object.entries(p.specs).filter(([k]) => k !== 'Estado').map(([k, v]) => `${k}: ${v}`).join('\n');
-      setSpecsText(sp);
+      const spList = Object.entries(p.specs)
+        .filter(([k]) => k !== 'Estado')
+        .map(([k, v]) => ({ key: k, value: v as string }));
+      setSpecsList(spList.length > 0 ? spList : [{key: '', value: ''}]);
     } else {
-      setSpecsText('');
+      setSpecsList([{key: '', value: ''}]);
     }
 
     setEditingId(p.id);
@@ -849,7 +857,7 @@ Retorne um JSON válido com esta exata estrutura:
                               vertexai: {
                                 project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware',
                                 location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
-                              }
+                              } as any
                             });
                             const now = new Date();
                             const timeFrameMs = analyticsFilter === '30D' ? 30*24*60*60*1000 : analyticsFilter === '90D' ? 90*24*60*60*1000 : 365*24*60*60*1000;
@@ -881,7 +889,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                 contents: prompt,
                             });
                             const endTime = performance.now();
-                            setAiInsights(response.text);
+                            setAiInsights(response.text || null);
                             logAetherLabsUsage(endTime - startTime, prompt, response.text || "");
                           } catch (err: any) {
                             setAiInsights("Erro ao conectar à Vertex AI. Verifique as variáveis de ambiente.");
@@ -955,7 +963,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                       setIsAdding(!isAdding);
                       if (isAdding) {
                          setEditingId(null);
-                         setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsText('');
+                         setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsList([{key: '', value: ''}]);
                       }
                     }}
                     className="bg-brand-neon hover:bg-brand-magenta text-black font-bold border-0 rounded-xl px-6 h-12 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]"
@@ -972,19 +980,32 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                     <CardContent className="p-8">
                       <form onSubmit={handleAddProduct} className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Nome da Peça / Máquina</label>
-                            <div className="flex gap-4">
-                              <Input required value={name} onChange={e => setName(e.target.value)} className="bg-white/5 border-white/10 h-12 text-lg px-4 flex-1" placeholder="Ex: GeForce RTX 4090 ROG Strix" />
-                              <Button type="button" onClick={handleAutocomplete} disabled={!name || isAutoCompleting} className="h-12 bg-gradient-to-r from-brand-neon to-brand-magenta text-white border-0 px-6 font-bold shadow-[0_0_20px_rgba(20,241,149,0.3)] hover:scale-105 transition-transform flex items-center gap-2">
-                                {isAutoCompleting ? 'Buscando...' : 'IA Preencher'}
-                              </Button>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Galeria de Imagens do Hardware</label>
+                          <div className="flex flex-col gap-4">
+                            <div className="relative border-2 border-dashed border-white/10 rounded-2xl p-8 hover:bg-white/[0.02] hover:border-brand-neon/50 transition-colors flex flex-col items-center justify-center text-center cursor-pointer group">
+                              <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                              <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:bg-brand-neon/10 group-hover:text-brand-neon transition-colors text-gray-400">
+                                <Plus size={24} />
+                              </div>
+                              <p className="text-sm font-bold text-white mb-1">Arraste as imagens para aqui</p>
+                              <p className="text-xs text-gray-500">ou clique para procurar no seu computador</p>
                             </div>
+                            
+                            <Input value={images} onChange={e => setImages(e.target.value)} className="bg-black/40 border-white/10 h-10 text-xs" placeholder="Ou cole URLs externos (separados por vírgula)..." />
+                            
+                            {images && (
+                              <div className="flex flex-wrap gap-4 mt-2">
+                                {images.split(',').map((img, i) => img.trim() && (
+                                  <div key={i} className="relative w-24 h-24 rounded-xl border border-white/10 bg-black/50 overflow-hidden group">
+                                    <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={12} /></button>
+                                    <img src={img.trim()} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Preço (Meticais)</label>
-                            <Input required type="number" value={price} onChange={e => setPrice(e.target.value)} className="bg-white/5 border-white/10 h-12 text-lg px-4" placeholder="Ex: 280000" />
-                          </div>
+                        </div>
                           <div>
                             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Categoria</label>
                             <select required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-[#050510] border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon">
@@ -1015,16 +1036,29 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                           </div>
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">URLs das Imagens (separadas por vírgula)</label>
-                          <div className="flex gap-4 items-center">
-                            <Input value={images} onChange={e => setImages(e.target.value)} className="bg-white/5 border-white/10 h-12 flex-1" placeholder="https://imagem1.com/img.jpg, https://imagem2.com/img2.jpg" />
-                            <span className="text-gray-500 font-bold">OU</span>
-                            <div className="relative">
-                              <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                              <div className="bg-brand-neon/10 border border-brand-neon/30 text-brand-neon px-4 h-12 rounded-xl flex items-center justify-center font-bold text-sm whitespace-nowrap pointer-events-none">
-                                Fazer Upload Max 2MB
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Galeria de Imagens do Hardware</label>
+                          <div className="flex flex-col gap-4">
+                            <div className="relative border-2 border-dashed border-white/10 rounded-2xl p-8 hover:bg-white/[0.02] hover:border-brand-neon/50 transition-colors flex flex-col items-center justify-center text-center cursor-pointer group">
+                              <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                              <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:bg-brand-neon/10 group-hover:text-brand-neon transition-colors text-gray-400">
+                                <Plus size={24} />
                               </div>
+                              <p className="text-sm font-bold text-white mb-1">Arraste as imagens para aqui</p>
+                              <p className="text-xs text-gray-500">ou clique para procurar no computador</p>
                             </div>
+                            
+                            <Input value={images} onChange={e => setImages(e.target.value)} className="bg-black/40 border-white/10 h-10 text-xs" placeholder="Ou cole URLs externos (separados por vírgula)..." />
+                            
+                            {images && (
+                              <div className="flex flex-wrap gap-4 mt-2">
+                                {images.split(',').map((img, i) => img.trim() && (
+                                  <div key={i} className="relative w-24 h-24 rounded-xl border border-white/10 bg-black/50 overflow-hidden group">
+                                    <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={12} /></button>
+                                    <img src={img.trim()} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1033,8 +1067,20 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                             <textarea required value={desc} onChange={e => setDesc(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-base focus:outline-none focus:border-brand-neon min-h-[150px]" placeholder="Escreva sobre as características deste canhão..." />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Especificações Téchicas (Chave: Valor)</label>
-                            <textarea value={specsText} onChange={e => setSpecsText(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-base font-mono focus:outline-none focus:border-brand-magenta min-h-[150px]" placeholder="Processador: Intel Core i9&#10;Memória: 32GB DDR5&#10;Gráfica: RTX 4090" />
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex justify-between items-center">
+                              Especificações Técnicas
+                              <button type="button" onClick={() => setSpecsList([...specsList, {key: '', value: ''}])} className="text-brand-magenta hover:text-white flex items-center gap-1"><Plus size={12}/> Adicionar Linha</button>
+                            </label>
+                            <div className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-base focus-within:border-brand-magenta min-h-[150px] space-y-3">
+                              {specsList.map((spec, index) => (
+                                <div key={index} className="flex items-center gap-2 group">
+                                  <Input value={spec.key} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].key = e.target.value; setSpecsList(newSpecs); }} placeholder="Chave (Ex: RAM)" className="w-1/3 bg-black/40 h-10 border-white/10 text-xs" />
+                                  <span className="text-gray-500 font-bold">:</span>
+                                  <Input value={spec.value} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].value = e.target.value; setSpecsList(newSpecs); }} placeholder="Valor (Ex: 32GB DDR5)" className="flex-1 bg-black/40 h-10 border-white/10 text-xs" />
+                                  <button type="button" onClick={() => { const newSpecs = specsList.filter((_, i) => i !== index); setSpecsList(newSpecs.length ? newSpecs : [{key: '', value: ''}]); }} className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X size={16} /></button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
                         <div>
@@ -1045,7 +1091,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                           <Button type="button" onClick={() => {
                              setIsAdding(false);
                              setEditingId(null);
-                             setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsText('');
+                             setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsList([{key: '', value: ''}]);
                           }} variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/5 h-12 px-8 rounded-xl">Cancelar</Button>
                           <Button type="submit" className="bg-brand-neon hover:bg-brand-magenta text-black font-bold h-12 px-10 rounded-xl transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]">Guardar no Database</Button>
                         </div>

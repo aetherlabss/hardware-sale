@@ -363,6 +363,7 @@ function ProductModal({
 export function Products() {
   const [activeCategory, setActiveCategory] = useState('Todos');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const { addItem } = useCart();
   
   // iOS 26 Segment Controls
   const [subCategory, setSubCategory] = useState<string | null>(null);
@@ -732,19 +733,19 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
         </div>
       </div>
 
-      {/* Product Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Product Grid - Compact Dense Design */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {filteredProducts.map((product, idx) => (
           <div 
             key={product.id} 
             onClick={() => setSelectedIndex(idx)}
-            className="product-card-anim bg-[#0a0a14]/60 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] group cursor-pointer relative overflow-hidden flex flex-col transition-all duration-500 hover:-translate-y-4 hover:shadow-[0_40px_80px_-20px_rgba(168,85,247,0.4)] hover:border-brand-neon/50 hover:bg-[#110e1b] will-change-transform"
+            className="product-card-anim bg-[#0a0a14]/60 backdrop-blur-2xl border border-white/10 rounded-2xl group cursor-pointer relative overflow-hidden flex flex-col transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-10px_rgba(168,85,247,0.3)] hover:border-brand-neon/50 hover:bg-[#110e1b] will-change-transform"
           >
             <div className="absolute inset-0 bg-gradient-to-b from-brand-neon/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             
-            <div className="absolute top-6 left-6 z-20 flex gap-2">
+            <div className="absolute top-3 left-3 z-20 flex gap-2">
               {(product as any).status && (
-                <span className={`text-[9px] font-bold tracking-widest uppercase px-4 py-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-lg ${
+                <span className={`text-[8px] font-extrabold tracking-widest uppercase px-2 py-1 rounded-full backdrop-blur-md border border-white/10 shadow-sm ${
                   (product as any).status === 'stock' ? 'bg-green-500/20 text-green-400' :
                   (product as any).status === 'encomenda' ? 'bg-blue-500/20 text-blue-400' :
                   (product as any).status === 'na_box' ? 'bg-purple-500/20 text-brand-magenta' :
@@ -755,45 +756,52 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
               )}
             </div>
             
-            <div className="h-72 overflow-hidden relative p-10 flex items-center justify-center bg-gradient-to-b from-black/40 to-black/10 m-3 rounded-[2rem] border border-white/5">
+            <div className="h-48 overflow-hidden relative p-6 flex items-center justify-center bg-gradient-to-b from-black/40 to-black/10 m-2 rounded-xl border border-white/5 group-hover:bg-white/[0.02]">
               <img 
                 src={product.images && product.images.length > 0 ? product.images[0] : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'} 
                 alt={product.name} 
-                className="max-h-full max-w-full object-contain filter group-hover:drop-shadow-[0_20px_30px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-transform duration-700 ease-out" 
+                className="max-h-full max-w-full object-contain filter group-hover:drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-transform duration-700 ease-out" 
                 loading="lazy"
                 decoding="async"
               />
               
               {/* FPS Simulator Badge for Desktops */}
               {product.category === "Desktop's" && (
-                <div className="absolute bottom-4 right-4 bg-black/80 backdrop-blur-md border border-brand-neon/30 rounded-xl px-3 py-2 flex flex-col items-center shadow-lg group-hover:border-brand-neon group-hover:scale-110 transition-all duration-500">
-                  <span className="text-[10px] font-black text-brand-neon uppercase tracking-tighter">Est. FPS</span>
+                <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md border border-brand-neon/30 rounded-lg px-2 py-1 flex flex-col items-center shadow-lg group-hover:border-brand-neon group-hover:scale-110 transition-all duration-500 opacity-0 group-hover:opacity-100">
+                  <span className="text-[8px] font-black text-brand-neon uppercase tracking-tighter">Est. FPS</span>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-xl font-black text-white">{product.name.includes('9') ? '240' : product.name.includes('7') ? '165' : '120'}</span>
-                    <span className="text-[10px] font-bold text-gray-500">4K</span>
+                    <span className="text-base font-black text-white">{product.name.includes('9') ? '240' : product.name.includes('7') ? '165' : '120'}</span>
+                    <span className="text-[8px] font-bold text-gray-500">4K</span>
                   </div>
                 </div>
               )}
             </div>
             
-            <div className="p-8 pt-4 flex flex-col justify-between grow relative z-10">
+            <div className="p-4 pt-2 flex flex-col justify-between grow relative z-10">
                <div>
-                  <h3 className="text-2xl font-bold text-white mb-2 line-clamp-2 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-brand-neon transition-all">{product.name}</h3>
+                  <h3 className="text-sm font-bold text-white mb-1 line-clamp-2 leading-snug group-hover:text-brand-neon transition-colors">{product.name}</h3>
+                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold line-clamp-1 group-hover:text-gray-400">{product.category}</div>
                </div>
-               <div className="flex items-center justify-between mt-6">
-                  <div className="text-xl font-bold text-brand-neon">
-                    {product.price.toLocaleString()} <span className="text-sm text-gray-500">MT</span>
+               <div className="flex items-center justify-between mt-4">
+                  <div className="text-lg font-black text-white group-hover:text-brand-neon transition-colors">
+                    {product.price.toLocaleString()} <span className="text-[10px] text-gray-500 font-bold">MT</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">
                     <button 
                       onClick={(e) => handleToggleCompare(e, product)}
-                      className={`w-12 h-12 rounded-full flex items-center justify-center border transition-all duration-300 group-hover:scale-110 shadow-lg ${compareItems.some(p => p.id === product.id) ? 'bg-brand-magenta text-white border-brand-magenta' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/20'}`}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-300 shadow-md ${compareItems.some(p => p.id === product.id) ? 'bg-brand-magenta text-white border-brand-magenta' : 'bg-white/10 text-gray-300 border-white/20 hover:bg-brand-magenta hover:text-white'}`}
                     >
-                      <Scale className="w-5 h-5" />
+                      <Scale className="w-3.5 h-3.5" />
                     </button>
-                    <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10 group-hover:bg-brand-neon group-hover:border-brand-neon transition-all duration-300 group-hover:scale-110 shadow-lg">
-                      <ShoppingCart className="w-5 h-5 text-gray-300 group-hover:text-black transition-colors" />
-                    </div>
+                    <button
+                      onClick={(e) => {
+                         e.stopPropagation();
+                         addItem({ ...product, image: product.image || product.images?.[0] || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80' });
+                      }}
+                      className="w-8 h-8 rounded-lg bg-brand-neon text-black flex items-center justify-center border border-brand-neon hover:bg-brand-magenta hover:border-brand-magenta transition-all duration-300 shadow-[0_0_10px_rgba(20,241,149,0.3)]"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                </div>
             </div>
