@@ -32,6 +32,7 @@ export function AdminDashboard() {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState("Desktop's");
+  const [subCategory, setSubCategory] = useState('');
   const [status, setStatus] = useState('stock'); // availability
   const [condition, setCondition] = useState('novo'); // product state
   const [images, setImages] = useState('');
@@ -88,6 +89,7 @@ Retorne um JSON válido com esta exata estrutura:
   "specs": "Especificações chave no formato Chave: Valor, uma por linha (Ex:\\nMemória: 16GB\\nFrequência: 3200MHz)",
   "tags": "3 a 5 tags separadas por vírgula (Ex: premium, rgb, overclock)",
   "category": "Uma destas: Desktop's, Monitores, Components, Consolas, Laptops, Gadgets",
+  "subCategory": "Uma destas se aplicável: GPU, CPU, RAM, Armazenamento, Air Cooler, Liquid Cooling, Fans, Motherboard, Fonte, Case, Teclado, Rato, Headsets, Android, iOS. (Ou null se não aplicável)",
   "images": ["URL 1 principal transparente", "URL 2 angulo diferente", "URL 3 detalhe"]
 }`;
 
@@ -116,6 +118,7 @@ Retorne um JSON válido com esta exata estrutura:
       }
       if (parsed.tags) setTags(parsed.tags);
       if (parsed.category) setCategory(parsed.category);
+      if (parsed.subCategory) setSubCategory(parsed.subCategory);
       if (parsed.images && Array.isArray(parsed.images)) {
         setImages(parsed.images.join(', '));
       } else if (parsed.image_url) {
@@ -299,6 +302,11 @@ Retorne um JSON válido com esta exata estrutura:
          parsedSpecs['Estado'] = condition === 'novo' ? 'Novo' : condition === 'usado' ? 'Usado (Com Garantia)' : 'Na Box (Selado)';
       }
 
+      // Auto-append subcategory to tags if it's not empty
+      if (subCategory && !parsedTags.map(t => t.toLowerCase()).includes(subCategory.toLowerCase())) {
+        parsedTags.push(subCategory);
+      }
+
       const productData: any = {
         name,
         price: Number(price),
@@ -323,6 +331,7 @@ Retorne um JSON válido com esta exata estrutura:
       setImages('');
       setDesc('');
       setTags('');
+      setSubCategory('');
       setSpecsList([{key: '', value: ''}]);
       setEditingId(null);
       setIsAdding(false);
@@ -335,6 +344,12 @@ Retorne um JSON válido com esta exata estrutura:
     setName(p.name);
     setPrice(p.price.toString());
     setCategory(p.category);
+    
+    // Guess subCategory from tags if possible
+    const possibleSubs = ['GPU', 'CPU', 'RAM', 'Armazenamento', 'Air Cooler', 'Liquid Cooling', 'Fans', 'Motherboard', 'Fonte', 'Case', 'Teclado', 'Rato', 'Mousepad', 'Headsets', 'Android', 'iOS', 'Monitores', 'Suportes', 'Consolas', 'Laptops', 'Acessórios'];
+    const foundSub = p.tags?.find((t: string) => possibleSubs.includes(t)) || '';
+    setSubCategory(foundSub);
+    
     setStatus(p.status || 'stock');
     
     // Reverse engineer condition from specs
@@ -967,7 +982,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                       setIsAdding(!isAdding);
                       if (isAdding) {
                          setEditingId(null);
-                         setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsList([{key: '', value: ''}]);
+                         setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSubCategory(''); setSpecsList([{key: '', value: ''}]);
                       }
                     }}
                     className="bg-brand-neon hover:bg-brand-magenta text-black font-bold border-0 rounded-xl px-6 h-12 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]"
@@ -1011,9 +1026,9 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Preço (MT)</label>
                                  <Input required type="number" value={price} onChange={e => setPrice(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-brand-neon font-bold text-xs rounded-lg focus:border-brand-neon transition-colors" placeholder="0.00" />
                                </div>
-                               <div>
+                               <div className="flex flex-col gap-2">
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
-                                 <select required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
+                                 <select required value={category} onChange={e => { setCategory(e.target.value); setSubCategory(''); }} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
                                    <option value="Desktop's" className="bg-[#0a0a14] text-white">Desktop's</option>
                                    <option value="Displays" className="bg-[#0a0a14] text-white">Displays</option>
                                    <option value="Components" className="bg-[#0a0a14] text-white">Components</option>
@@ -1023,6 +1038,21 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                  </select>
                                </div>
                             </div>
+                            
+                            {/* Dynamic Subcategory based on Category */}
+                            {(category === 'Components' || category === 'Monitores' || category === 'Consolas' || category === 'Laptops' || category === 'Celulares') && (
+                              <div className="mb-3 animate-in fade-in zoom-in duration-300">
+                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sub-Categoria</label>
+                                <select required value={subCategory} onChange={e => setSubCategory(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-brand-neon focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
+                                   <option value="" disabled className="bg-[#0a0a14] text-gray-500">Selecione a variante...</option>
+                                   {category === 'Components' && ['GPU', 'CPU', 'RAM', 'Armazenamento', 'Motherboard', 'Fonte', 'Case', 'Air Cooler', 'Liquid Cooling', 'Fans', 'Teclado', 'Rato', 'Headsets', 'Mousepad'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                   {category === 'Monitores' && ['Monitores', 'Suportes'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                   {category === 'Consolas' && ['Consolas', 'Acessórios'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                   {category === 'Laptops' && ['Laptops', 'Acessórios'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                   {category === 'Celulares' && ['Android', 'iOS'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                </select>
+                              </div>
+                            )}
                             
                             <div className="grid grid-cols-3 gap-3 mb-3">
                                <div>
@@ -1107,7 +1137,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                               <Button type="button" onClick={() => {
                                  setIsAdding(false);
                                  setEditingId(null);
-                                 setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsList([{key: '', value: ''}]);
+                                 setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSubCategory(''); setSpecsList([{key: '', value: ''}]);
                               }} variant="ghost" className="h-8 text-xs px-4 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border-0">Cancelar</Button>
                               <Button type="submit" className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
                                 {editingId ? 'Atualizar' : 'Guardar Produto'}
