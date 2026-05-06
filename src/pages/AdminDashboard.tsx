@@ -132,11 +132,14 @@ Retorne um JSON válido com esta exata estrutura:
       if (parsed.tags) setTags(parsed.tags);
       if (parsed.category) setCategory(parsed.category);
       if (parsed.subCategory) setSubCategory(parsed.subCategory);
-      if (parsed.images && Array.isArray(parsed.images)) {
-        const validImages = parsed.images.filter((img: string) => img && !img.includes('placeholder'));
-        setImages(validImages.join('|||'));
-      } else if (parsed.image_url && !parsed.image_url.includes('placeholder')) {
-        setImages(parsed.image_url);
+      // Only set images if current images are empty (don't overwrite user uploads)
+      if (!images) {
+        if (parsed.images && Array.isArray(parsed.images)) {
+          const validImages = parsed.images.filter((img: string) => img && !img.includes('placeholder'));
+          setImages(validImages.join('|||'));
+        } else if (parsed.image_url && !parsed.image_url.includes('placeholder')) {
+          setImages(parsed.image_url);
+        }
       }
     } catch (err) {
       console.error("Auto-complete failed:", err);
@@ -187,11 +190,13 @@ Retorne um JSON válido com esta exata estrutura:
       if (parsed.bWattage !== undefined) setBWattage(String(parsed.bWattage));
       if (parsed.bSocket) setBSocket(parsed.bSocket);
       if (parsed.bSpecs) setBSpecs(parsed.bSpecs);
-      if (parsed.images && Array.isArray(parsed.images)) {
-        const validImages = parsed.images.filter((img: string) => img && !img.includes('placeholder'));
-        setBImages(validImages.join('|||'));
-      } else if (parsed.image_url && !parsed.image_url.includes('placeholder')) {
-        setBImages(parsed.image_url);
+      if (!bImages) {
+        if (parsed.images && Array.isArray(parsed.images)) {
+          const validImages = parsed.images.filter((img: string) => img && !img.includes('placeholder'));
+          setBImages(validImages.join('|||'));
+        } else if (parsed.image_url && !parsed.image_url.includes('placeholder')) {
+          setBImages(parsed.image_url);
+        }
       }
     } catch (err) {
       console.error("Builder Auto-complete failed:", err);
@@ -660,7 +665,7 @@ Retorne um JSON válido com esta exata estrutura:
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#050510] relative mt-16 lg:mt-0">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden custom-scrollbar bg-[#050510] relative mt-16 lg:mt-0">
         
         {/* Top Header */}
         <header className="h-24 px-8 flex items-center justify-between border-b border-white/5 bg-[#0a0a14]/50 backdrop-blur-md z-10 hidden lg:flex">
@@ -831,7 +836,7 @@ Retorne um JSON válido com esta exata estrutura:
         </div>
 
         {/* Dynamic Content */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-10 z-10 custom-scrollbar">
+        <div className="flex-1 p-4 lg:p-10 z-10">
           <div className="max-w-7xl mx-auto">
             {/* --- TAB: DASHBOARD --- */}
             {activeTab === 'dashboard' && (
@@ -1454,7 +1459,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                  setIsAddingBuilder(false);
                                  setBName(''); setBPrice(''); setBImages(''); setBSpecs(''); setBWattage(''); setBSocket('');
                               }} variant="ghost" className="h-8 text-xs px-4 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border-0">Cancelar</Button>
-                              <Button type="submit" className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
+                              <Button type="button" onClick={handleAddBuilderComponent} className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
                                 Adicionar ao Builder
                               </Button>
                            </div>
