@@ -131,8 +131,9 @@ Retorne um JSON válido com esta exata estrutura:
       if (parsed.category) setCategory(parsed.category);
       if (parsed.subCategory) setSubCategory(parsed.subCategory);
       if (parsed.images && Array.isArray(parsed.images)) {
-        setImages(parsed.images.join(', '));
-      } else if (parsed.image_url) {
+        const validImages = parsed.images.filter((img: string) => img && !img.includes('placeholder'));
+        setImages(validImages.join(', '));
+      } else if (parsed.image_url && !parsed.image_url.includes('placeholder')) {
         setImages(parsed.image_url);
       }
     } catch (err) {
@@ -1245,8 +1246,8 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[80px] custom-scrollbar">
                                  {images.split(',').map((img, i) => img.trim() && (
                                    <div key={i} className="relative w-10 h-10 rounded-md border border-white/10 bg-black/50 overflow-hidden group shrink-0">
-                                     <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-0.5 right-0.5 bg-red-500 rounded text-white opacity-0 group-hover:opacity-100"><X size={8} /></button>
-                                     <img src={img.trim()} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100" />
+                                     <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-0.5 right-0.5 bg-red-500 rounded text-white z-10 opacity-0 group-hover:opacity-100"><X size={8} /></button>
+                                     <img src={img.trim()} alt="" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=50&q=80' }} className="w-full h-full object-cover opacity-80 group-hover:opacity-100" />
                                    </div>
                                  ))}
                                </div>
@@ -1561,6 +1562,12 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                     <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
                       <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Tokens Consumidos</div>
                       <div className="text-3xl font-bold text-brand-neon">{aiEvents.reduce((acc, e) => acc + e.tokens, 0).toLocaleString()}</div>
+                    </div>
+                    <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
+                      <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Custo Estimado</div>
+                      <div className="text-3xl font-bold text-green-400">
+                        ${(aiEvents.reduce((acc, e) => acc + e.tokens, 0) * 0.000005).toFixed(4)}
+                      </div>
                     </div>
                     <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
                       <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Latência Média</div>
