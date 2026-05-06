@@ -1,0 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
+
+  /* Brand Colors - iOS Inspired Neon Dark Luxury */
+  --color-brand-neon: #a855f7; /* Vivid Purple */
+  --color-brand-magenta: #ec4899; /* Pink Accent */
+  --color-brand-silver: #f5f5f7; /* Apple-like Silver Text */
+  --color-brand-dark: #110e1b; /* Purple-tinted dark gray for cards */
+  --color-brand-darker: #000000; /* Pure black background for max contrast */
+  --color-brand-glass: rgba(20, 15, 30, 0.65); /* Elegant glass */
+  --color-brand-glass-border: rgba(168, 85, 247, 0.15); /* Soft neon border */
+
+  /* Shadcn-like Variables */
+  --color-background: var(--color-brand-darker);
+  --color-foreground: var(--color-brand-silver);
+  --color-primary: var(--color-brand-neon);
+  --color-primary-foreground: #ffffff;
+  --color-card: var(--color-brand-dark);
+  --color-card-foreground: var(--color-brand-silver);
+  --color-border: var(--color-brand-glass-border);
+
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-marquee-reverse: marquee-reverse 40s linear infinite;
+  --animate-gradient: gradient 3s linear infinite;
+
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes marquee-reverse {
+    from { transform: translateX(-50%); }
+    to { transform: translateX(0); }
+  }
+
+  @keyframes shine {
+    to {
+      background-position: 200% center;
+    }
+  }
+  --animate-shine: shine 4s linear infinite;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  /* iOS Dark Mode style gradient - subtle purple aura on top */
+  background-image: radial-gradient(circle at top, rgba(168, 85, 247, 0.15) 0%, rgba(0, 0, 0, 1) 40%);
+  background-attachment: fixed;
+}
+
+/* Custom Scrollbar for Luxury Vibe */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-brand-darker);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, var(--color-brand-neon), var(--color-brand-magenta));
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #c084fc, #f472b6);
+}
+
+/* Shared Glassmorphism Utilities */
+.glass {
+  background: var(--color-brand-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-border);
+  box-shadow: inset 0 0 20px rgba(168, 85, 247, 0.05);
+}
+.glass-hover {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-hover:hover {
+  background: rgba(49, 46, 129, 0.6);
+  border-color: rgba(236, 72, 153, 0.5); /* Pink border on hover */
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.2), inset 0 0 20px rgba(236, 72, 153, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Animated gradient text util */
+.text-gradient {
+  background: linear-gradient(to right, var(--color-brand-neon), var(--color-brand-magenta), var(--color-brand-neon));
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shine 4s linear infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Hardware Sale products",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the product" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["stock", "encomenda", "na_box", "usados"] },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "desc": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "specs": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "price", "category", "status", "images", "desc", "createdAt", "updatedAt"]
+    },
+    "AdminConfig": {
+      "title": "Admin Config",
+      "description": "Determines who is an admin",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "isAdmin": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "isAdmin", "createdAt"]
+    },
+    "AnalyticsEvent": {
+      "title": "Analytics Event",
+      "description": "Event tracking for Site Analysis",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "path": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "value": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "path", "sessionId", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Product catalog"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminConfig" },
+      "description": "List of administrators"
+    },
+    "/analytics_events/{eventId}": {
+      "schema": { "$ref": "#/entities/AnalyticsEvent" },
+      "description": "Events for Site Analysis"
+    }
+  }
+}

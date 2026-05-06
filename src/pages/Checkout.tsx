@@ -1,0 +1,397 @@
+import React, { useState, useEffect } from 'react';
+import { useCart } from '../store/useCart';
+import { useStore } from '../store/useStore';
+import { Card, CardContent } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Trash2, ArrowRight, ShieldCheck, CreditCard, Smartphone, Sparkles, PlusCircle, ShoppingCart, Loader2, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { useRef } from 'react';
+
+gsap.registerPlugin(useGSAP);
+
+export function Checkout() {
+  const { items, addItem, removeItem, total, voucher, clearCart } = useCart();
+  const { products } = useStore();
+  const navigate = useNavigate();
+
+  const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'emola'>('mpesa');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [calculatingShipping, setCalculatingShipping] = useState(false);
+  const [shippingCost, setShippingCost] = useState<number | null>(null);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    const tl = gsap.timeline();
+    tl.fromTo('.checkout-header', { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' })
+      .fromTo('.checkout-card', { opacity: 0, y: 30, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.15, ease: 'power2.out' }, '-=0.4')
+      .fromTo('.checkout-summary', { opacity: 0, x: 20 }, { opacity: 1, x: 0, duration: 0.6, ease: 'power2.out' }, '-=0.4');
+  }, { scope: containerRef });
+
+  const subtotal = total;
+  const discount = voucher ? voucher.value : 0;
+  
+  // Auto-GPS on mount
+  useEffect(() => {
+    if ("geolocation" in navigator && shippingCost === null) {
+      setCalculatingShipping(true);
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude } = position.coords;
+        const maputoLat = -25.9692;
+        const maputoLon = 32.5732;
+        const R = 6371;
+        const dLat = (latitude - maputoLat) * Math.PI / 180;
+        const dLon = (longitude - maputoLon) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(maputoLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distance = R * c;
+
+        const cost = distance <= 15 ? 0 : Math.round((distance - 15) * 60);
+        setShippingCost(cost);
+        setCalculatingShipping(false);
+      }, () => {
+        setCalculatingShipping(false);
+      });
+    }
+  }, []);
+  
+  // Matrix Synergies (Upsell logic)
+  const getUpsells = () => {
+    if (items.length === 0 || products.length === 0) return [];
+    
+    // Find categories we don't have in cart
+    const cartCategories = new Set(items.map(i => i.category));
+    
+    const recommendations = products.filter(p => {
+       // If cart has a PC/Components but no display, recommend display
+       if ((cartCategories.has('Masters') || cartCategories.has('Componente')) && p.category === 'Displays') return true;
+       // Recommend gadgets (like keycaps, thermal paste) if cart has components
+       if (cartCategories.has('Componente') && p.category === 'Gadgets') return true;
+       return false;
+    }).slice(0, 2);
+
+    return recommendations;
+  };
+
+  const upsells = getUpsells();
+
+  // Sort cart items by component category
+  const CATEGORY_ORDER: Record<string, number> = {
+    'Motherboard': 1, 'Placa-Mãe': 1,
+    'CPU': 2, 'Processador': 2,
+    'RAM': 3, 'Memória': 3,
+    'Armazenamento': 4, 'Storage': 4,
+    'CPU Cooler': 5, 'Cooler': 5, 'Refrigeração': 5,
+    'GPU': 6, 'Placa Gráfica': 6,
+    'Fonte': 7, 'PSU': 7,
+    'Case': 8, 'Gabinete': 8,
+    'Fans': 9, 'Ventoinhas': 9,
+    'Componente': 10,
+    'Acessório': 20, 'Periférico': 20,
+  };
+  const sortedItems = [...items].sort((a, b) => {
+    const oa = CATEGORY_ORDER[a.category] ?? 15;
+    const ob = CATEGORY_ORDER[b.category] ?? 15;
+    return oa - ob;
+  });
+
+  const calculateShipping = () => {
+    setCalculatingShipping(true);
+    
+    // Auto-detect based on text input first if no GPS used
+    const addr = address.toLowerCase();
+    if (addr.includes('maputo') && (addr.includes('cidade') || addr.includes('central') || addr.includes('museu') || addr.includes('polana'))) {
+       setTimeout(() => { setShippingCost(0); setCalculatingShipping(false); }, 800);
+       return;
+    } else if (addr.includes('matola') || addr.includes('zimpeto')) {
+       setTimeout(() => { setShippingCost(500); setCalculatingShipping(false); }, 800);
+       return;
+    } else if (addr.includes('boane') || addr.includes('marracuene')) {
+       setTimeout(() => { setShippingCost(1200); setCalculatingShipping(false); }, 800);
+       return;
+    }
+
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude } = position.coords;
+        // Maputo central reference (approximate: Praça da Independência)
+        const maputoLat = -25.9692;
+        const maputoLon = 32.5732;
+
+        // Haversine formula
+        const R = 6371; // km
+        const dLat = (latitude - maputoLat) * Math.PI / 180;
+        const dLon = (longitude - maputoLon) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(maputoLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distance = R * c;
+
+        // < 15km = Free, else 60 MT per km
+        const cost = distance <= 15 ? 0 : Math.round((distance - 15) * 60);
+        setShippingCost(cost);
+        setCalculatingShipping(false);
+      }, () => {
+        // Fallback or permission denied
+        setShippingCost(800); // Standard flat rate
+        setCalculatingShipping(false);
+      });
+    } else {
+      setShippingCost(800);
+      setCalculatingShipping(false);
+    }
+  };
+
+  const handleCheckout = () => {
+    if (!phone || !address) {
+       alert("Preencha o telemóvel e endereço de entrega.");
+       return;
+    }
+
+    const finalTotal = Math.max(0, subtotal - discount + (shippingCost || 0));
+    const isMpesa = paymentMethod === 'mpesa';
+    
+    let msg = `*NOVA ENCOMENDA - HARDWARE SALE*\n\n`;
+    msg += `*Método:* ${isMpesa ? 'M-Pesa' : 'e-Mola'} (${phone})\n`;
+    msg += `*Entrega:* ${address}\n`;
+    if (shippingCost !== null) {
+      msg += `*Portes (GPS):* ${shippingCost === 0 ? 'Grátis (Zona Central)' : `${shippingCost} MT`}\n`;
+    }
+    msg += `\n*ITENS:*\n`;
+    items.forEach(i => {
+      msg += `- ${i.name} (${i.price.toLocaleString()} MT)\n`;
+    });
+    
+    if (voucher) {
+       msg += `\n*Voucher Aplicado:* -${voucher.value.toLocaleString()} MT`;
+    }
+    
+    msg += `\n\n*TOTAL A PAGAR:* ${finalTotal.toLocaleString()} MT`;
+
+    const encoded = encodeURIComponent(msg);
+    const whatsappNumber = "258840000000"; // Store number
+    
+    // Redirect to WhatsApp
+    window.open(`https://wa.me/${whatsappNumber}?text=${encoded}`, '_blank');
+    clearCart();
+    navigate('/');
+  };
+
+  if (items.length === 0) {
+    return (
+      <div className="min-h-screen pt-32 pb-24 px-6 max-w-7xl mx-auto flex flex-col items-center justify-center text-center">
+         <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6 border border-white/10">
+           <ShoppingCart className="w-10 h-10 text-gray-500" />
+         </div>
+         <h2 className="text-3xl font-extrabold text-white mb-4">A Matrix está vazia</h2>
+         <p className="text-gray-400 mb-8 max-w-md">O teu setup de sonho começa com a primeira peça. Explora a nossa montra ou usa o Smart Builder.</p>
+         <Button onClick={() => navigate('/products')} className="bg-brand-neon text-black font-bold h-14 px-8 rounded-full">Explorar Hardware</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="pt-32 pb-24 px-4 sm:px-6 max-w-screen-2xl mx-auto min-h-screen relative flex justify-center">
+      {/* Global Ambience */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[800px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-neon/10 via-[#0a0a14] to-transparent blur-[150px] pointer-events-none -z-10"></div>
+      
+      <div className="w-full flex flex-col xl:flex-row gap-8 lg:gap-12 relative z-10">
+        
+        {/* Left Column: Cart & Upsell (Luxurious Glass Container) */}
+        <div className="w-full xl:w-[55%] flex flex-col space-y-8">
+           
+           {/* Header Area */}
+           <div className="checkout-header">
+             <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-4 leading-none">
+               Finalizar <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-white">Aquisição.</span>
+             </h1>
+             <p className="text-gray-400 font-medium text-lg max-w-md">Revise as peças do seu arsenal. O próximo passo é o domínio absoluto.</p>
+           </div>
+
+           {/* Items List */}
+           <div className="checkout-card bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[3rem] p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-full h-[200px] bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
+              
+              <div className="flex items-center justify-between mb-8 relative z-10">
+                 <h3 className="text-2xl font-bold text-white flex items-center gap-3">
+                    Arsenal <span className="bg-white/10 text-white text-xs px-3 py-1 rounded-full">{items.length} peças</span>
+                 </h3>
+                 <button onClick={clearCart} className="text-xs font-bold text-gray-500 hover:text-red-400 transition-colors flex items-center gap-1 uppercase tracking-widest">
+                    <Trash2 size={12} /> Limpar
+                 </button>
+              </div>
+              
+              <div className="space-y-3 relative z-10">
+                 {sortedItems.map((item, idx) => {
+                   const showCategory = idx === 0 || sortedItems[idx - 1].category !== item.category;
+                   return (
+                     <React.Fragment key={`${item.id}-${idx}`}>
+                       {showCategory && (
+                         <div className="text-[10px] font-black text-brand-neon uppercase tracking-[0.2em] pt-4 pb-2 ml-2">{item.category}</div>
+                       )}
+                       <div className="flex items-center gap-4 sm:gap-6 bg-[#050510]/50 border border-white/5 rounded-3xl p-4 group hover:bg-white/[0.02] hover:border-white/10 transition-all duration-500">
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-black/60 border border-white/5 p-3 flex items-center justify-center shrink-0 relative overflow-hidden group-hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-shadow">
+                             <div className="absolute inset-0 bg-brand-neon/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                             <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain mix-blend-lighten group-hover:scale-110 transition-transform duration-700 ease-out relative z-10" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                             <div className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">{item.category}</div>
+                             <h4 className="text-white font-bold text-lg sm:text-xl truncate leading-tight group-hover:text-brand-neon transition-colors">{item.name}</h4>
+                             <div className="text-brand-neon font-extrabold mt-2 text-base sm:text-lg">{item.price.toLocaleString()} MT</div>
+                          </div>
+                          <button onClick={() => removeItem(item.id)} className="w-10 h-10 rounded-full bg-black/50 text-gray-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all border border-white/5 hover:border-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:-translate-y-1">
+                             <X size={16} strokeWidth={3} />
+                          </button>
+                       </div>
+                     </React.Fragment>
+                   );
+                 })}
+              </div>
+           </div>
+
+           {/* Sinergias Matrix (Upsell) */}
+           {upsells.length > 0 && (
+             <div className="checkout-card bg-gradient-to-br from-[#110e1b] to-[#0a0a14] border border-brand-magenta/20 rounded-[3rem] p-6 sm:p-10 shadow-[0_30px_60px_rgba(0,0,0,0.6)] relative overflow-hidden group">
+                <div className="absolute -top-32 -right-32 w-64 h-64 bg-brand-magenta/10 blur-[80px] rounded-full pointer-events-none group-hover:bg-brand-magenta/20 transition-all duration-1000"></div>
+                
+                <div className="mb-8 relative z-10">
+                  <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                     <Sparkles className="text-brand-magenta w-6 h-6 animate-pulse" /> Sinergias Sugeridas
+                  </h3>
+                  <p className="text-sm text-gray-400 font-medium">Eleve o seu sistema ao próximo patamar com recomendações cruzadas da Amani.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
+                   {upsells.map(product => (
+                     <div key={product.id} className="bg-black/40 border border-white/5 rounded-3xl p-5 flex flex-col gap-4 group/item hover:border-brand-magenta/40 hover:bg-black/60 transition-all duration-500 hover:-translate-y-1">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center p-2 shrink-0 border border-white/5 shadow-inner">
+                            <img src={product.images?.[0] || product.image} alt={product.name} className="max-w-full max-h-full object-contain group-hover/item:scale-110 transition-transform duration-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                             <div className="text-white text-sm font-bold leading-tight group-hover/item:text-brand-magenta transition-colors line-clamp-2">{product.name}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
+                           <div className="text-brand-magenta text-sm font-extrabold">{product.price.toLocaleString()} MT</div>
+                           <button onClick={() => {
+                              addItem({ id: product.id, name: product.name, price: product.price, image: product.images?.[0] || product.image, category: product.category });
+                           }} className="h-8 px-4 rounded-full bg-brand-magenta/10 border border-brand-magenta/30 text-brand-magenta text-xs font-bold flex items-center justify-center hover:bg-brand-magenta hover:text-white transition-all shadow-lg hover:shadow-[0_0_15px_rgba(236,72,153,0.5)]">
+                              Adicionar
+                           </button>
+                        </div>
+                     </div>
+                   ))}
+                </div>
+             </div>
+           )}
+        </div>
+
+        {/* Right Col: Summary & Payment (Sticky Panel) */}
+        <div className="w-full xl:w-[45%] relative">
+           <div className="checkout-summary bg-[#0a0a14] border border-white/10 rounded-[3rem] shadow-[0_30px_100px_rgba(0,0,0,0.8)] p-6 sm:p-10 sticky top-24 overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-brand-neon/5 blur-[100px] rounded-full pointer-events-none"></div>
+              
+              <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+                 Resumo Oficial
+              </h3>
+
+              {/* Subtotals Box */}
+              <div className="bg-black/50 border border-white/5 rounded-3xl p-6 space-y-5 mb-8 relative z-10">
+                 <div className="flex justify-between items-center text-sm font-medium">
+                    <span className="text-gray-400">Hardware ({items.length} itens)</span>
+                    <span className="text-white text-base font-bold">{subtotal.toLocaleString()} MT</span>
+                 </div>
+                 
+                 {voucher && (
+                   <div className="flex justify-between items-center text-sm font-bold text-green-400 bg-green-500/10 p-3 rounded-2xl border border-green-500/20 shadow-inner">
+                      <span className="flex items-center gap-2"><Sparkles size={16}/> Voucher IA</span>
+                      <span>-{discount.toLocaleString()} MT</span>
+                   </div>
+                 )}
+                 
+                 <div className="flex justify-between items-center text-sm font-medium pt-5 border-t border-white/5">
+                    <span className="text-gray-300 flex flex-col">
+                      Logística & Portes
+                      <span className="text-[10px] text-gray-500 uppercase tracking-widest mt-1 font-bold">Cálculo GPS Integrado</span>
+                    </span>
+                    {shippingCost === null ? (
+                       <Button onClick={calculateShipping} disabled={calculatingShipping || !address} variant="outline" className="h-9 text-xs font-bold bg-white/5 border-white/10 text-brand-neon hover:bg-brand-neon/10 hover:border-brand-neon/30">
+                         {calculatingShipping ? <Loader2 size={14} className="animate-spin mr-2" /> : 'Calcular Zona'}
+                       </Button>
+                    ) : (
+                       <div className="flex flex-col items-end gap-1">
+                         <span className="text-brand-neon font-extrabold text-lg">{shippingCost === 0 ? 'Grátis' : `${shippingCost.toLocaleString()} MT`}</span>
+                         {shippingCost === 0 && <span className="text-[9px] text-black bg-brand-neon px-2 py-0.5 rounded-full font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(20,241,149,0.5)]">Zona VIP Central</span>}
+                         <button onClick={() => setShippingCost(null)} className="text-[10px] text-gray-500 hover:text-white underline mt-1 transition-colors">Recalcular</button>
+                       </div>
+                    )}
+                 </div>
+              </div>
+
+              {/* Total Box */}
+              <div className="flex justify-between items-end mb-10 px-2 relative z-10">
+                 <span className="text-sm font-extrabold text-gray-500 uppercase tracking-widest mb-2">Total Final</span>
+                 <div className="text-5xl sm:text-6xl font-black text-white tracking-tighter drop-shadow-lg flex items-start gap-2">
+                    {Math.max(0, subtotal - discount + (shippingCost || 0)).toLocaleString()} 
+                    <span className="text-xl sm:text-2xl text-brand-neon font-bold mt-2">MT</span>
+                 </div>
+              </div>
+
+              {/* Inputs */}
+              <div className="space-y-5 mb-10 relative z-10">
+                 <div className="group relative">
+                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-brand-neon transition-colors">
+                     <ShieldCheck size={18} />
+                   </div>
+                   <input required value={address} onChange={e => setAddress(e.target.value)} type="text" placeholder="Endereço Físico de Entrega (Ex: Av. FPLM)" className="w-full bg-white/5 border border-white/10 h-16 rounded-2xl pl-12 pr-5 text-white text-sm font-medium focus:outline-none focus:border-brand-neon focus:bg-white/10 focus:ring-4 focus:ring-brand-neon/10 transition-all shadow-inner placeholder:text-gray-600" />
+                 </div>
+                 <div className="group relative">
+                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-brand-neon transition-colors">
+                     <Smartphone size={18} />
+                   </div>
+                   <input required value={phone} onChange={e => setPhone(e.target.value)} type="tel" placeholder="Nº M-Pesa / e-Mola (Ex: 84 / 85)" className="w-full bg-white/5 border border-white/10 h-16 rounded-2xl pl-12 pr-5 text-white text-sm font-medium focus:outline-none focus:border-brand-neon focus:bg-white/10 focus:ring-4 focus:ring-brand-neon/10 transition-all shadow-inner placeholder:text-gray-600" />
+                 </div>
+              </div>
+
+              {/* Payment Methods */}
+              <div className="grid grid-cols-2 gap-4 mb-10 relative z-10">
+                 <button 
+                   onClick={() => setPaymentMethod('mpesa')}
+                   className={`relative overflow-hidden h-20 rounded-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 border-2 transition-all duration-300 ${paymentMethod === 'mpesa' ? 'border-red-500 bg-red-500/10 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.2)] scale-[1.03]' : 'border-white/5 bg-black/40 text-gray-500 hover:border-red-500/30 hover:text-red-400 hover:bg-white/5'}`}
+                 >
+                   <span className="text-lg tracking-tight">M-Pesa</span>
+                   {paymentMethod === 'mpesa' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>}
+                 </button>
+                 <button 
+                   onClick={() => setPaymentMethod('emola')}
+                   className={`relative overflow-hidden h-20 rounded-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 border-2 transition-all duration-300 ${paymentMethod === 'emola' ? 'border-orange-500 bg-orange-500/10 text-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.2)] scale-[1.03]' : 'border-white/5 bg-black/40 text-gray-500 hover:border-orange-500/30 hover:text-orange-400 hover:bg-white/5'}`}
+                 >
+                   <span className="text-lg tracking-tight">e-Mola</span>
+                   {paymentMethod === 'emola' && <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>}
+                 </button>
+              </div>
+
+              <Button 
+                onClick={handleCheckout}
+                className="w-full h-16 rounded-2xl bg-white text-black hover:bg-gray-200 transition-all hover:scale-[1.02] shadow-[0_20px_40px_rgba(255,255,255,0.2)] font-black text-lg flex items-center justify-center gap-3 relative z-10 border-0"
+              >
+                <ArrowRight className="w-5 h-5" /> Submeter Protocolo
+              </Button>
+              
+              <div className="mt-8 flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-widest text-gray-500 relative z-10">
+                <ShieldCheck size={12} className="text-green-500" /> Checkout SSL Encriptado • Hardware Sale MZ
+              </div>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
