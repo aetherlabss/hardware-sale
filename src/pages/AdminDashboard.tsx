@@ -31,7 +31,7 @@ export function AdminDashboard() {
   // Form State
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
-  const [category, setCategory] = useState('Masters');
+  const [category, setCategory] = useState("Desktop's");
   const [status, setStatus] = useState('stock'); // availability
   const [condition, setCondition] = useState('novo'); // product state
   const [images, setImages] = useState('');
@@ -87,7 +87,7 @@ Retorne um JSON válido com esta exata estrutura:
   "desc": "Uma descrição premium, comercial e detalhada de até 3 frases sobre as qualidades do produto.",
   "specs": "Especificações chave no formato Chave: Valor, uma por linha (Ex:\\nMemória: 16GB\\nFrequência: 3200MHz)",
   "tags": "3 a 5 tags separadas por vírgula (Ex: premium, rgb, overclock)",
-  "category": "Uma destas: Masters, Monitores, Components, Consolas, Laptops, Gadgets",
+  "category": "Uma destas: Desktop's, Monitores, Components, Consolas, Laptops, Gadgets",
   "image_url": "URL direto e público de uma imagem do exato produto com fundo transparente (.png) ou fundo limpo. Exemplo: https://m.media-amazon.com/..."
 }`;
 
@@ -947,7 +947,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                     <h2 className="text-3xl font-bold text-white tracking-tight mb-2">Gestão de Produtos</h2>
                     <p className="text-gray-400 mb-4">Catálogo completo da Hardware Sale.</p>
                     <div className="flex flex-wrap gap-2">
-                      {['Todos', 'Masters', 'Displays', 'Components', 'Consolas', 'Laptops', 'Gadgets'].map(c => (
+                      {['Todos', "Desktop's", 'Displays', 'Components', 'Consolas', 'Laptops', 'Gadgets'].map(c => (
                         <button 
                           key={c}
                           onClick={() => setAdminProductFilter(c)}
@@ -973,130 +973,156 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                 </div>
 
                 {isAdding && (
-                  <Card className="bg-[#0a0a14] border-white/5 rounded-3xl overflow-hidden shadow-2xl mb-8 animate-in fade-in slide-in-from-top-4">
-                    <div className="bg-gradient-to-r from-brand-neon/10 to-brand-magenta/10 p-6 border-b border-white/5">
-                      <h3 className="font-bold text-xl text-white">{editingId ? 'Editar Hardware' : 'Adicionar Novo Hardware'}</h3>
-                    </div>
-                    <CardContent className="p-8">
-                      <form onSubmit={handleAddProduct} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Galeria de Imagens do Hardware</label>
-                          <div className="flex flex-col gap-4">
-                            <div className="relative border-2 border-dashed border-white/10 rounded-2xl p-8 hover:bg-white/[0.02] hover:border-brand-neon/50 transition-colors flex flex-col items-center justify-center text-center cursor-pointer group">
-                              <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                              <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:bg-brand-neon/10 group-hover:text-brand-neon transition-colors text-gray-400">
-                                <Plus size={24} />
-                              </div>
-                              <p className="text-sm font-bold text-white mb-1">Arraste as imagens para aqui</p>
-                              <p className="text-xs text-gray-500">ou clique para procurar no seu computador</p>
-                            </div>
-                            
-                            <Input value={images} onChange={e => setImages(e.target.value)} className="bg-black/40 border-white/10 h-10 text-xs" placeholder="Ou cole URLs externos (separados por vírgula)..." />
-                            
-                            {images && (
-                              <div className="flex flex-wrap gap-4 mt-2">
-                                {images.split(',').map((img, i) => img.trim() && (
-                                  <div key={i} className="relative w-24 h-24 rounded-xl border border-white/10 bg-black/50 overflow-hidden group">
-                                    <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={12} /></button>
-                                    <img src={img.trim()} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                  <Card className="bg-transparent border-0 shadow-none mb-12 animate-in fade-in slide-in-from-top-4">
+                    <form onSubmit={handleAddProduct} className="space-y-6">
+                      
+                      {/* AI Magic Fill Banner */}
+                      <div className="bg-gradient-to-r from-brand-neon/10 to-brand-magenta/10 rounded-[2rem] p-6 border border-brand-neon/20 shadow-[0_0_30px_rgba(168,85,247,0.15)] flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-brand-neon/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-neon to-brand-magenta flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(168,85,247,0.5)]">
+                          <Sparkles className="w-6 h-6 text-white" />
                         </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Categoria</label>
-                            <select required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-[#050510] border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon">
-                              <option value="Masters">Masters (PCs Completos)</option>
-                              <option value="Displays">Displays (Monitores)</option>
-                              <option value="Components">Components (Peças avulsas)</option>
-                              <option value="Consolas">Consolas</option>
-                              <option value="Laptops">Laptops</option>
-                              <option value="Gadgets">Gadgets</option>
-                            </select>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Disponibilidade</label>
-                              <select required value={status} onChange={e => setStatus(e.target.value)} className="w-full bg-[#050510] border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon">
-                                <option value="stock">Em Stock</option>
-                                <option value="encomenda">Por Encomenda</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Estado Físico</label>
-                              <select required value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-[#050510] border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon">
-                                <option value="novo">Novo</option>
-                                <option value="na_box">Na Box (Selado)</option>
-                                <option value="usado">Usado (Premium)</option>
-                              </select>
-                            </div>
-                          </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-extrabold text-white text-lg flex items-center gap-2">Amani Neural Fill <span className="px-2 py-0.5 bg-white/10 rounded-full text-[9px] uppercase tracking-widest text-brand-neon">Magia</span></h3>
+                          <p className="text-sm text-gray-400">Escreva apenas o nome da peça ou máquina. A inteligência artificial vai pesquisar imagens transparentes e preencher todas as especificações técnicas e categoria automaticamente.</p>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Galeria de Imagens do Hardware</label>
-                          <div className="flex flex-col gap-4">
-                            <div className="relative border-2 border-dashed border-white/10 rounded-2xl p-8 hover:bg-white/[0.02] hover:border-brand-neon/50 transition-colors flex flex-col items-center justify-center text-center cursor-pointer group">
-                              <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                              <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:bg-brand-neon/10 group-hover:text-brand-neon transition-colors text-gray-400">
-                                <Plus size={24} />
-                              </div>
-                              <p className="text-sm font-bold text-white mb-1">Arraste as imagens para aqui</p>
-                              <p className="text-xs text-gray-500">ou clique para procurar no computador</p>
-                            </div>
-                            
-                            <Input value={images} onChange={e => setImages(e.target.value)} className="bg-black/40 border-white/10 h-10 text-xs" placeholder="Ou cole URLs externos (separados por vírgula)..." />
-                            
-                            {images && (
-                              <div className="flex flex-wrap gap-4 mt-2">
-                                {images.split(',').map((img, i) => img.trim() && (
-                                  <div key={i} className="relative w-24 h-24 rounded-xl border border-white/10 bg-black/50 overflow-hidden group">
-                                    <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity z-10"><X size={12} /></button>
-                                    <img src={img.trim()} alt="" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                        <div className="flex flex-col sm:flex-row w-full md:w-auto gap-2 relative z-10">
+                          <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: RTX 4090 Strix" className="w-full sm:w-64 bg-black/40 border-white/10 h-12 rounded-xl text-white focus:border-brand-neon transition-colors" />
+                          <Button type="button" onClick={handleAutocomplete} disabled={!name || isAutoCompleting} className="h-12 bg-white text-black font-extrabold rounded-xl px-6 hover:bg-gray-200 transition-transform hover:scale-105 shadow-xl flex items-center justify-center gap-2 w-full sm:w-auto">
+                            {isAutoCompleting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Autofill'}
+                          </Button>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Descrição Detalhada</label>
-                            <textarea required value={desc} onChange={e => setDesc(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-base focus:outline-none focus:border-brand-neon min-h-[150px]" placeholder="Escreva sobre as características deste canhão..." />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex justify-between items-center">
-                              Especificações Técnicas
-                              <button type="button" onClick={() => setSpecsList([...specsList, {key: '', value: ''}])} className="text-brand-magenta hover:text-white flex items-center gap-1"><Plus size={12}/> Adicionar Linha</button>
-                            </label>
-                            <div className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-base focus-within:border-brand-magenta min-h-[150px] space-y-3">
-                              {specsList.map((spec, index) => (
-                                <div key={index} className="flex items-center gap-2 group">
-                                  <Input value={spec.key} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].key = e.target.value; setSpecsList(newSpecs); }} placeholder="Chave (Ex: RAM)" className="w-1/3 bg-black/40 h-10 border-white/10 text-xs" />
-                                  <span className="text-gray-500 font-bold">:</span>
-                                  <Input value={spec.value} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].value = e.target.value; setSpecsList(newSpecs); }} placeholder="Valor (Ex: 32GB DDR5)" className="flex-1 bg-black/40 h-10 border-white/10 text-xs" />
-                                  <button type="button" onClick={() => { const newSpecs = specsList.filter((_, i) => i !== index); setSpecsList(newSpecs.length ? newSpecs : [{key: '', value: ''}]); }} className="text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X size={16} /></button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                      </div>
+
+                      {/* iOS 26 Settings Group 1: General */}
+                      <div className="bg-[#0a0a14]/80 backdrop-blur-2xl border border-white/5 rounded-[2rem] overflow-hidden shadow-xl">
+                        <div className="p-6 border-b border-white/5 bg-white/[0.01]">
+                           <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Informação Base</h4>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Tags Especiais (separadas por vírgula)</label>
-                          <Input value={tags} onChange={e => setTags(e.target.value)} className="bg-white/5 border-white/10 h-12" placeholder="OLED, 4K, 240Hz, Watercooled" />
+                        <div className="p-6 space-y-6">
+                           <div className="flex flex-col md:flex-row gap-6">
+                             <div className="flex-1">
+                               <label className="block text-xs font-bold text-gray-400 mb-2">Nome do Produto</label>
+                               <Input required value={name} onChange={e => setName(e.target.value)} className="bg-transparent border-0 border-b border-white/10 rounded-none h-10 px-0 text-white text-lg focus-visible:ring-0 focus-visible:border-brand-neon transition-colors" placeholder="Nome Completo..." />
+                             </div>
+                             <div className="md:w-48">
+                               <label className="block text-xs font-bold text-gray-400 mb-2">Preço (MT)</label>
+                               <Input required type="number" value={price} onChange={e => setPrice(e.target.value)} className="bg-transparent border-0 border-b border-white/10 rounded-none h-10 px-0 text-brand-neon font-bold text-lg focus-visible:ring-0 focus-visible:border-brand-neon transition-colors" placeholder="0.00" />
+                             </div>
+                           </div>
+                           
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                             <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2">Categoria</label>
+                                <select required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon appearance-none">
+                                  <option value="Desktop's">Desktop's (PCs Completos)</option>
+                                  <option value="Displays">Displays (Monitores)</option>
+                                  <option value="Components">Components (Peças avulsas)</option>
+                                  <option value="Consolas">Consolas</option>
+                                  <option value="Laptops">Laptops</option>
+                                  <option value="Gadgets">Gadgets</option>
+                                </select>
+                             </div>
+                             <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2">Disponibilidade</label>
+                                <select required value={status} onChange={e => setStatus(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon appearance-none">
+                                  <option value="stock">Em Stock</option>
+                                  <option value="encomenda">Por Encomenda</option>
+                                </select>
+                             </div>
+                             <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-2">Estado Físico</label>
+                                <select required value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl h-12 px-4 font-bold text-white focus:outline-none focus:border-brand-neon appearance-none">
+                                  <option value="novo">Novo</option>
+                                  <option value="na_box">Na Box (Selado)</option>
+                                  <option value="usado">Usado (Premium)</option>
+                                </select>
+                             </div>
+                           </div>
+                           
+                           <div className="pt-4">
+                              <label className="block text-xs font-bold text-gray-400 mb-2">Tags de Pesquisa</label>
+                              <Input value={tags} onChange={e => setTags(e.target.value)} className="bg-transparent border-0 border-b border-white/10 rounded-none h-10 px-0 text-white text-sm focus-visible:ring-0 focus-visible:border-brand-neon transition-colors" placeholder="Ex: RTX, 4K, Watercooled (Separadas por vírgula)" />
+                           </div>
                         </div>
-                        <div className="pt-4 flex justify-end gap-4 border-t border-white/5">
-                          <Button type="button" onClick={() => {
-                             setIsAdding(false);
-                             setEditingId(null);
-                             setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsList([{key: '', value: ''}]);
-                          }} variant="outline" className="border-white/10 bg-transparent text-white hover:bg-white/5 h-12 px-8 rounded-xl">Cancelar</Button>
-                          <Button type="submit" className="bg-brand-neon hover:bg-brand-magenta text-black font-bold h-12 px-10 rounded-xl transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]">Guardar no Database</Button>
+                      </div>
+
+                      {/* iOS 26 Settings Group 2: Media */}
+                      <div className="bg-[#0a0a14]/80 backdrop-blur-2xl border border-white/5 rounded-[2rem] overflow-hidden shadow-xl">
+                        <div className="p-6 border-b border-white/5 bg-white/[0.01]">
+                           <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Média & Imagens</h4>
                         </div>
-                      </form>
-                    </CardContent>
+                        <div className="p-6">
+                           <div className="flex flex-col gap-4">
+                             <div className="relative border-2 border-dashed border-white/10 rounded-[1.5rem] p-10 hover:bg-white/[0.02] hover:border-brand-neon/50 transition-colors flex flex-col items-center justify-center text-center cursor-pointer group">
+                               <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                               <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover:bg-brand-neon/10 group-hover:text-brand-neon transition-colors text-gray-400 shadow-inner">
+                                 <Plus size={28} />
+                               </div>
+                               <p className="text-base font-bold text-white mb-1">Arraste as imagens para aqui</p>
+                               <p className="text-xs text-gray-500">ou clique para procurar no seu computador (Max 4MB)</p>
+                             </div>
+                             
+                             <Input value={images} onChange={e => setImages(e.target.value)} className="bg-black/40 border-white/10 h-12 rounded-xl text-sm px-4 focus:border-brand-neon transition-colors" placeholder="Ou cole URLs externos (separados por vírgula)..." />
+                             
+                             {images && (
+                               <div className="flex flex-wrap gap-4 mt-4">
+                                 {images.split(',').map((img, i) => img.trim() && (
+                                   <div key={i} className="relative w-28 h-28 rounded-2xl border border-white/10 bg-black/50 overflow-hidden group shadow-lg">
+                                     <button type="button" onClick={() => setImages(images.split(',').filter((_, idx) => idx !== i).join(','))} className="absolute top-2 right-2 w-7 h-7 bg-red-500/90 backdrop-blur-md text-white flex items-center justify-center rounded-full opacity-0 group-hover:opacity-100 transition-all hover:scale-110 z-10"><X size={14} strokeWidth={2.5}/></button>
+                                     <img src={img.trim()} alt="" className="w-full h-full object-cover p-2 opacity-90 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-500" />
+                                   </div>
+                                 ))}
+                               </div>
+                             )}
+                           </div>
+                        </div>
+                      </div>
+
+                      {/* iOS 26 Settings Group 3: Specs & Desc */}
+                      <div className="bg-[#0a0a14]/80 backdrop-blur-2xl border border-white/5 rounded-[2rem] overflow-hidden shadow-xl">
+                        <div className="p-6 border-b border-white/5 bg-white/[0.01]">
+                           <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Detalhes Técnicos</h4>
+                        </div>
+                        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                           {/* Specs Builder */}
+                           <div>
+                             <div className="flex justify-between items-center mb-4">
+                               <label className="block text-xs font-bold text-gray-400">Construtor Dinâmico</label>
+                               <button type="button" onClick={() => setSpecsList([...specsList, {key: '', value: ''}])} className="text-xs font-bold text-brand-neon hover:text-brand-magenta flex items-center gap-1 transition-colors"><Plus size={14}/> Adicionar Spec</button>
+                             </div>
+                             <div className="bg-black/30 border border-white/5 rounded-2xl p-2 space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar">
+                               {specsList.map((spec, index) => (
+                                 <div key={index} className="flex items-center gap-2 group bg-white/[0.02] p-2 rounded-xl border border-white/5 hover:border-brand-neon/30 transition-colors">
+                                   <Input value={spec.key} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].key = e.target.value; setSpecsList(newSpecs); }} placeholder="Chave (Ex: RAM)" className="w-1/3 bg-transparent border-0 h-8 text-xs focus-visible:ring-0 px-2 font-bold text-gray-300" />
+                                   <span className="text-gray-600 font-bold">:</span>
+                                   <Input value={spec.value} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].value = e.target.value; setSpecsList(newSpecs); }} placeholder="Valor (Ex: 32GB DDR5)" className="flex-1 bg-transparent border-0 h-8 text-xs focus-visible:ring-0 px-2 text-white" />
+                                   <button type="button" onClick={() => { const newSpecs = specsList.filter((_, i) => i !== index); setSpecsList(newSpecs.length ? newSpecs : [{key: '', value: ''}]); }} className="text-gray-600 hover:text-red-500 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md hover:bg-red-500/10"><X size={14} /></button>
+                                 </div>
+                               ))}
+                             </div>
+                           </div>
+                           
+                           {/* Description */}
+                           <div className="flex flex-col">
+                             <label className="block text-xs font-bold text-gray-400 mb-4">Descrição Comercial (Markdown)</label>
+                             <textarea required value={desc} onChange={e => setDesc(e.target.value)} className="flex-1 w-full bg-black/30 border border-white/5 rounded-2xl p-5 text-sm focus:outline-none focus:border-brand-neon text-white min-h-[250px] leading-relaxed resize-none custom-scrollbar" placeholder="Descreva a imponência desta peça..." />
+                           </div>
+                        </div>
+                      </div>
+
+                      {/* Action Bar */}
+                      <div className="sticky bottom-6 z-50 flex justify-end gap-4 p-4 bg-[#0a0a14]/90 backdrop-blur-2xl border border-white/10 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.5)]">
+                        <Button type="button" onClick={() => {
+                           setIsAdding(false);
+                           setEditingId(null);
+                           setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSpecsList([{key: '', value: ''}]);
+                        }} variant="ghost" className="text-white hover:bg-white/10 h-12 px-8 rounded-xl font-bold border-0">Cancelar Operação</Button>
+                        <Button type="submit" className="bg-brand-neon hover:bg-brand-magenta text-black font-extrabold h-12 px-10 rounded-xl transition-all shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:scale-105">
+                          {editingId ? 'Atualizar na Matrix' : 'Gravar no Catálogo'}
+                        </Button>
+                      </div>
+                    </form>
                   </Card>
                 )}
 
@@ -1515,4 +1541,3 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
     </div>
   );
 }
-

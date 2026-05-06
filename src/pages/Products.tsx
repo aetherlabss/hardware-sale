@@ -503,7 +503,7 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
   
   let filteredProducts = activeCategory === 'Todos' 
     ? displayList 
-    : displayList.filter(p => p.category === activeCategory || (activeCategory === 'Monitores' && p.category === 'Displays') || (activeCategory === "Desktop's" && p.category === 'Masters'));
+    : displayList.filter(p => p.category === activeCategory || (activeCategory === 'Monitores' && p.category === 'Displays'));
 
   if (subCategory && subCategory !== activeCategory) {
      if (subCategory === 'Memória & Disco') {

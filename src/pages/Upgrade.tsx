@@ -37,7 +37,7 @@ export function Upgrade() {
     // Suggest items that cost MORE than the voucher, so the voucher feels like a massive discount
     // We try to recommend GPUs or CPUs as they are the primary upgrade items
     const upgrades = products.filter(p => 
-      (p.category === 'Components' || p.category === 'Masters') && 
+      (p.category === 'Components' || p.category === "Desktop's") &&
       p.price > voucher.value
     )
     .sort((a, b) => a.price - b.price)
