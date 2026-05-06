@@ -95,15 +95,15 @@ export function AdminDashboard() {
       });
 
       const prompt = `Gere dados de marketing e especificações para este produto de hardware tech: "${name}". 
-Usando as tuas capacidades de pesquisa na web (Google Search), procura links de imagens oficiais deste produto, preferencialmente com fundo transparente (.png) ou em alta resolução. Queremos até 3 imagens.
+Usando as tuas capacidades de pesquisa na web (Google Search), procure e RETORNE APENAS LINKS COMPLETAMENTE REAIS E FUNCIONAIS de imagens do produto. Se não encontrar um URL que termine em .jpg, .png ou .webp de uma fonte confiavel como amazon, fabricante etc, deixe a array images VAZIA.
 Retorne um JSON válido com esta exata estrutura:
 {
   "desc": "Uma descrição premium, comercial e detalhada de até 3 frases sobre as qualidades do produto.",
   "specs": "Especificações chave no formato Chave: Valor, uma por linha (Ex:\\nMemória: 16GB\\nFrequência: 3200MHz)",
   "tags": "3 a 5 tags separadas por vírgula (Ex: premium, rgb, overclock)",
-  "category": "Uma destas: Desktop's, Monitores, Components, Consolas, Laptops, Gadgets",
-  "subCategory": "Uma destas se aplicável: GPU, CPU, RAM, Armazenamento, Air Cooler, Liquid Cooling, Fans, Motherboard, Fonte, Case, Teclado, Rato, Headsets, Android, iOS. (Ou null se não aplicável)",
-  "images": ["URL 1 principal transparente", "URL 2 angulo diferente", "URL 3 detalhe"]
+  "category": "Uma destas: Desktop's, Displays, Components, Consolas, Laptops, Gadgets",
+  "subCategory": "Uma destas se aplicável: GPU, CPU, RAM, Armazenamento, Air Cooler, Liquid Cooling, Fans, Motherboard, Fonte, Case, Teclado, Rato, Headsets, Webcam, Chairs / Cadeiras, Audio & Som, Routers & Redes, Android, iOS. (Ou null se não aplicável)",
+  "images": ["URL REAL 1", "URL REAL 2"]
 }`;
 
       const response = await ai.models.generateContent({
@@ -163,14 +163,14 @@ Retorne um JSON válido com esta exata estrutura:
       });
 
       const prompt = `Gere dados de compatibilidade técnica para o Smart Builder sobre este componente de hardware: "${bName}". 
-Usando pesquisa, encontre até 3 URLs de imagens transparentes ou de fundo limpo oficiais.
+Usando pesquisa, encontre e RETORNE APENAS LINKS COMPLETAMENTE REAIS E FUNCIONAIS de imagens. Se não encontrar imagens, deixe a array vazia.
 Retorne um JSON válido com esta exata estrutura:
 {
   "bType": "Um destes: cpu, gpu, motherboard, ram, psu, case, storage, cooler, fans, peripheral",
   "bWattage": "Apenas número (ex: se o TDP for 125W, retorne 125). Em caso de PSU, devolva os Watts totais.",
   "bSocket": "O Socket ou chipset (LGA1700, AM5, ATX, PCIe 4.0, etc.)",
   "bSpecs": "3 especificações chave separadas por vírgula (ex: 24 Cores, 6.2GHz, 125W TDP)",
-  "images": ["URL transparente 1", "URL transparente 2"]
+  "images": ["URL real 1", "URL real 2"]
 }`;
 
       const response = await ai.models.generateContent({
@@ -1185,16 +1185,17 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                             </div>
                             
                             {/* Dynamic Subcategory based on Category */}
-                            {(category === 'Components' || category === 'Monitores' || category === 'Consolas' || category === 'Laptops' || category === 'Celulares') && (
+                            {(category === 'Components' || category === 'Monitores' || category === 'Consolas' || category === 'Laptops' || category === 'Celulares' || category === 'Displays' || category === 'Gadgets') && (
                               <div className="mb-3 animate-in fade-in zoom-in duration-300">
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sub-Categoria</label>
                                 <select required value={subCategory} onChange={e => setSubCategory(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-brand-neon focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
                                    <option value="" disabled className="bg-[#0a0a14] text-gray-500">Selecione a variante...</option>
                                    {category === 'Components' && ['GPU', 'CPU', 'RAM', 'Armazenamento', 'Motherboard', 'Fonte', 'Case', 'Air Cooler', 'Liquid Cooling', 'Fans', 'Teclado', 'Rato', 'Headsets', 'Mousepad'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
-                                   {category === 'Monitores' && ['Monitores', 'Suportes'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                   {(category === 'Monitores' || category === 'Displays') && ['Monitores', 'Suportes'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                    {category === 'Consolas' && ['Consolas', 'Acessórios'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                    {category === 'Laptops' && ['Laptops', 'Acessórios'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                    {category === 'Celulares' && ['Android', 'iOS'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                   {category === 'Gadgets' && ['Webcam', 'Chairs / Cadeiras', 'Audio & Som', 'Routers & Redes', 'Acessórios Diversos'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                 </select>
                               </div>
                             )}
@@ -1459,7 +1460,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                  setIsAddingBuilder(false);
                                  setBName(''); setBPrice(''); setBImages(''); setBSpecs(''); setBWattage(''); setBSocket('');
                               }} variant="ghost" className="h-8 text-xs px-4 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border-0">Cancelar</Button>
-                              <Button type="button" onClick={handleAddBuilderComponent} className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
+                              <Button type="submit" className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
                                 Adicionar ao Builder
                               </Button>
                            </div>
