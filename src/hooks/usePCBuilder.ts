@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getAssetUrl } from "../lib/assets";
 import { useStore } from "../store/useStore";
+import { db } from "../lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
 export interface ComponentItem {
   id: string;
@@ -77,6 +79,17 @@ export function usePCBuilder() {
   const [searchParams] = useSearchParams();
   const preset = searchParams.get('preset');
   const { products, initProducts } = useStore();
+  const [useMocks, setUseMocks] = useState(true);
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'admin_settings', 'main'), (docSnap) => {
+      if(docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.disableMocks !== undefined) setUseMocks(!data.disableMocks);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     // Only init if not loaded (the store might already be pulling them)
@@ -104,7 +117,7 @@ export function usePCBuilder() {
     };
 
     const parsedRealComponents: ComponentItem[] = products
-      .filter(p => p.category === 'Components' || p.category === 'Gadgets')
+      .filter(p => (p.category === 'Components' || p.category === 'Gadgets') && (p as any).isBuilderReady === true)
       .map(p => {
         // Try to get subCategory from the subCategory field or tags
         const subC = (p as any).subCategory || (p.tags && p.tags.find((t: string) => typeMap[t])) || '';
@@ -135,11 +148,9 @@ export function usePCBuilder() {
         };
       });
 
-    // Merge real products overriding mock ones if there's a lot, or just append them
-    // Here we append so users can see both if real DB is small, otherwise prioritize real.
-    // We can just concatenate them.
-    return [...parsedRealComponents, ...mockComponents];
-  }, [products]);
+    // Merge real products. Apply mocks if not disabled by Admin.
+    return [...parsedRealComponents, ...(useMocks ? mockComponents : [])];
+  }, [products, useMocks]);
 
   const [selectedMotherboard, setSelectedMotherboard] = useState<ComponentItem | null>(null);
   const [selectedCPU, setSelectedCPU] = useState<ComponentItem | null>(null);

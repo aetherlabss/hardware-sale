@@ -5,7 +5,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } f
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp } from 'lucide-react';
+import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { GoogleGenAI } from '@google/genai';
 import { logAetherLabsUsage } from '../lib/aiTracking';
@@ -63,7 +63,8 @@ export function AdminDashboard() {
     aiTemperature: 0.7,
     supportEmail: 'suporte@hardwaresale.co.mz',
     supportPhone: '+258 84 000 0000',
-    maintenanceMode: false
+    maintenanceMode: false,
+    disableMocks: false
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -451,6 +452,7 @@ Retorne um JSON válido com esta exata estrutura:
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'products', icon: Package, label: 'Produtos' },
+    { id: 'builder', icon: Wrench, label: 'Smart Builder' },
     { id: 'customers', icon: Users, label: 'Clientes' },
     { id: 'settings', icon: Settings, label: 'Configurações' },
     { id: 'aetherlabs', icon: Sparkles, label: 'AetherLabs AI' },
@@ -1194,6 +1196,60 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                   )}
                  </div>
                 )}
+              </div>
+            )}
+
+            {/* --- TAB: BUILDER --- */}
+            {activeTab === 'builder' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#0a0a14] border border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden gap-4 mb-8">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-brand-neon/10 blur-[100px] rounded-full pointer-events-none"></div>
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Gestor do Smart Builder</h2>
+                    <p className="text-gray-400 font-medium">Selecione quais os componentes reais que devem aparecer no construtor de PCs.</p>
+                  </div>
+                  <div className="relative z-10 flex flex-col gap-2 bg-white/5 border border-white/10 p-4 rounded-xl">
+                     <div className="font-bold text-sm text-white">Modo Híbrido (Mocks Ativos)</div>
+                     <div className="flex items-center gap-3">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                           <input type="checkbox" checked={!storeSettings.disableMocks} onChange={async (e) => {
+                              const newVal = !e.target.checked;
+                              setStoreSettings(prev => ({...prev, disableMocks: newVal}));
+                              await setDoc(doc(db, 'admin_settings', 'main'), { disableMocks: newVal }, { merge: true });
+                           }} className="sr-only peer" />
+                           <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-neon"></div>
+                        </label>
+                        <span className="text-xs text-gray-400">{!storeSettings.disableMocks ? 'Mocks Visíveis' : 'Apenas Inventário Real'}</span>
+                     </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl">
+                   <h3 className="text-xl font-bold text-white mb-6">Componentes Elegíveis para o Builder</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                     {products.filter(p => p.category === 'Components' || p.category === 'Gadgets').map(product => (
+                        <div key={product.id} className={`p-4 rounded-2xl border transition-all flex gap-4 items-center cursor-pointer ${product.isBuilderReady ? 'bg-brand-neon/10 border-brand-neon shadow-[0_0_15px_rgba(20,241,149,0.2)]' : 'bg-black/40 border-white/5 hover:border-white/20'}`} onClick={async () => {
+                           await setDoc(doc(db, 'products', product.id), { isBuilderReady: !product.isBuilderReady }, { merge: true });
+                        }}>
+                          <div className="w-12 h-12 rounded-xl bg-black border border-white/10 flex items-center justify-center p-1">
+                             <img src={product.images?.[0] || product.image} className="max-w-full max-h-full object-contain" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                             <h4 className="text-sm font-bold text-white truncate">{product.name}</h4>
+                             <p className="text-xs text-gray-500">{product.subCategory || 'Sem Sub-categoria'}</p>
+                          </div>
+                          <div>
+                             <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${product.isBuilderReady ? 'bg-brand-neon border-brand-neon text-black' : 'border-white/20 text-transparent'}`}>
+                                <CheckCircle2 size={14} />
+                             </div>
+                          </div>
+                        </div>
+                     ))}
+                     {products.filter(p => p.category === 'Components' || p.category === 'Gadgets').length === 0 && (
+                        <div className="col-span-full text-center text-gray-500 py-10">Nenhum componente encontrado. Adicione peças no catálogo primeiro.</div>
+                     )}
+                   </div>
+                </div>
               </div>
             )}
 
