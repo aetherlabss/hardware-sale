@@ -43,6 +43,16 @@ export function AdminDashboard() {
   const [specsList, setSpecsList] = useState<{key: string, value: string}[]>([{key: '', value: ''}]);
   const [isAutoCompleting, setIsAutoCompleting] = useState(false);
 
+  // Builder Specific Add State
+  const [isAddingBuilder, setIsAddingBuilder] = useState(false);
+  const [bName, setBName] = useState('');
+  const [bPrice, setBPrice] = useState('');
+  const [bType, setBType] = useState('gpu');
+  const [bWattage, setBWattage] = useState('');
+  const [bSocket, setBSocket] = useState('');
+  const [bSpecs, setBSpecs] = useState(''); // comma separated
+  const [bImages, setBImages] = useState('');
+
   const ALLOWED_ADMINS = ['admin@hardwaresales.co.mz', 'gabriel.vieira.jamal@gmail.com'];
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -127,6 +137,58 @@ Retorne um JSON válido com esta exata estrutura:
       }
     } catch (err) {
       console.error("Auto-complete failed:", err);
+    } finally {
+      setIsAutoCompleting(false);
+    }
+  };
+
+  const handleBuilderAutocomplete = async () => {
+    if (!bName) return;
+    setIsAutoCompleting(true);
+    try {
+      const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
+      if (!apiKey) throw new Error("VITE_VERTEX_API_KEY missing");
+      const ai = new GoogleGenAI({ 
+        apiKey,
+        vertexai: {
+          project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware',
+          location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
+        } as any
+      });
+
+      const prompt = `Gere dados de compatibilidade técnica para o Smart Builder sobre este componente de hardware: "${bName}". 
+Usando pesquisa, encontre até 3 URLs de imagens transparentes ou de fundo limpo oficiais.
+Retorne um JSON válido com esta exata estrutura:
+{
+  "bType": "Um destes: cpu, gpu, motherboard, ram, psu, case, storage, cooler, fans, peripheral",
+  "bWattage": "Apenas número (ex: se o TDP for 125W, retorne 125). Em caso de PSU, devolva os Watts totais.",
+  "bSocket": "O Socket ou chipset (LGA1700, AM5, ATX, PCIe 4.0, etc.)",
+  "bSpecs": "3 especificações chave separadas por vírgula (ex: 24 Cores, 6.2GHz, 125W TDP)",
+  "images": ["URL transparente 1", "URL transparente 2"]
+}`;
+
+      const response = await ai.models.generateContent({
+          model: "gemini-3.1-pro-preview",
+          contents: prompt,
+          config: {
+            temperature: 0.1,
+            tools: [{ googleSearch: {} }]
+          }
+      });
+      
+      let text = response.text || "";
+      text = text.replace(/```json\n/g, '').replace(/```/g, '').trim();
+      
+      const parsed = JSON.parse(text);
+      if (parsed.bType) setBType(parsed.bType);
+      if (parsed.bWattage !== undefined) setBWattage(String(parsed.bWattage));
+      if (parsed.bSocket) setBSocket(parsed.bSocket);
+      if (parsed.bSpecs) setBSpecs(parsed.bSpecs);
+      if (parsed.images && Array.isArray(parsed.images)) {
+        setBImages(parsed.images.join(', '));
+      }
+    } catch (err) {
+      console.error("Builder Auto-complete failed:", err);
     } finally {
       setIsAutoCompleting(false);
     }
@@ -224,6 +286,21 @@ Retorne um JSON válido com esta exata estrutura:
     }
   };
 
+  const handleBuilderImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    try {
+      const base64Images: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const base64 = await processImage(files[i]);
+        base64Images.push(base64);
+      }
+      setBImages(prev => prev ? `${prev}, ${base64Images.join(', ')}` : base64Images.join(', '));
+    } catch (err) {
+      console.error("Error processing image:", err);
+    }
+  };
+
   useEffect(() => {
     if (!user || !ALLOWED_ADMINS.includes(user.email || '')) {
       setLoading(false);
@@ -287,6 +364,47 @@ Retorne um JSON válido com esta exata estrutura:
     signOut(auth);
   };
 
+  const handleAddBuilderComponent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const parsedImages = bImages.split(',').map(i => i.trim()).filter(Boolean);
+      const specsList = bSpecs.split(',').map(s => s.trim()).filter(Boolean);
+      const parsedSpecs: Record<string, string> = {};
+      specsList.forEach((s, i) => parsedSpecs[`Espec ${i+1}`] = s);
+
+      const typeMapRev: Record<string, string> = {
+        'cpu': 'CPU', 'gpu': 'GPU', 'motherboard': 'Motherboard', 'ram': 'RAM', 'psu': 'Fonte', 'case': 'Case', 'storage': 'Armazenamento', 'cooler': 'Air Cooler', 'fans': 'Fans', 'peripheral': 'Acessório',
+      };
+
+      const productData: any = {
+        name: bName,
+        price: Number(bPrice),
+        category: 'Components',
+        subCategory: typeMapRev[bType] || 'Componente',
+        status: 'stock',
+        condition: 'novo',
+        images: parsedImages.length ? parsedImages : ['https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'],
+        desc: 'Componente otimizado e adicionado diretamente via Smart Builder Matrix.',
+        tags: [typeMapRev[bType] || 'Componente'],
+        specs: parsedSpecs,
+        isBuilderReady: true,
+        builderType: bType,
+        builderWattage: Number(bWattage) || 0,
+        builderSocket: bSocket || '',
+        updatedAt: serverTimestamp()
+      };
+
+      productData.createdAt = serverTimestamp();
+      await addDoc(collection(db, 'products'), productData);
+      
+      setBName(''); setBPrice(''); setBType('gpu'); setBWattage(''); setBSocket(''); setBSpecs(''); setBImages('');
+      setIsAddingBuilder(false);
+    } catch(err) {
+      console.error(err);
+      alert("Erro ao adicionar componente ao Builder.");
+    }
+  };
+
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -312,6 +430,7 @@ Retorne um JSON válido com esta exata estrutura:
         name,
         price: Number(price),
         category,
+        subCategory,
         status,
         images: parsedImages.length ? parsedImages : ['https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'],
         desc,
@@ -348,7 +467,7 @@ Retorne um JSON válido com esta exata estrutura:
     
     // Guess subCategory from tags if possible
     const possibleSubs = ['GPU', 'CPU', 'RAM', 'Armazenamento', 'Air Cooler', 'Liquid Cooling', 'Fans', 'Motherboard', 'Fonte', 'Case', 'Teclado', 'Rato', 'Mousepad', 'Headsets', 'Android', 'iOS', 'Monitores', 'Suportes', 'Consolas', 'Laptops', 'Acessórios'];
-    const foundSub = p.tags?.find((t: string) => possibleSubs.includes(t)) || '';
+    const foundSub = p.subCategory || p.tags?.find((t: string) => possibleSubs.includes(t)) || '';
     setSubCategory(foundSub);
     
     setStatus(p.status || 'stock');
@@ -1206,23 +1325,114 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                   <div className="absolute top-0 right-0 w-64 h-64 bg-brand-neon/10 blur-[100px] rounded-full pointer-events-none"></div>
                   <div className="relative z-10">
                     <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Gestor do Smart Builder</h2>
-                    <p className="text-gray-400 font-medium">Selecione quais os componentes reais que devem aparecer no construtor de PCs.</p>
+                    <p className="text-gray-400 font-medium">Controle total sobre o inventário disponível no configurador de PCs.</p>
                   </div>
-                  <div className="relative z-10 flex flex-col gap-2 bg-white/5 border border-white/10 p-4 rounded-xl">
-                     <div className="font-bold text-sm text-white">Modo Híbrido (Mocks Ativos)</div>
-                     <div className="flex items-center gap-3">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                           <input type="checkbox" checked={!storeSettings.disableMocks} onChange={async (e) => {
-                              const newVal = !e.target.checked;
-                              setStoreSettings(prev => ({...prev, disableMocks: newVal}));
-                              await setDoc(doc(db, 'admin_settings', 'main'), { disableMocks: newVal }, { merge: true });
-                           }} className="sr-only peer" />
-                           <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-neon"></div>
-                        </label>
-                        <span className="text-xs text-gray-400">{!storeSettings.disableMocks ? 'Mocks Visíveis' : 'Apenas Inventário Real'}</span>
-                     </div>
+                  <div className="flex items-center gap-4 relative z-10">
+                    <Button 
+                      onClick={() => setIsAddingBuilder(!isAddingBuilder)}
+                      className="bg-brand-neon hover:bg-brand-magenta text-black font-bold border-0 rounded-xl px-6 h-12 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+                    >
+                      {isAddingBuilder ? 'Cancelar' : <><Plus size={18} className="mr-2" /> Add Componente</>}
+                    </Button>
                   </div>
                 </div>
+
+                {isAddingBuilder && (
+                  <div className="mb-8 animate-in fade-in slide-in-from-top-4">
+                    <form onSubmit={handleAddBuilderComponent} className="flex flex-col gap-4">
+                      {/* AI Magic Fill Banner - COMPACT */}
+                      <div className="bg-gradient-to-r from-brand-neon/10 to-brand-magenta/10 rounded-xl p-3 border border-brand-neon/20 flex items-center justify-between gap-4 shadow-sm">
+                        <div className="flex items-center gap-3">
+                           <Sparkles className="w-5 h-5 text-brand-neon" />
+                           <div>
+                             <h3 className="font-bold text-white text-sm">Amani Neural Builder Fill</h3>
+                             <p className="text-xs text-gray-400 hidden sm:block">Digite o nome do componente para preencher tipo, socket e voltagem.</p>
+                           </div>
+                        </div>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                          <Input value={bName} onChange={e => setBName(e.target.value)} placeholder="Ex: RTX 4090" className="w-full sm:w-48 bg-black/40 border-white/10 h-8 rounded-lg text-white text-xs focus:border-brand-neon" />
+                          <Button type="button" onClick={handleBuilderAutocomplete} disabled={!bName || isAutoCompleting} className="h-8 bg-white text-black font-bold rounded-lg px-4 text-xs hover:bg-gray-200">
+                            {isAutoCompleting ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Autofill'}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Main Form Area - Dense Grid */}
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        {/* Col 1 & 2: General & Specs */}
+                        <div className="lg:col-span-2 space-y-4">
+                          <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-4 shadow-sm">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                               <div className="col-span-2">
+                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nome do Componente</label>
+                                 <Input required value={bName} onChange={e => setBName(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-white text-xs rounded-lg focus:border-brand-neon transition-colors" placeholder="Nome Completo..." />
+                               </div>
+                               <div>
+                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Preço (MT)</label>
+                                 <Input required type="number" value={bPrice} onChange={e => setBPrice(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-brand-neon font-bold text-xs rounded-lg focus:border-brand-neon transition-colors" placeholder="0.00" />
+                               </div>
+                               <div>
+                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Tipo Builder</label>
+                                 <select required value={bType} onChange={e => setBType(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-brand-neon focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
+                                   <option value="cpu" className="bg-[#0a0a14] text-white">CPU</option>
+                                   <option value="gpu" className="bg-[#0a0a14] text-white">GPU</option>
+                                   <option value="motherboard" className="bg-[#0a0a14] text-white">Motherboard</option>
+                                   <option value="ram" className="bg-[#0a0a14] text-white">RAM</option>
+                                   <option value="psu" className="bg-[#0a0a14] text-white">Fonte (PSU)</option>
+                                   <option value="case" className="bg-[#0a0a14] text-white">Case</option>
+                                   <option value="storage" className="bg-[#0a0a14] text-white">Armazenamento</option>
+                                   <option value="cooler" className="bg-[#0a0a14] text-white">Cooler</option>
+                                   <option value="fans" className="bg-[#0a0a14] text-white">Fans</option>
+                                   <option value="peripheral" className="bg-[#0a0a14] text-white">Peripheral</option>
+                                 </select>
+                               </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                               <div>
+                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Socket/Compatibilidade (Opcional)</label>
+                                  <Input value={bSocket} onChange={e => setBSocket(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-xs text-white rounded-lg focus:border-brand-neon transition-colors" placeholder="Ex: LGA1700, AM5, ATX" />
+                               </div>
+                               <div>
+                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Consumo / Capacidade (Watts)</label>
+                                  <Input type="number" value={bWattage} onChange={e => setBWattage(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-xs text-white rounded-lg focus:border-brand-neon transition-colors" placeholder="Ex: 120 (Se CPU/GPU) ou 850 (Se PSU)" />
+                               </div>
+                            </div>
+                            
+                            <div>
+                               <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Specs Curtas (Separadas por vírgula. Máx 3)</label>
+                               <Input required value={bSpecs} onChange={e => setBSpecs(e.target.value)} className="w-full bg-black/40 border-white/10 rounded-lg h-9 px-3 text-xs text-white focus:outline-none focus:border-brand-neon" placeholder="Ex: 24 Cores, 6.2GHz, 125W TDP" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Col 3: Media & Actions */}
+                        <div className="flex flex-col gap-4">
+                           <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-4 shadow-sm flex-1 flex flex-col">
+                             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-2">Imagens</label>
+                             <div className="relative border border-dashed border-white/10 rounded-xl p-4 hover:border-brand-neon/30 transition-colors flex flex-col items-center justify-center text-center cursor-pointer mb-3 bg-white/[0.02] flex-1 min-h-[100px]">
+                               <input type="file" multiple accept="image/*" onChange={handleBuilderImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                               <Plus size={16} className="text-gray-500 mb-1" />
+                               <p className="text-[10px] text-gray-400 font-bold">Upload (Max 4MB)</p>
+                             </div>
+                             <Input value={bImages} onChange={e => setBImages(e.target.value)} className="bg-white/5 border-white/10 h-8 text-[10px] rounded-lg mb-2" placeholder="URLs, separadas por vírgula..." />
+                           </div>
+                           
+                           {/* Actions */}
+                           <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-3 flex justify-end gap-2 shadow-sm shrink-0">
+                              <Button type="button" onClick={() => {
+                                 setIsAddingBuilder(false);
+                                 setBName(''); setBPrice(''); setBImages(''); setBSpecs(''); setBWattage(''); setBSocket('');
+                              }} variant="ghost" className="h-8 text-xs px-4 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border-0">Cancelar</Button>
+                              <Button type="submit" className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
+                                Adicionar ao Builder
+                              </Button>
+                           </div>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                )}
 
                 <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl">
                    <h3 className="text-xl font-bold text-white mb-6">Componentes Elegíveis para o Builder</h3>
@@ -1344,194 +1554,258 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
                   <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-brand-neon/20 flex items-center justify-center text-brand-neon">
-                          <Cpu size={18} />
-                        </div>
-                        <div className="text-gray-300 font-bold text-sm">Amani Neural API</div>
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-neon/10 blur-[40px] rounded-full group-hover:bg-brand-neon/20 transition-all"></div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-brand-neon">
+                        <Package size={20} />
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_#22c55e]"></span>
+                      <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Total Produtos</div>
                     </div>
-                    <div className="text-2xl font-bold text-white tracking-tight">Online</div>
-                    <div className="text-xs text-gray-500 mt-1">Google Vertex AI Engine</div>
-                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-between text-xs font-bold">
-                       <span className="text-gray-400">Latência:</span>
-                       <span className="text-brand-neon">42ms</span>
-                    </div>
+                    <div className="text-5xl font-bold text-white tracking-tighter relative z-10">{products.length}</div>
                   </div>
                   
                   <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500">
-                          <HardDrive size={18} />
-                        </div>
-                        <div className="text-gray-300 font-bold text-sm">Firebase Cloud DB</div>
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-magenta/10 blur-[40px] rounded-full group-hover:bg-brand-magenta/20 transition-all"></div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-brand-magenta">
+                        <HardDrive size={20} />
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_#22c55e]"></span>
+                      <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Valor em Stock</div>
                     </div>
-                    <div className="text-2xl font-bold text-white tracking-tight">Estável</div>
-                    <div className="text-xs text-gray-500 mt-1">Sincronização em tempo real</div>
-                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-between text-xs font-bold">
-                       <span className="text-gray-400">Latência:</span>
-                       <span className="text-orange-500">12ms</span>
+                    <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta relative z-10 tracking-tight">
+                      {products.reduce((acc, p) => acc + (p.status === 'stock' || p.status === 'na_box' ? Number(p.price) : 0), 0).toLocaleString()} <span className="text-lg text-white font-medium">MT</span>
                     </div>
                   </div>
 
                   <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-500">
-                          <ShieldCheck size={18} />
-                        </div>
-                        <div className="text-gray-300 font-bold text-sm">M-Pesa Gateway</div>
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-green-500/10 blur-[40px] rounded-full group-hover:bg-green-500/20 transition-all"></div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-green-400">
+                        <Cpu size={20} />
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_#22c55e]"></span>
+                      <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Pronta Entrega</div>
                     </div>
-                    <div className="text-2xl font-bold text-white tracking-tight">Operacional</div>
-                    <div className="text-xs text-gray-500 mt-1">API Integrada via WhatsApp</div>
-                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-between text-xs font-bold">
-                       <span className="text-gray-400">Status:</span>
-                       <span className="text-green-500">OK</span>
-                    </div>
+                    <div className="text-5xl font-bold text-white tracking-tighter relative z-10">{products.filter(p => p.status === 'stock').length}</div>
                   </div>
 
                   <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-orange-400/20 flex items-center justify-center text-orange-400">
-                          <ShieldCheck size={18} />
-                        </div>
-                        <div className="text-gray-300 font-bold text-sm">e-Mola Gateway</div>
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/10 blur-[40px] rounded-full group-hover:bg-blue-500/20 transition-all"></div>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-blue-400">
+                        <ShieldCheck size={20} />
                       </div>
-                      <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_#22c55e]"></span>
+                      <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Por Encomenda</div>
                     </div>
-                    <div className="text-2xl font-bold text-white tracking-tight">Operacional</div>
-                    <div className="text-xs text-gray-500 mt-1">API Integrada via WhatsApp</div>
-                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-between text-xs font-bold">
-                       <span className="text-gray-400">Status:</span>
-                       <span className="text-green-500">OK</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* --- TAB: AETHERLABS AI --- */}
-            {activeTab === 'aetherlabs' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="mb-8 flex justify-between items-end">
-                  <div>
-                    <h2 className="text-3xl font-extrabold text-white tracking-tight mb-2 flex items-center gap-3">
-                      <Sparkles className="text-brand-neon" /> AetherLabs Intelligence
-                    </h2>
-                    <p className="text-gray-400">Telemetria de consumo do modelo Amani 3 (Powered by AetherLabs).</p>
-                  </div>
-                  <div className="px-4 py-2 bg-brand-neon/10 border border-brand-neon/20 rounded-full flex items-center gap-2">
-                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                     <span className="text-xs font-bold text-brand-neon uppercase tracking-widest">API Online</span>
+                    <div className="text-5xl font-bold text-white tracking-tighter relative z-10">{products.filter(p => p.status === 'encomenda').length}</div>
                   </div>
                 </div>
 
-                {(() => {
-                  const totalCalls = aiEvents.length;
-                  const totalTokens = aiEvents.reduce((acc, curr) => acc + (curr.tokens || 0), 0);
-                  const avgLatency = totalCalls > 0 ? (aiEvents.reduce((acc, curr) => acc + (curr.latency || 0), 0) / totalCalls) : 0;
-                  // Estimativa baseada no modelo premium Gemini 3.1 Pro Preview: ~$20.00 / 1M tokens = $0.00002 per token.
-                  // Convertido a Meticais (~64 MT por Dólar).
-                  const estimatedCostMT = totalTokens * 0.00002 * 64;
-
-                  return (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                        <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                          <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-brand-neon">
-                              <Zap size={20} />
-                            </div>
-                            <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Total Calls</div>
-                          </div>
-                          <div className="text-5xl font-bold text-white tracking-tighter relative z-10">{totalCalls}</div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* --- ANALYTICS PANEL & AI --- */}
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold text-white">Análise Geral ({analyticsFilter})</h3>
+                        <div className="flex gap-2 bg-white/5 border border-white/10 p-1 rounded-xl text-xs font-bold uppercase tracking-widest text-gray-500">
+                          <button onClick={() => setAnalyticsFilter('30D')} className={`px-3 py-1.5 rounded-lg transition-colors ${analyticsFilter === '30D' ? 'bg-white/10 text-white' : 'hover:text-white'}`}>30D</button>
+                          <button onClick={() => setAnalyticsFilter('90D')} className={`px-3 py-1.5 rounded-lg transition-colors ${analyticsFilter === '90D' ? 'bg-white/10 text-white' : 'hover:text-white'}`}>90D</button>
+                          <button onClick={() => setAnalyticsFilter('1Y')} className={`px-3 py-1.5 rounded-lg transition-colors ${analyticsFilter === '1Y' ? 'bg-white/10 text-white' : 'hover:text-white'}`}>1Y</button>
                         </div>
+                      </div>
+                      
+                      {(() => {
+                        const now = new Date();
+                        const timeFrameMs = analyticsFilter === '30D' ? 30*24*60*60*1000 : analyticsFilter === '90D' ? 90*24*60*60*1000 : 365*24*60*60*1000;
+                        const filteredEvents = events.filter(e => {
+                          const eventTime = e.timestamp ? (e.timestamp.toMillis ? e.timestamp.toMillis() : e.timestamp) : now.getTime();
+                          return (now.getTime() - eventTime) < timeFrameMs;
+                        });
+
+                        const cartEvents = filteredEvents.filter(e => e.type === 'add_to_cart');
+                        const checkoutEvents = filteredEvents.filter(e => e.type === 'checkout');
+                        const pageviews = filteredEvents.filter(e => e.type === 'pageview');
+
+                        const uniqueUsers = new Set(pageviews.map(e => e.sessionId)).size;
+                        const conversionRate = uniqueUsers > 0 ? ((checkoutEvents.length / uniqueUsers) * 100).toFixed(1) : '0.0';
+                        const estimatedProfit = checkoutEvents.reduce((acc, e) => acc + (e.value || 0), 0) * 0.15; // 15% margin
                         
-                        <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                          <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-brand-magenta">
-                              <Cpu size={20} />
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
+                            <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
+                              <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Users Ativos</div>
+                              <div className="text-2xl font-bold text-white">{uniqueUsers}</div>
+                              <div className="text-xs text-green-400 mt-1 flex items-center gap-1">+{(uniqueUsers * 0.1).toFixed(0)}% <ArrowUpRight size={12}/></div>
                             </div>
-                            <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Tokens Consumidos</div>
+                            <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
+                              <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Conversão</div>
+                              <div className="text-2xl font-bold text-brand-neon">{conversionRate}%</div>
+                              <div className="text-[10px] text-gray-500 mt-1">{checkoutEvents.length} checkouts</div>
+                            </div>
+                            <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
+                              <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">No Carrinho</div>
+                              <div className="text-2xl font-bold text-white">{cartEvents.length}</div>
+                              <div className="text-[10px] text-gray-500 mt-1">Acções totais</div>
+                            </div>
+                            <div className="p-4 bg-black/40 border border-white/5 rounded-2xl">
+                              <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest mb-1">Lucro Estimado</div>
+                              <div className="text-xl font-bold text-brand-magenta">{(estimatedProfit / 1000).toFixed(1)}k <span className="text-xs">MT</span></div>
+                              <div className="text-[10px] text-gray-500 mt-1">Margem 15%</div>
+                            </div>
                           </div>
-                          <div className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta relative z-10 tracking-tight">
-                            {totalTokens.toLocaleString()}
-                          </div>
-                        </div>
+                        );
+                      })()}
 
-                        <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                          <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 rounded-2xl border border-white/5 bg-white/5 flex items-center justify-center text-blue-400">
-                              <LineChart size={20} />
-                            </div>
-                            <div className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">Latência Média</div>
-                          </div>
-                          <div className="text-4xl font-bold text-white tracking-tighter relative z-10">
-                            {(avgLatency / 1000).toFixed(2)}<span className="text-sm text-gray-500 ml-1">s</span>
-                          </div>
+                      {/* Real Chart Area based on events grouping */}
+                      <div className="h-40 w-full flex items-end gap-2 px-2 opacity-50 relative group">
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-lg z-10">
+                           <span className="text-xs font-bold text-white uppercase tracking-widest border border-white/10 px-3 py-1 rounded-full bg-black">Visualização Ativa de Tráfego (Últimos 30 Dias)</span>
                         </div>
+                        {(() => {
+                           const days = 30;
+                           const now = new Date();
+                           const chartData = Array.from({ length: days }).map((_, i) => {
+                             const d = new Date(now);
+                             d.setDate(d.getDate() - (days - 1 - i));
+                             d.setHours(0,0,0,0);
+                             return { date: d, count: 0 };
+                           });
 
-                        <div className="bg-gradient-to-br from-brand-neon/10 to-brand-magenta/10 border border-brand-neon/20 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
-                          <div className="absolute -top-10 -right-10 w-32 h-32 bg-brand-neon/20 blur-[40px] rounded-full pointer-events-none"></div>
-                          <div className="flex items-center gap-4 mb-4 relative z-10">
-                            <div className="w-12 h-12 rounded-2xl border border-brand-neon/30 bg-brand-neon/20 flex items-center justify-center text-white">
-                              <ShieldCheck size={20} />
-                            </div>
-                            <div className="text-gray-300 font-bold uppercase tracking-widest text-[10px]">Custo Estimado</div>
-                          </div>
-                          <div className="text-5xl font-extrabold text-white tracking-tighter relative z-10">
-                            {estimatedCostMT.toFixed(2)}<span className="text-lg text-brand-neon ml-1">MT</span>
-                          </div>
+                           events.forEach(e => {
+                             if (e.type !== 'pageview') return;
+                             const eventTime = e.timestamp ? (e.timestamp.toMillis ? e.timestamp.toMillis() : e.timestamp) : now.getTime();
+                             const eDate = new Date(eventTime);
+                             eDate.setHours(0,0,0,0);
+                             
+                             const diffTime = now.getTime() - eDate.getTime();
+                             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                             
+                             if (diffDays >= 0 && diffDays < days) {
+                               const index = days - 1 - diffDays;
+                               if (chartData[index]) chartData[index].count++;
+                             }
+                           });
+
+                           const maxCount = Math.max(...chartData.map(d => d.count), 1);
+                           return chartData.map((d, i) => (
+                             <div key={i} className="flex-1 bg-gradient-to-t from-brand-neon/40 to-brand-magenta/40 rounded-t-sm transition-all duration-500 hover:from-brand-neon hover:to-brand-magenta relative" style={{ height: `${Math.max(5, (d.count / maxCount) * 100)}%` }}>
+                               <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 hover:opacity-100 bg-black text-white text-[9px] font-bold px-2 py-1 rounded border border-white/10 whitespace-nowrap z-20">
+                                 {d.count} views
+                               </div>
+                             </div>
+                           ));
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI INTEGRATION MODULE */}
+                  <div className="lg:col-span-1">
+                    <div className="bg-gradient-to-b from-[#1a1025] to-[#0a0a14] border border-brand-magenta/20 rounded-3xl p-6 shadow-xl h-full flex flex-col relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-brand-neon/10 blur-[50px] rounded-full pointer-events-none"></div>
+                      <div className="flex items-center gap-3 mb-6 relative z-10">
+                        <div className="w-10 h-10 rounded-xl bg-brand-magenta/20 border border-brand-magenta/50 flex items-center justify-center text-brand-magenta">
+                          <Cpu size={20} />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-white leading-tight">Vertex AI Insights</h3>
+                          <div className="text-[9px] uppercase tracking-widest text-brand-neon font-bold">Analista de Negócios / Site Analysis</div>
                         </div>
                       </div>
+                      <p className="text-sm text-gray-400 mb-6 relative z-10 flex-1 overflow-y-auto custom-scrollbar">
+                        {aiInsights || "A inteligência Matrix está pronta para analisar os dados reais do site, cruzar com o inventário e entregar estratégias de conversão de alto impacto e análise de crescimento."}
+                      </p>
+                      <Button 
+                        disabled={generatingInsights}
+                        onClick={async () => {
+                          setGeneratingInsights(true);
+                          try {
+                            const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
+                            if (!apiKey) throw new Error("VITE_VERTEX_API_KEY missing");
+                            
+                            const ai = new GoogleGenAI({ 
+                              apiKey,
+                              vertexai: {
+                                project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware',
+                                location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
+                              } as any
+                            });
+                            const now = new Date();
+                            const timeFrameMs = analyticsFilter === '30D' ? 30*24*60*60*1000 : analyticsFilter === '90D' ? 90*24*60*60*1000 : 365*24*60*60*1000;
+                            const filteredEvents = events.filter(e => {
+                              const eventTime = e.timestamp ? (e.timestamp.toMillis ? e.timestamp.toMillis() : e.timestamp) : now.getTime();
+                              return (now.getTime() - eventTime) < timeFrameMs;
+                            });
+    
+                            const cartEvents = filteredEvents.filter(e => e.type === 'add_to_cart');
+                            const checkoutEvents = filteredEvents.filter(e => e.type === 'checkout');
+                            const pageviews = filteredEvents.filter(e => e.type === 'pageview');
+                            const uniqueUsers = new Set(pageviews.map(e => e.sessionId)).size;
+                            
+                            const prompt = `Atue como um analista de dados especialista e estrategista cibernético para a Hardware Sale (e-commerce real em Moçambique).
+Dados Locais do Projeto:
+- Produtos em Stock: ${products.filter(p => p.status === 'stock').length}
+- Valor em Stock: ${products.reduce((acc, p) => acc + (p.status === 'stock' || p.status === 'na_box' ? Number(p.price) : 0), 0)} MT
+Site Analysis (${analyticsFilter}):
+- Visitantes Ativos Únicos: ${uniqueUsers}
+- Adições ao Carrinho: ${cartEvents.length}
+- Checkouts Iniciados: ${checkoutEvents.length}
+- Taxa de Crescimento (Simulada): +10% 
 
-                      <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl">
-                        <h3 className="text-xl font-bold text-white mb-6">Logs Recentes da Rede Neural</h3>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse min-w-[600px]">
-                            <thead>
-                              <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
-                                <th className="pb-4 font-bold pl-4">Timestamp</th>
-                                <th className="pb-4 font-bold">Modelo</th>
-                                <th className="pb-4 font-bold text-center">Latência</th>
-                                <th className="pb-4 font-bold text-right pr-4">Tokens</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-white/5">
-                              {aiEvents.sort((a,b) => b.timestamp - a.timestamp).slice(0, 10).map((evt, idx) => (
-                                <tr key={idx} className="hover:bg-white/5 transition-colors">
-                                  <td className="py-4 pl-4 text-xs text-gray-400">
-                                     {evt.timestamp ? new Date(evt.timestamp.seconds * 1000).toLocaleString() : 'N/A'}
-                                  </td>
-                                  <td className="py-4">
-                                     <span className="px-2 py-1 rounded bg-brand-neon/10 text-brand-neon text-[10px] font-bold uppercase border border-brand-neon/20">
-                                       {evt.model === 'gemini-3.1-pro-preview' ? 'Amani 3' : (evt.model || 'Amani 3')}
-                                     </span>
-                                  </td>
-                                  <td className="py-4 text-center text-sm font-medium text-white">
-                                     {(evt.latency / 1000).toFixed(2)}s
-                                  </td>
-                                  <td className="py-4 text-right pr-4 text-sm font-bold text-brand-magenta">
-                                     {evt.tokens}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                          {aiEvents.length === 0 && <p className="text-center text-gray-500 py-10 font-medium">Nenhum evento AI registado ainda.</p>}
+Forneça uma análise global rápida do contexto, recomende estratégias precisas para converter mais visitantes em leads/compradores e sugira como alavancar a audiência atual. Seja incisivo, tom corporativo agressivo. Mantenha em 4 frases diretas.`;
+
+                            const startTime = performance.now();
+                            const response = await ai.models.generateContent({
+                                model: "gemini-3.1-pro-preview",
+                                contents: prompt,
+                            });
+                            const endTime = performance.now();
+                            setAiInsights(response.text || null);
+                            logAetherLabsUsage(endTime - startTime, prompt, response.text || "");
+                          } catch (err: any) {
+                            setAiInsights("Erro ao conectar à Vertex AI. Verifique as variáveis de ambiente.");
+                            console.error(err);
+                          } finally {
+                            setGeneratingInsights(false);
+                          }
+                        }}
+                        className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl py-6 font-bold flex items-center justify-center gap-2 transition-all relative z-10"
+                      >
+                        {generatingInsights ? <div className="w-5 h-5 rounded-full border-2 border-brand-neon border-t-transparent animate-spin" /> : <LineChart size={18} />}
+                        {generatingInsights ? 'Processando Telemetria...' : 'Gerar Estratégia Matrix'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6 bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl">
+                  <h3 className="text-xl font-bold text-white mb-6">Produtos Adicionados Recentemente</h3>
+                  {loading ? (
+                    <div className="py-20 flex justify-center"><div className="w-8 h-8 rounded-full border-2 border-brand-neon border-t-transparent animate-spin"></div></div>
+                  ) : products.length > 0 ? (
+                    <div className="space-y-4">
+                      {products.slice(0, 5).map(product => (
+                        <div key={product.id} className="flex items-center gap-4 p-4 rounded-2xl bg-black/40 border border-white/5 hover:border-white/10 transition-colors">
+                          <img src={product.images && product.images[0] ? product.images[0] : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c'} alt={product.name} className="w-16 h-16 rounded-xl object-cover border border-white/10 bg-white/5" />
+                          <div className="flex-1">
+                            <h4 className="font-bold text-white text-lg">{product.name}</h4>
+                            <div className="text-gray-400 text-sm font-medium">{product.category}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-brand-neon">{Number(product.price).toLocaleString()} MT</div>
+                            <div className={`text-[10px] uppercase font-bold tracking-widest inline-block px-2 py-0.5 rounded-full mt-1 ${
+                                product.status === 'stock' ? 'bg-green-500/20 text-green-400' :
+                                product.status === 'encomenda' ? 'bg-blue-500/20 text-blue-400' :
+                                product.status === 'na_box' ? 'bg-purple-500/20 text-purple-400' :
+                                'bg-orange-500/20 text-orange-400'
+                              }`}>{product.status?.replace('_', ' ')}</div>
+                          </div>
                         </div>
-                      </div>
-                    </>
-                  );
-                })()}
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 font-medium text-center py-10">Nenhum produto encontrado.</p>
+                  )}
+                </div>
               </div>
             )}
 
