@@ -187,7 +187,7 @@ ${mockComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).jo
       </div>
 
       {isOpen && (
-        <div className="fixed bottom-6 right-6 sm:w-[440px] bg-[#030305]/95 backdrop-blur-[50px] rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden z-50 border border-white/10 max-h-[85vh] sm:max-h-none animate-in fade-in zoom-in-95 duration-500">
+        <div className="fixed bottom-6 right-6 w-[calc(100vw-3rem)] sm:w-[440px] bg-[#030305]/95 backdrop-blur-[50px] rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden z-50 border border-white/10 max-h-[85vh] sm:max-h-none animate-in fade-in zoom-in-95 duration-500">
           {/* AetherLabs Header */}
           <div className="p-6 pb-5 border-b border-white/5 flex justify-between items-center bg-gradient-to-b from-white/[0.05] to-transparent">
             <div className="flex items-center gap-4">

@@ -243,7 +243,7 @@ export function Checkout() {
   return (
     <div ref={containerRef} className="pt-32 pb-24 px-4 sm:px-6 max-w-screen-2xl mx-auto min-h-screen relative flex justify-center">
       {/* Global Ambience */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1400px] h-[800px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-neon/10 via-[#0a0a14] to-transparent blur-[150px] pointer-events-none -z-10"></div>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1400px] max-w-[100vw] h-[800px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-neon/10 via-[#0a0a14] to-transparent blur-[150px] pointer-events-none -z-10"></div>
       
       <div className="w-full flex flex-col xl:flex-row gap-8 lg:gap-12 relative z-10">
         

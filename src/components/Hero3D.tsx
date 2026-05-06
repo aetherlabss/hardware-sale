@@ -83,8 +83,8 @@ export function Hero3D() {
 
       {/* Optical Flares & Gradients - AfterEffects Style */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-screen h-screen flex items-center justify-center mix-blend-screen z-0">
-        <div className="absolute w-[800px] h-[300px] bg-brand-neon/20 blur-[120px] rounded-full rotate-[35deg] animate-pulse"></div>
-        <div className="absolute w-[400px] h-[100px] bg-white/10 blur-[60px] rounded-full"></div>
+        <div className="absolute w-[800px] max-w-[100vw] h-[300px] bg-brand-neon/20 blur-[120px] rounded-full rotate-[35deg] animate-pulse"></div>
+        <div className="absolute w-[400px] max-w-[100vw] h-[100px] bg-white/10 blur-[60px] rounded-full"></div>
       </div>
       
       {/* Vignette Overlay to focus center */}

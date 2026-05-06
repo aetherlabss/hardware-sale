@@ -78,7 +78,7 @@ export function BuildOfTheMonth() {
 
   return (
     <div className="pt-32 pb-24 px-6 max-w-7xl mx-auto min-h-screen relative">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-brand-magenta/10 blur-[150px] rounded-full pointer-events-none -z-10"></div>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] max-w-[100vw] h-[500px] bg-brand-magenta/10 blur-[150px] rounded-full pointer-events-none -z-10"></div>
       
       <div className="text-center mb-12">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-magenta/10 border border-brand-magenta/30 text-brand-magenta font-bold text-[10px] uppercase tracking-widest mb-6">

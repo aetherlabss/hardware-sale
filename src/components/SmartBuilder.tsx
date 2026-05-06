@@ -44,7 +44,7 @@ export function SmartBuilder() {
       try {
         const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
         if (!apiKey) throw new Error("Missing API Key");
-        const ai = new GoogleGenAI({ apiKey, vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } });
+        const ai = new GoogleGenAI({ apiKey, vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any });
         const prompt = `O utilizador usou o comando de voz no Smart Builder: "${transcript}".
 Analise o catálogo disponível e monte a melhor máquina para este pedido.
 Catálogo: ${mockComponents.map(c => `${c.id}: ${c.name} (${c.priceMT} MT)`).join(', ')}
@@ -91,12 +91,12 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
       try {
         const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
         if (!apiKey) throw new Error("Missing API Key");
-        const ai = new GoogleGenAI({ apiKey, vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } });
+        const ai = new GoogleGenAI({ apiKey, vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any });
         const prompt = `Atue como Amani, a IA consultora de hardware de luxo da Hardware Sale. O utilizador está montando um PC com: ${parts.join(', ')}. Faça uma análise técnica concisa (máx 3 frases) do gargalo, compatibilidade ou excelente combinação destas peças. Fale diretamente com o utilizador com entusiasmo e tom premium.`;
         const startTime = performance.now();
         const res = await ai.models.generateContent({ model: "gemini-3.1-pro-preview", contents: prompt, config: { temperature: 0.6 } });
         const endTime = performance.now();
-        setAiFeedback(res.text);
+        setAiFeedback(res.text || null);
         logAetherLabsUsage(endTime - startTime, prompt, res.text || "");
       } catch (err) { console.error(err); } finally { setIsAiThinking(false); }
     }, 1500);
@@ -248,7 +248,7 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                     }}
                     className={`relative overflow-hidden p-5 rounded-[2rem] cursor-pointer border transition-all duration-300 group ${isSelected ? 'bg-brand-magenta/10 border-brand-magenta shadow-[0_0_30px_rgba(236,72,153,0.15)] scale-[1.02]' : 'bg-black/40 border-white/5 hover:border-brand-magenta/30 hover:bg-black/60 shadow-md'}`}
                   >
-                    {isSelected && <div className="absolute top-0 right-0 w-32 h-32 bg-brand-neon/10 blur-[40px] rounded-full pointer-events-none"></div>}
+                    {isSelected && <div className="absolute top-0 right-0 w-32 max-w-[100vw] h-32 bg-brand-neon/10 blur-[40px] rounded-full pointer-events-none"></div>}
                     <div className="flex gap-4">
                       <div className="w-20 h-20 rounded-[1.2rem] overflow-hidden shrink-0 border border-white/5 opacity-90 group-hover:opacity-100 bg-white/5 shadow-inner">
                         <img src={comp.image} alt={comp.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500 p-2 mix-blend-lighten" />

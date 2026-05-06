@@ -42,6 +42,7 @@ export function AdminDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [specsList, setSpecsList] = useState<{key: string, value: string}[]>([{key: '', value: ''}]);
   const [isAutoCompleting, setIsAutoCompleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Builder Specific Add State
   const [isAddingBuilder, setIsAddingBuilder] = useState(false);
@@ -421,6 +422,8 @@ Retorne um JSON válido com esta exata estrutura:
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const parsedImages = images.split('|||').map(i => i.trim()).filter(Boolean);
       const parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -469,8 +472,11 @@ Retorne um JSON válido com esta exata estrutura:
       setSpecsList([{key: '', value: ''}]);
       setEditingId(null);
       setIsAdding(false);
+      setAdminProductFilter('Todos');
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'products');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -665,7 +671,7 @@ Retorne um JSON válido com esta exata estrutura:
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto overflow-x-hidden custom-scrollbar bg-[#050510] relative mt-16 lg:mt-0">
+      <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden bg-[#050510] relative mt-16 lg:mt-0">
         
         {/* Top Header */}
         <header className="h-24 px-8 flex items-center justify-between border-b border-white/5 bg-[#0a0a14]/50 backdrop-blur-md z-10 hidden lg:flex">
@@ -1005,7 +1011,7 @@ Retorne um JSON válido com esta exata estrutura:
                           <div className="text-[9px] uppercase tracking-widest text-brand-neon font-bold">Analista de Negócios / Site Analysis</div>
                         </div>
                       </div>
-                      <p className="text-sm text-gray-400 mb-6 relative z-10 flex-1 overflow-y-auto custom-scrollbar">
+                      <p className="text-sm text-gray-400 mb-6 relative z-10 flex-1 overflow-y-auto custom-scrollbar min-h-[100px]">
                         {aiInsights || "A inteligência Matrix está pronta para analisar os dados reais do site, cruzar com o inventário e entregar estratégias de conversão de alto impacto e análise de crescimento."}
                       </p>
                       <Button 
@@ -1180,12 +1186,13 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                    <option value="Consolas" className="bg-[#0a0a14] text-white">Consolas</option>
                                    <option value="Laptops" className="bg-[#0a0a14] text-white">Laptops</option>
                                    <option value="Gadgets" className="bg-[#0a0a14] text-white">Gadgets</option>
+                                   <option value="Periféricos" className="bg-[#0a0a14] text-white">Periféricos</option>
                                  </select>
                                </div>
                             </div>
                             
                             {/* Dynamic Subcategory based on Category */}
-                            {(category === 'Components' || category === 'Monitores' || category === 'Consolas' || category === 'Laptops' || category === 'Celulares' || category === 'Displays' || category === 'Gadgets') && (
+                            {(category === 'Components' || category === 'Monitores' || category === 'Consolas' || category === 'Laptops' || category === 'Celulares' || category === 'Displays' || category === 'Gadgets' || category === 'Periféricos') && (
                               <div className="mb-3 animate-in fade-in zoom-in duration-300">
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sub-Categoria</label>
                                 <select required value={subCategory} onChange={e => setSubCategory(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-brand-neon focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
@@ -1196,6 +1203,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                    {category === 'Laptops' && ['Laptops', 'Acessórios'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                    {category === 'Celulares' && ['Android', 'iOS'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                    {category === 'Gadgets' && ['Webcam', 'Chairs / Cadeiras', 'Audio & Som', 'Routers & Redes', 'Acessórios Diversos'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                   {category === 'Periféricos' && ['Webcam', 'Chairs', 'Audio & Som', 'Routers'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                 </select>
                               </div>
                             )}
@@ -1224,7 +1232,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
 
                             <div>
                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Descrição</label>
-                               <textarea required value={desc} onChange={e => setDesc(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white min-h-[60px] resize-y custom-scrollbar" placeholder="Descrição..." />
+                               <textarea required value={desc} onChange={e => setDesc(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-xs text-white min-h-[60px] max-h-[150px] resize-y custom-scrollbar" placeholder="Descrição..." />
                             </div>
                           </div>
 
@@ -1242,7 +1250,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                <button type="button" onClick={() => setSpecsList([{key: 'CPU', value: ''}, {key: 'GPU', value: ''}, {key: 'RAM', value: ''}, {key: 'Armazenamento', value: ''}, {key: 'Motherboard', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">Desktop</button>
                              </div>
 
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto custom-scrollbar pr-2">
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto custom-scrollbar pr-2" style={{scrollbarWidth: 'thin'}}>
                                {specsList.map((spec, index) => (
                                  <div key={index} className="flex items-center gap-2 group bg-white/[0.02] p-1.5 rounded-lg border border-white/5 hover:border-brand-neon/30 transition-colors">
                                    <Input value={spec.key} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].key = e.target.value; setSpecsList(newSpecs); }} placeholder="Chave (Ex: VRAM)" className="w-1/3 bg-transparent border-0 h-8 text-xs px-2 text-brand-neon font-bold focus-visible:ring-0 placeholder:text-gray-600" />
@@ -1267,7 +1275,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                              <Input value={images} onChange={e => setImages(e.target.value)} className="bg-white/5 border-white/10 h-8 text-[10px] rounded-lg mb-2" placeholder="URLs online (separadas por |||)" />
                              
                              {images && (
-                               <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[80px] custom-scrollbar">
+                               <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[80px] custom-scrollbar" style={{scrollbarWidth: 'thin'}}>
                                  {images.split('|||').map((img, i) => img.trim() && (
                                    <div key={i} className="relative w-12 h-12 rounded-md border border-white/10 bg-black/50 overflow-hidden group shrink-0 cursor-zoom-in" onClick={() => setPreviewImage(img.trim())}>
                                      <button type="button" onClick={(e) => { e.stopPropagation(); setImages(images.split('|||').filter((_, idx) => idx !== i).join('|||')); }} className="absolute top-0.5 right-0.5 bg-red-500 rounded text-white z-10 opacity-0 group-hover:opacity-100"><X size={10} /></button>
@@ -1285,8 +1293,8 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                  setEditingId(null);
                                  setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSubCategory(''); setSpecsList([{key: '', value: ''}]);
                               }} variant="ghost" className="h-8 text-xs px-4 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border-0">Cancelar</Button>
-                              <Button type="submit" className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
-                                {editingId ? 'Atualizar' : 'Guardar Produto'}
+                              <Button type="submit" disabled={isSaving} className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : (editingId ? 'Atualizar' : 'Guardar Produto')}
                               </Button>
                            </div>
                         </div>
@@ -1613,7 +1621,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                   </div>
 
                   <h3 className="text-white font-bold text-lg mb-4">Logs Recentes</h3>
-                  <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2" style={{scrollbarWidth: 'thin'}}>
                     {aiEvents.sort((a,b) => (b.timestamp?.toMillis ? b.timestamp.toMillis() : b.timestamp) - (a.timestamp?.toMillis ? a.timestamp.toMillis() : a.timestamp)).map((log, i) => (
                       <div key={i} className="p-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between gap-4 hover:border-brand-magenta/30 transition-colors">
                         <div className="flex items-center gap-3">

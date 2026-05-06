@@ -557,7 +557,7 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
     <div ref={containerRef} className="pt-32 pb-24 px-6 max-w-7xl mx-auto min-h-screen relative">
       
       {/* Background Ambience */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-brand-neon/10 blur-[150px] rounded-full pointer-events-none -z-10"></div>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] max-w-[100vw] h-[500px] bg-brand-neon/10 blur-[150px] rounded-full pointer-events-none -z-10"></div>
       
       <div className="flex flex-col items-center justify-center mb-16 gap-10 products-header text-center">
         <div>
@@ -619,8 +619,8 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
                   {sub}
                 </button>
               ))}
-              {activeCategory === 'Components' && ['Motherboard', 'CPU', 'Memória & Disco', 'Cooling', 'GPU', 'Fonte', 'Case', 'Periféricos'].map(sub => (
-                <button 
+               {activeCategory === 'Components' && ['Motherboard', 'CPU', 'Memória & Disco', 'Cooling', 'GPU', 'Fonte', 'Case', 'Periféricos'].map(sub => (
+                 <button 
                   key={sub} onClick={() => { setSubCategory(sub === subCategory ? null : sub); setInnerSubCategory(null); }}
                   className={`relative px-3 md:px-5 py-2 text-[10px] md:text-xs font-bold rounded-[1.5rem] transition-all duration-500 z-10 whitespace-nowrap ${subCategory === sub ? 'text-black' : 'text-gray-400 hover:text-white'}`}
                 >
@@ -644,10 +644,10 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
         {/* Level 2 Bubbles (Nested Sub-Categories) */}
         {(subCategory === 'Cooling' || subCategory === 'Periféricos' || subCategory === 'Memória & Disco') && (
           <div className="flex p-1.5 md:p-2 bg-black/40 backdrop-blur-2xl rounded-[1.5rem] border border-white/5 shadow-inner animate-in slide-in-from-top-2 duration-500">
-             <div className="flex gap-2">
+             <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
                 {(subCategory === 'Cooling' ? ['Air Cooler', 'Liquid Cooling', 'Fans'] : 
                   subCategory === 'Memória & Disco' ? ['RAM', 'Armazenamento'] :
-                  ['Teclado', 'Rato', 'Mousepad', 'Headsets']).map(inner => (
+                  ['Teclado', 'Rato', 'Mousepad', 'Headsets', 'Webcam', 'Chairs', 'Audio & Som', 'Routers']).map(inner => (
                   <button
                     key={inner}
                     onClick={() => setInnerSubCategory(inner === innerSubCategory ? null : inner)}

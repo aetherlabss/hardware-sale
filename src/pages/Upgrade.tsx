@@ -169,7 +169,7 @@ Retorne APENAS um objeto JSON válido estritamente com este formato:
 
   return (
     <div className="py-32 px-6 max-w-5xl mx-auto min-h-screen relative flex flex-col items-center">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-neon/10 blur-[150px] rounded-full pointer-events-none -z-10"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] max-w-[100vw] h-[800px] bg-brand-neon/10 blur-[150px] rounded-full pointer-events-none -z-10"></div>
       
       <div className="text-center mb-12">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-neon/10 border border-brand-neon/30 text-brand-neon font-bold text-[10px] uppercase tracking-widest mb-6">

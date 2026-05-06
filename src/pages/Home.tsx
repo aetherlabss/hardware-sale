@@ -235,7 +235,7 @@ export function Home() {
 
       {/* Exclusividade e Maestria */}
       <section className="pt-16 pb-24 relative z-10 max-w-7xl mx-auto px-4 sm:px-6 fade-in-section">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-magenta/5 blur-[120px] rounded-full pointer-events-none"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] max-w-[100vw] h-[800px] bg-brand-magenta/5 blur-[120px] rounded-full pointer-events-none"></div>
         <div className="text-center mb-20 px-4 max-w-5xl mx-auto flex flex-col items-center relative z-10">
           <span className="text-brand-neon font-bold tracking-widest uppercase text-xs mb-6 px-5 py-2 rounded-full border border-brand-neon/30 bg-brand-neon/10 inline-block shadow-[0_0_20px_rgba(20,241,149,0.2)]">Alta Performance</span>
           <h2 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight mb-8 text-white">O Ponto de Partida dos<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">Entusiastas.</span></h2>
@@ -387,7 +387,7 @@ export function Home() {
               { name: "Ricardo B.", role: "Streamer Pro", text: "Setup de streaming 4K60 montado em tempo recorde. A Amani AI recomendou-me a combinação perfeita de componentes." },
               { name: "Fátima N.", role: "Engenheira de Software", text: "Compilar código em segundos em vez de minutos. Investimento que se paga a cada deploy. Hardware Sale é nível diferente." },
             ].map((test, i) => (
-              <div key={i} className="shrink-0 w-[360px] md:w-[420px] bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 hover:border-brand-neon/40 transition-all duration-500 group relative overflow-hidden backdrop-blur-md">
+              <div key={i} className="shrink-0 w-[85vw] max-w-[360px] md:w-[420px] md:max-w-none bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 hover:border-brand-neon/40 transition-all duration-500 group relative overflow-hidden backdrop-blur-md">
                 <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className="text-brand-neon"><path d="M14.017 21L16.41 14.174C16.666 13.435 16.8 12.639 16.8 11.804V3H24V11.804C24 15.652 22.846 18.739 20.538 21H14.017ZM1.25 21L3.642 14.174C3.898 13.435 4.027 12.639 4.027 11.804V3H11.227V11.804C11.227 15.652 10.073 18.739 7.765 21H1.25Z"/></svg>
                 </div>
@@ -412,7 +412,7 @@ export function Home() {
 
       {/* Stats/Proof Section */}
       <section className="w-full bg-black py-24 border-t border-white/5 relative z-10 overflow-hidden stats-section">
-         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-neon/5 blur-[150px] rounded-full pointer-events-none"></div>
+         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] max-w-[100vw] h-[800px] bg-brand-neon/5 blur-[150px] rounded-full pointer-events-none"></div>
          <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-center relative z-10 stats-grid">
             <div className="will-change-transform opacity-0">
               <div className="text-5xl md:text-7xl font-bold text-white mb-2 tracking-tighter">70+</div>
