@@ -81,14 +81,14 @@ export function AdminDashboard() {
       });
 
       const prompt = `Gere dados de marketing e especificações para este produto de hardware tech: "${name}". 
-Usando as tuas capacidades de pesquisa na web (Google Search), procura o link de uma imagem oficial deste produto, preferencialmente com fundo transparente (.png) ou em alta resolução.
+Usando as tuas capacidades de pesquisa na web (Google Search), procura links de imagens oficiais deste produto, preferencialmente com fundo transparente (.png) ou em alta resolução. Queremos até 3 imagens.
 Retorne um JSON válido com esta exata estrutura:
 {
   "desc": "Uma descrição premium, comercial e detalhada de até 3 frases sobre as qualidades do produto.",
   "specs": "Especificações chave no formato Chave: Valor, uma por linha (Ex:\\nMemória: 16GB\\nFrequência: 3200MHz)",
   "tags": "3 a 5 tags separadas por vírgula (Ex: premium, rgb, overclock)",
   "category": "Uma destas: Desktop's, Monitores, Components, Consolas, Laptops, Gadgets",
-  "image_url": "URL direto e público de uma imagem do exato produto com fundo transparente (.png) ou fundo limpo. Exemplo: https://m.media-amazon.com/..."
+  "images": ["URL 1 principal transparente", "URL 2 angulo diferente", "URL 3 detalhe"]
 }`;
 
       const response = await ai.models.generateContent({
@@ -116,7 +116,11 @@ Retorne um JSON válido com esta exata estrutura:
       }
       if (parsed.tags) setTags(parsed.tags);
       if (parsed.category) setCategory(parsed.category);
-      if (parsed.image_url) setImages(parsed.image_url);
+      if (parsed.images && Array.isArray(parsed.images)) {
+        setImages(parsed.images.join(', '));
+      } else if (parsed.image_url) {
+        setImages(parsed.image_url);
+      }
     } catch (err) {
       console.error("Auto-complete failed:", err);
     } finally {
@@ -1001,21 +1005,21 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                                <div className="col-span-2">
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nome</label>
-                                 <Input required value={name} onChange={e => setName(e.target.value)} className="bg-white/5 border-white/10 h-8 text-white text-xs rounded-lg" placeholder="Nome Completo..." />
+                                 <Input required value={name} onChange={e => setName(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-white text-xs rounded-lg focus:border-brand-neon transition-colors" placeholder="Nome Completo..." />
                                </div>
                                <div>
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Preço (MT)</label>
-                                 <Input required type="number" value={price} onChange={e => setPrice(e.target.value)} className="bg-white/5 border-white/10 h-8 text-brand-neon font-bold text-xs rounded-lg" placeholder="0.00" />
+                                 <Input required type="number" value={price} onChange={e => setPrice(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-brand-neon font-bold text-xs rounded-lg focus:border-brand-neon transition-colors" placeholder="0.00" />
                                </div>
                                <div>
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
-                                 <select required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg h-8 px-2 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none">
-                                   <option value="Desktop's">Desktop's</option>
-                                   <option value="Displays">Displays</option>
-                                   <option value="Components">Components</option>
-                                   <option value="Consolas">Consolas</option>
-                                   <option value="Laptops">Laptops</option>
-                                   <option value="Gadgets">Gadgets</option>
+                                 <select required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
+                                   <option value="Desktop's" className="bg-[#0a0a14] text-white">Desktop's</option>
+                                   <option value="Displays" className="bg-[#0a0a14] text-white">Displays</option>
+                                   <option value="Components" className="bg-[#0a0a14] text-white">Components</option>
+                                   <option value="Consolas" className="bg-[#0a0a14] text-white">Consolas</option>
+                                   <option value="Laptops" className="bg-[#0a0a14] text-white">Laptops</option>
+                                   <option value="Gadgets" className="bg-[#0a0a14] text-white">Gadgets</option>
                                  </select>
                                </div>
                             </div>
@@ -1023,22 +1027,22 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                             <div className="grid grid-cols-3 gap-3 mb-3">
                                <div>
                                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Disponibilidade</label>
-                                  <select required value={status} onChange={e => setStatus(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg h-8 px-2 text-xs font-bold text-white outline-none">
-                                    <option value="stock">Em Stock</option>
-                                    <option value="encomenda">Por Encomenda</option>
+                                  <select required value={status} onChange={e => setStatus(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
+                                    <option value="stock" className="bg-[#0a0a14] text-white">Em Stock</option>
+                                    <option value="encomenda" className="bg-[#0a0a14] text-white">Por Encomenda</option>
                                   </select>
                                </div>
                                <div>
                                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Estado Físico</label>
-                                  <select required value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg h-8 px-2 text-xs font-bold text-white outline-none">
-                                    <option value="novo">Novo</option>
-                                    <option value="na_box">Na Box (Selado)</option>
-                                    <option value="usado">Usado (Premium)</option>
+                                  <select required value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
+                                    <option value="novo" className="bg-[#0a0a14] text-white">Novo</option>
+                                    <option value="na_box" className="bg-[#0a0a14] text-white">Na Box (Selado)</option>
+                                    <option value="usado" className="bg-[#0a0a14] text-white">Usado (Premium)</option>
                                   </select>
                                </div>
                                <div>
                                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Tags (Vírgula)</label>
-                                  <Input value={tags} onChange={e => setTags(e.target.value)} className="bg-white/5 border-white/10 h-8 text-xs text-white rounded-lg" placeholder="Ex: RTX, 4K" />
+                                  <Input value={tags} onChange={e => setTags(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-xs text-white rounded-lg focus:border-brand-neon transition-colors" placeholder="Ex: RTX, 4K" />
                                </div>
                             </div>
 
@@ -1051,15 +1055,24 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                           <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-4 shadow-sm">
                              <div className="flex justify-between items-center mb-2">
                                <label className="block text-[10px] font-bold text-gray-500 uppercase">Especificações Técnicas</label>
-                               <button type="button" onClick={() => setSpecsList([...specsList, {key: '', value: ''}])} className="text-[10px] font-bold text-brand-neon hover:text-white flex items-center gap-1"><Plus size={10}/> Add Spec</button>
+                               <button type="button" onClick={() => setSpecsList([...specsList, {key: '', value: ''}])} className="text-[10px] font-bold text-brand-neon hover:text-white flex items-center gap-1"><Plus size={12}/> Adicionar</button>
                              </div>
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+                             
+                             <div className="flex flex-wrap gap-1.5 mb-3">
+                               <span className="text-[9px] font-bold text-gray-600 uppercase mr-1 flex items-center">Templates:</span>
+                               <button type="button" onClick={() => setSpecsList([{key: 'VRAM', value: ''}, {key: 'Interface', value: ''}, {key: 'Clock', value: ''}, {key: 'Cores', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">GPU</button>
+                               <button type="button" onClick={() => setSpecsList([{key: 'Cores', value: ''}, {key: 'Threads', value: ''}, {key: 'Clock Base', value: ''}, {key: 'Socket', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">CPU</button>
+                               <button type="button" onClick={() => setSpecsList([{key: 'Capacidade', value: ''}, {key: 'Frequência', value: ''}, {key: 'Tipo', value: ''}, {key: 'Latência', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">RAM</button>
+                               <button type="button" onClick={() => setSpecsList([{key: 'CPU', value: ''}, {key: 'GPU', value: ''}, {key: 'RAM', value: ''}, {key: 'Armazenamento', value: ''}, {key: 'Motherboard', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">Desktop</button>
+                             </div>
+
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto custom-scrollbar pr-2">
                                {specsList.map((spec, index) => (
-                                 <div key={index} className="flex items-center gap-1 group bg-white/5 p-1 rounded-md border border-white/5 hover:border-white/20 transition-colors">
-                                   <Input value={spec.key} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].key = e.target.value; setSpecsList(newSpecs); }} placeholder="Chave" className="w-1/3 bg-transparent border-0 h-6 text-[10px] px-1 text-gray-300 focus-visible:ring-0" />
-                                   <span className="text-gray-600">:</span>
-                                   <Input value={spec.value} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].value = e.target.value; setSpecsList(newSpecs); }} placeholder="Valor" className="flex-1 bg-transparent border-0 h-6 text-[10px] px-1 text-white focus-visible:ring-0" />
-                                   <button type="button" onClick={() => { const newSpecs = specsList.filter((_, i) => i !== index); setSpecsList(newSpecs.length ? newSpecs : [{key: '', value: ''}]); }} className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
+                                 <div key={index} className="flex items-center gap-2 group bg-white/[0.02] p-1.5 rounded-lg border border-white/5 hover:border-brand-neon/30 transition-colors">
+                                   <Input value={spec.key} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].key = e.target.value; setSpecsList(newSpecs); }} placeholder="Chave (Ex: VRAM)" className="w-1/3 bg-transparent border-0 h-8 text-xs px-2 text-brand-neon font-bold focus-visible:ring-0 placeholder:text-gray-600" />
+                                   <span className="text-gray-600 font-bold">:</span>
+                                   <Input value={spec.value} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].value = e.target.value; setSpecsList(newSpecs); }} placeholder="Valor (Ex: 24GB)" className="flex-1 bg-transparent border-0 h-8 text-xs px-2 text-white focus-visible:ring-0 placeholder:text-gray-600" />
+                                   <button type="button" onClick={() => { const newSpecs = specsList.filter((_, i) => i !== index); setSpecsList(newSpecs.length ? newSpecs : [{key: '', value: ''}]); }} className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-500/10 rounded"><X size={14} /></button>
                                  </div>
                                ))}
                              </div>
@@ -1106,7 +1119,8 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {!isAdding && (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {loading ? (
                     <div className="col-span-full py-20 flex justify-center"><div className="w-8 h-8 rounded-full border-2 border-brand-neon border-t-transparent animate-spin"></div></div>
                   ) : products.length > 0 ? (
@@ -1148,7 +1162,8 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                       <p className="text-gray-400 font-medium">Nenhum produto encontrado. Adicione o primeiro.</p>
                     </div>
                   )}
-                </div>
+                 </div>
+                )}
               </div>
             )}
 
