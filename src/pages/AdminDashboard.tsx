@@ -1586,7 +1586,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                              <Bot size={14} />
                            </div>
                            <div>
-                             <div className="text-white text-sm font-bold truncate max-w-[200px] sm:max-w-xs">{log.model}</div>
+                             <div className="text-white text-sm font-bold truncate max-w-[200px] sm:max-w-xs">Latest</div>
                              <div className="text-xs text-gray-500">{new Date(log.timestamp?.toMillis ? log.timestamp.toMillis() : log.timestamp).toLocaleString()}</div>
                            </div>
                         </div>
