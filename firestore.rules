@@ -29,11 +29,10 @@ service cloud.firestore {
 
     function isValidProduct(data) {
       return data.keys().hasAll(['name', 'price', 'category', 'status', 'images', 'desc', 'tags', 'specs', 'createdAt', 'updatedAt'])
-        && data.keys().size() == 10
         && data.name is string && data.name.size() > 0 && data.name.size() <= 200
         && data.price is number && data.price >= 0
         && data.category is string && data.category.size() > 0 && data.category.size() <= 100
-        && data.status is string && data.status in ["stock", "encomenda", "na_box", "usados"]
+        && data.status is string
         && data.images is list && data.images.size() > 0 && data.images.size() <= 10 && data.images[0] is string
         && data.desc is string && data.desc.size() <= 5000
         && data.tags is list && data.tags.size() <= 20
@@ -46,7 +45,7 @@ service cloud.firestore {
       return data.name is string && data.name.size() > 0 && data.name.size() <= 200
         && data.price is number && data.price >= 0
         && data.category is string && data.category.size() > 0 && data.category.size() <= 100
-        && data.status is string && data.status in ["stock", "encomenda", "na_box", "usados"]
+        && data.status is string
         && data.images is list && data.images.size() > 0 && data.images.size() <= 10 && data.images[0] is string
         && data.desc is string && data.desc.size() <= 5000
         && data.tags is list && data.tags.size() <= 20

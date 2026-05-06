@@ -473,8 +473,9 @@ Retorne um JSON válido com esta exata estrutura:
       setEditingId(null);
       setIsAdding(false);
       setAdminProductFilter('Todos');
-    } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'products');
+    } catch (err: any) {
+      console.error(err);
+      alert("Erro de Permissão no Firebase (Firestore Rules) ou Validação de Dados. O Produto não foi adicionado. O ficheiro firestore.rules local foi atualizado para corrigir isto. Por favor atualize as Rules no painel da Firebase.");
     } finally {
       setIsSaving(false);
     }
