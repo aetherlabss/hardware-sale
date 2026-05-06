@@ -22,6 +22,7 @@ export function Checkout() {
   const [address, setAddress] = useState('');
   const [calculatingShipping, setCalculatingShipping] = useState(false);
   const [shippingCost, setShippingCost] = useState<number | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -96,8 +97,8 @@ export function Checkout() {
     'Acessório': 20, 'Periférico': 20,
   };
   const sortedItems = [...items].sort((a, b) => {
-    const oa = CATEGORY_ORDER[a.category] ?? 15;
-    const ob = CATEGORY_ORDER[b.category] ?? 15;
+    const oa = a.category ? (CATEGORY_ORDER[a.category] ?? 15) : 15;
+    const ob = b.category ? (CATEGORY_ORDER[b.category] ?? 15) : 15;
     return oa - ob;
   });
 
@@ -149,12 +150,41 @@ export function Checkout() {
     }
   };
 
+  const isPhoneValid = () => {
+    const cleanNumber = phone.replace(/\D/g, '');
+    if (cleanNumber.length !== 9) return false;
+    
+    if (paymentMethod === 'mpesa') {
+      return cleanNumber.startsWith('84') || cleanNumber.startsWith('85');
+    }
+    if (paymentMethod === 'emola') {
+      return cleanNumber.startsWith('86') || cleanNumber.startsWith('87');
+    }
+    return false;
+  };
+
   const handleCheckout = () => {
-    if (!phone || !address) {
-       alert("Preencha o telemóvel e endereço de entrega.");
+    if (!address) {
+       alert("Preencha o endereço de entrega.");
+       return;
+    }
+    if (!isPhoneValid()) {
+       alert("Preencha um número válido de 9 dígitos para o método selecionado.");
        return;
     }
 
+    setPaymentStatus('processing');
+    
+    // Simulate USSD Push
+    setTimeout(() => {
+      setPaymentStatus('success');
+      setTimeout(() => {
+        proceedToWhatsApp();
+      }, 3000);
+    }, 4000);
+  };
+
+  const proceedToWhatsApp = () => {
     const finalTotal = Math.max(0, subtotal - discount + (shippingCost || 0));
     const isMpesa = paymentMethod === 'mpesa';
     
@@ -183,6 +213,19 @@ export function Checkout() {
     clearCart();
     navigate('/');
   };
+
+  if (paymentStatus === 'success') {
+    return (
+      <div className="min-h-screen pt-32 pb-24 px-6 max-w-7xl mx-auto flex flex-col items-center justify-center text-center">
+         <div className="relative w-24 h-24 mx-auto mb-8">
+            <div className="absolute inset-0 bg-green-500/20 rounded-full animate-ping"></div>
+            <ShieldCheck className="w-24 h-24 text-green-400 relative z-10" />
+         </div>
+         <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight">Pagamento Confirmado!</h2>
+         <p className="text-gray-400 text-lg max-w-md">O seu {paymentMethod === 'mpesa' ? 'M-Pesa' : 'e-Mola'} foi processado. A redireccionar para o WhatsApp da nossa equipa VIP...</p>
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
@@ -233,7 +276,7 @@ export function Checkout() {
                    const showCategory = idx === 0 || sortedItems[idx - 1].category !== item.category;
                    return (
                      <React.Fragment key={`${item.id}-${idx}`}>
-                       {showCategory && (
+                       {showCategory && item.category && (
                          <div className="text-[10px] font-black text-brand-neon uppercase tracking-[0.2em] pt-4 pb-2 ml-2">{item.category}</div>
                        )}
                        <div className="flex items-center gap-4 sm:gap-6 bg-[#050510]/50 border border-white/5 rounded-3xl p-4 group hover:bg-white/[0.02] hover:border-white/10 transition-all duration-500">
@@ -345,6 +388,24 @@ export function Checkout() {
                  </div>
               </div>
 
+              {/* Payment Methods */}
+              <div className="grid grid-cols-2 gap-4 mb-6 relative z-10">
+                 <button 
+                   onClick={() => { setPaymentMethod('mpesa'); setPhone(''); }}
+                   className={`relative overflow-hidden h-20 rounded-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 border-2 transition-all duration-300 ${paymentMethod === 'mpesa' ? 'border-red-500 bg-red-500/10 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.2)] scale-[1.03]' : 'border-white/5 bg-black/40 text-gray-500 hover:border-red-500/30 hover:text-red-400 hover:bg-white/5'}`}
+                 >
+                   <span className="text-lg tracking-tight">M-Pesa</span>
+                   {paymentMethod === 'mpesa' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>}
+                 </button>
+                 <button 
+                   onClick={() => { setPaymentMethod('emola'); setPhone(''); }}
+                   className={`relative overflow-hidden h-20 rounded-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 border-2 transition-all duration-300 ${paymentMethod === 'emola' ? 'border-orange-500 bg-orange-500/10 text-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.2)] scale-[1.03]' : 'border-white/5 bg-black/40 text-gray-500 hover:border-orange-500/30 hover:text-orange-400 hover:bg-white/5'}`}
+                 >
+                   <span className="text-lg tracking-tight">e-Mola</span>
+                   {paymentMethod === 'emola' && <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>}
+                 </button>
+              </div>
+
               {/* Inputs */}
               <div className="space-y-5 mb-10 relative z-10">
                  <div className="group relative">
@@ -357,34 +418,46 @@ export function Checkout() {
                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-brand-neon transition-colors">
                      <Smartphone size={18} />
                    </div>
-                   <input required value={phone} onChange={e => setPhone(e.target.value)} type="tel" placeholder="Nº M-Pesa / e-Mola (Ex: 84 / 85)" className="w-full bg-white/5 border border-white/10 h-16 rounded-2xl pl-12 pr-5 text-white text-sm font-medium focus:outline-none focus:border-brand-neon focus:bg-white/10 focus:ring-4 focus:ring-brand-neon/10 transition-all shadow-inner placeholder:text-gray-600" />
+                   <input 
+                     required 
+                     value={phone} 
+                     onChange={e => setPhone(e.target.value)} 
+                     type="tel" 
+                     maxLength={9}
+                     placeholder={`Número ${paymentMethod === 'mpesa' ? 'M-Pesa (Ex: 841234567)' : 'e-Mola (Ex: 861234567)'}`}
+                     className={`w-full bg-white/5 h-16 rounded-2xl pl-12 pr-5 text-white text-sm font-medium focus:outline-none focus:bg-white/10 focus:ring-4 transition-all shadow-inner placeholder:text-gray-600 ${
+                       phone.length === 9 
+                         ? isPhoneValid() 
+                           ? 'border-2 border-green-500 focus:border-green-500 focus:ring-green-500/10' 
+                           : 'border-2 border-red-500 focus:border-red-500 focus:ring-red-500/10'
+                         : 'border border-white/10 focus:border-brand-neon focus:ring-brand-neon/10'
+                     }`} 
+                   />
                  </div>
+                 {phone.length > 0 && phone.length < 9 && (
+                   <p className="text-[11px] text-gray-500 ml-2 mt-[-10px]">Por favor introduza 9 dígitos do seu telemóvel.</p>
+                 )}
+                 {phone.length === 9 && !isPhoneValid() && (
+                   <p className="text-[11px] text-red-400 ml-2 mt-[-10px]">Prefixo inválido para a rede {paymentMethod === 'mpesa' ? 'M-Pesa (use 84/85)' : 'e-Mola (use 86/87)'}.</p>
+                 )}
               </div>
 
-              {/* Payment Methods */}
-              <div className="grid grid-cols-2 gap-4 mb-10 relative z-10">
-                 <button 
-                   onClick={() => setPaymentMethod('mpesa')}
-                   className={`relative overflow-hidden h-20 rounded-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 border-2 transition-all duration-300 ${paymentMethod === 'mpesa' ? 'border-red-500 bg-red-500/10 text-red-500 shadow-[0_0_30px_rgba(239,68,68,0.2)] scale-[1.03]' : 'border-white/5 bg-black/40 text-gray-500 hover:border-red-500/30 hover:text-red-400 hover:bg-white/5'}`}
+              {paymentStatus === 'processing' ? (
+                 <div className="w-full h-16 rounded-2xl bg-black/60 border border-brand-neon/30 flex items-center justify-center gap-3 relative z-10 text-brand-neon">
+                    <Loader2 className="animate-spin" size={24} />
+                    <span className="font-bold text-lg">Aguardando USSD Push no telemóvel...</span>
+                 </div>
+              ) : (
+                 <Button 
+                   onClick={handleCheckout}
+                   disabled={!address || !isPhoneValid()}
+                   className={`w-full h-16 rounded-2xl transition-all hover:scale-[1.02] shadow-[0_20px_40px_rgba(255,255,255,0.2)] font-black text-lg flex items-center justify-center gap-3 relative z-10 border-0 ${
+                     address && isPhoneValid() ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/10 text-gray-500 cursor-not-allowed'
+                   }`}
                  >
-                   <span className="text-lg tracking-tight">M-Pesa</span>
-                   {paymentMethod === 'mpesa' && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>}
-                 </button>
-                 <button 
-                   onClick={() => setPaymentMethod('emola')}
-                   className={`relative overflow-hidden h-20 rounded-2xl font-extrabold flex flex-col items-center justify-center gap-1.5 border-2 transition-all duration-300 ${paymentMethod === 'emola' ? 'border-orange-500 bg-orange-500/10 text-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.2)] scale-[1.03]' : 'border-white/5 bg-black/40 text-gray-500 hover:border-orange-500/30 hover:text-orange-400 hover:bg-white/5'}`}
-                 >
-                   <span className="text-lg tracking-tight">e-Mola</span>
-                   {paymentMethod === 'emola' && <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>}
-                 </button>
-              </div>
-
-              <Button 
-                onClick={handleCheckout}
-                className="w-full h-16 rounded-2xl bg-white text-black hover:bg-gray-200 transition-all hover:scale-[1.02] shadow-[0_20px_40px_rgba(255,255,255,0.2)] font-black text-lg flex items-center justify-center gap-3 relative z-10 border-0"
-              >
-                <ArrowRight className="w-5 h-5" /> Submeter Protocolo
-              </Button>
+                   <ArrowRight className="w-5 h-5" /> Submeter Protocolo Pago
+                 </Button>
+              )}
               
               <div className="mt-8 flex items-center justify-center gap-2 text-[9px] font-bold uppercase tracking-widest text-gray-500 relative z-10">
                 <ShieldCheck size={12} className="text-green-500" /> Checkout SSL Encriptado • Hardware Sale MZ
