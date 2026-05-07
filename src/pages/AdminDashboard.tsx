@@ -391,21 +391,23 @@ Retorne um JSON válido com esta exata estrutura:
         'cpu': 'CPU', 'gpu': 'GPU', 'motherboard': 'Motherboard', 'ram': 'RAM', 'psu': 'Fonte', 'case': 'Case', 'storage': 'Armazenamento', 'cooler': 'Air Cooler', 'fans': 'Fans', 'peripheral': 'Acessório',
       };
 
+      // Inject builder configs into specs to bypass Firestore strict schemas
+      parsedSpecs['SubCategoria'] = typeMapRev[bType] || 'Componente';
+      parsedSpecs['Estado'] = 'Novo';
+      parsedSpecs['isBuilderReady'] = 'true';
+      parsedSpecs['builderType'] = bType;
+      parsedSpecs['builderWattage'] = String(Number(bWattage) || 0);
+      parsedSpecs['builderSocket'] = bSocket || '';
+
       const productData: any = {
         name: bName,
         price: Number(bPrice),
         category: 'Components',
-        subCategory: typeMapRev[bType] || 'Componente',
         status: 'stock',
-        condition: 'novo',
         images: parsedImages.length ? parsedImages : ['https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'],
         desc: 'Componente otimizado e adicionado diretamente via Smart Builder Matrix.',
         tags: [typeMapRev[bType] || 'Componente'],
         specs: parsedSpecs,
-        isBuilderReady: true,
-        builderType: bType,
-        builderWattage: Number(bWattage) || 0,
-        builderSocket: bSocket || '',
         updatedAt: serverTimestamp()
       };
 
@@ -438,16 +440,21 @@ Retorne um JSON válido com esta exata estrutura:
          parsedSpecs['Estado'] = condition === 'novo' ? 'Novo' : condition === 'usado' ? 'Usado (Com Garantia)' : 'Na Box (Selado)';
       }
 
+      // Inject SubCategory inside specs to bypass rigid Firestore schema limits
+      if (subCategory) {
+         parsedSpecs['SubCategoria'] = subCategory;
+      }
+
       // Auto-append subcategory to tags if it's not empty
       if (subCategory && !parsedTags.map(t => t.toLowerCase()).includes(subCategory.toLowerCase())) {
         parsedTags.push(subCategory);
       }
 
+      // Strictly 10 keys to match old Firestore rules
       const productData: any = {
         name,
         price: Number(price),
         category,
-        subCategory,
         status,
         images: parsedImages.length ? parsedImages : ['https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'],
         desc,
@@ -600,7 +607,7 @@ Retorne um JSON válido com esta exata estrutura:
   ];
 
   return (
-    <div className="flex h-screen bg-[#050510] text-[#f8f8fc] selection:bg-brand-neon/30 overflow-hidden font-sans">
+    <div className="flex min-h-screen bg-[#050510] text-[#f8f8fc] selection:bg-brand-neon/30 font-sans w-full">
       
       {/* Image Preview Modal */}
       {previewImage && (
@@ -624,7 +631,7 @@ Retorne um JSON válido com esta exata estrutura:
       </div>
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-[#0a0a14] border-r border-white/5 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:block flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-[#0a0a14] border-r border-white/5 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:block flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-24 flex items-center px-8 border-b border-white/5 hidden lg:flex">
           <Link to="/" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden flex items-center justify-center bg-black/50">
@@ -672,7 +679,7 @@ Retorne um JSON válido com esta exata estrutura:
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-x-hidden bg-[#050510] relative mt-16 lg:mt-0">
+      <main className="flex-1 flex flex-col min-w-0 bg-[#050510] relative mt-16 lg:mt-0 overflow-x-hidden">
         
         {/* Top Header */}
         <header className="h-24 px-8 flex items-center justify-between border-b border-white/5 bg-[#0a0a14]/50 backdrop-blur-md z-10 hidden lg:flex">

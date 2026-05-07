@@ -58,10 +58,11 @@ export default function App() {
             <Route path="products" element={<Products />} />
             <Route path="builder" element={<Builder />} />
             <Route path="checkout" element={<Checkout />} />
-            <Route path="admin" element={<AdminDashboard />} />
             <Route path="upgrade" element={<Upgrade />} />
             <Route path="build-of-the-month" element={<BuildOfTheMonth />} />
           </Route>
+          {/* Admin routes outside Layout so they take over the entire screen natively */}
+          <Route path="/admin" element={<AdminDashboard />} />
         </Routes>
       </AnalyticsTracker>
     </BrowserRouter>
