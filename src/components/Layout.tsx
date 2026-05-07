@@ -41,7 +41,14 @@ export function Layout() {
             <span className="text-xl font-bold tracking-tight text-white group-hover:text-brand-neon transition-colors hidden sm:inline-block leading-tight">Hardware Sale</span>
           </Link>
           
-          <div className="flex gap-1 items-center bg-[#1a1a2480] px-1 md:px-2 py-1 md:py-1.5 rounded-xl md:rounded-[1.2rem] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] my-auto overflow-x-auto custom-scrollbar max-w-[50vw] sm:max-w-none">
+          <div 
+            className="flex gap-1 items-center bg-[#1a1a2480] px-1 md:px-2 py-1 md:py-1.5 rounded-xl md:rounded-[1.2rem] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] my-auto overflow-x-auto custom-scrollbar max-w-[50vw] sm:max-w-none"
+            onWheel={(e) => {
+              if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                e.currentTarget.scrollLeft += e.deltaY;
+              }
+            }}
+          >
             <Link to="/" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/' ? 'bg-white/10 text-white rounded-lg md:rounded-xl font-semibold shadow-sm' : 'text-gray-400 hover:text-white font-medium'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2`}><HomeIcon className="w-3.5 h-3.5 md:w-4 md:h-4"/> <span className="hidden min-[400px]:inline">Home</span></Link>
             <Link to="/products" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/products' ? 'bg-white/10 text-white rounded-lg md:rounded-xl font-semibold shadow-sm' : 'text-gray-400 hover:text-white font-medium'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2`}><Package className="w-3.5 h-3.5 md:w-4 md:h-4"/> <span className="hidden min-[400px]:inline">Montra</span></Link>
             <Link to="/builder" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/builder' ? 'bg-white/10 text-white rounded-lg md:rounded-xl font-semibold shadow-sm' : 'text-gray-400 hover:text-white font-medium'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2`}><Cpu className="w-3.5 h-3.5 md:w-4 md:h-4"/> <span className="hidden min-[400px]:inline">Builder</span></Link>

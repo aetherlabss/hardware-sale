@@ -502,7 +502,7 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
   const displayList = products.length > 0 ? products : mockProducts;
   
   let filteredProducts = activeCategory === 'Todos' 
-    ? displayList 
+    ? displayList.filter((p: any) => !p.isBuilderReady) // Hide specific builder-only parts from default view
     : displayList.filter(p => p.category === activeCategory || (activeCategory === 'Monitores' && p.category === 'Displays'));
 
   if (subCategory && subCategory !== activeCategory) {
@@ -515,6 +515,11 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
      }
   } else if (subCategory === activeCategory) {
      filteredProducts = filteredProducts.filter(p => !p.tags?.includes('Acessórios') && !p.tags?.includes('Suportes'));
+  }
+  
+  // If activeCategory is explicitly 'Components', we can show everything including builder components
+  if (activeCategory !== 'Components' && activeCategory !== 'Todos') {
+    filteredProducts = filteredProducts.filter((p: any) => !p.isBuilderReady);
   }
 
   if (innerSubCategory) {

@@ -39,6 +39,14 @@ export function Home() {
     if (testimonialsRef.current) testimonialsRef.current.style.cursor = 'grab';
   }, []);
 
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    if (testimonialsRef.current) {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        testimonialsRef.current.scrollLeft += e.deltaY;
+      }
+    }
+  }, []);
+
   useGSAP(() => {
     const tl = gsap.timeline();
     
@@ -377,6 +385,7 @@ export function Home() {
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
             onMouseLeave={onMouseUp}
+            onWheel={onWheel}
           >
             {[
               { name: "João Pedro", role: "Arquiteto 3D", text: "A renderização que demorava 4 horas agora leva 20 minutos. A máquina entregue pela Hardware Sale é um monstro absoluto." },
