@@ -96,7 +96,7 @@ export function AdminDashboard() {
       });
 
       const prompt = `Gere dados de marketing e especificações para este produto de hardware tech: "${name}". 
-Usando as tuas capacidades de pesquisa na web (Google Search), procure e RETORNE APENAS LINKS COMPLETAMENTE REAIS E FUNCIONAIS de imagens do produto. Se não encontrar um URL que termine em .jpg, .png ou .webp de uma fonte confiavel como amazon, fabricante etc, deixe a array images VAZIA.
+Extraia especificações reais. Para as imagens, SE E SÓ SE encontrar URLs PÚBLICOS diretos (.jpg, .png, .webp) que sejam limpos (não use data:image, não use gstatic, não use base64, nem links genéricos de pesquisa), coloque-os no array 'images'. Caso contrário, retorne o array 'images' VAZIO [].
 Retorne um JSON válido com esta exata estrutura:
 {
   "desc": "Uma descrição premium, comercial e detalhada de até 3 frases sobre as qualidades do produto.",
@@ -104,20 +104,19 @@ Retorne um JSON válido com esta exata estrutura:
   "tags": "3 a 5 tags separadas por vírgula (Ex: premium, rgb, overclock)",
   "category": "Uma destas: Desktop's, Displays, Components, Consolas, Laptops, Gadgets",
   "subCategory": "Uma destas se aplicável: GPU, CPU, RAM, Armazenamento, Air Cooler, Liquid Cooling, Fans, Motherboard, Fonte, Case, Teclado, Rato, Headsets, Webcam, Chairs / Cadeiras, Audio & Som, Routers & Redes, Android, iOS. (Ou null se não aplicável)",
-  "images": ["URL REAL 1", "URL REAL 2"]
+  "images": []
 }`;
 
       const response = await ai.models.generateContent({
           model: "gemini-3.1-pro-preview",
           contents: prompt,
           config: {
-            temperature: 0.2, // Baixa temperatura para factos técnicos
-            tools: [{ googleSearch: {} }] // Usar pesquisa na Web para specs reais
+            temperature: 0.1,
+            tools: [{ googleSearch: {} }] 
           }
       });
       
       let text = response.text || "";
-      // Strip markdown code fences if present
       text = text.replace(/```json\n/g, '').replace(/```/g, '').trim();
       
       const parsed = JSON.parse(text);
@@ -133,12 +132,20 @@ Retorne um JSON válido com esta exata estrutura:
       if (parsed.tags) setTags(parsed.tags);
       if (parsed.category) setCategory(parsed.category);
       if (parsed.subCategory) setSubCategory(parsed.subCategory);
-      // Only set images if current images are empty (don't overwrite user uploads)
+      
       if (!images) {
+        const validateImageUrl = (url: string) => {
+          if (!url || typeof url !== 'string') return false;
+          if (url.startsWith('data:image') || url.includes('gstatic.com') || url.includes('base64')) return false;
+          if (!url.startsWith('http')) return false;
+          // Must match image extensions (allowing query params like .jpg?v=123)
+          return /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
+        };
+
         if (parsed.images && Array.isArray(parsed.images)) {
-          const validImages = parsed.images.filter((img: string) => img && !img.includes('placeholder'));
-          setImages(validImages.join('|||'));
-        } else if (parsed.image_url && !parsed.image_url.includes('placeholder')) {
+          const validImages = parsed.images.filter(validateImageUrl);
+          if (validImages.length > 0) setImages(validImages.join('|||'));
+        } else if (parsed.image_url && validateImageUrl(parsed.image_url)) {
           setImages(parsed.image_url);
         }
       }
@@ -164,14 +171,14 @@ Retorne um JSON válido com esta exata estrutura:
       });
 
       const prompt = `Gere dados de compatibilidade técnica para o Smart Builder sobre este componente de hardware: "${bName}". 
-Usando pesquisa, encontre e RETORNE APENAS LINKS COMPLETAMENTE REAIS E FUNCIONAIS de imagens. Se não encontrar imagens, deixe a array vazia.
+Extraia especificações. SE E SÓ SE encontrar URLs PÚBLICOS diretos de imagens (.jpg, .png, .webp) limpos (não use data:image, gstatic, base64, ou links quebrados), coloque-os no array 'images'. Caso contrário, retorne o array 'images' VAZIO [].
 Retorne um JSON válido com esta exata estrutura:
 {
   "bType": "Um destes: cpu, gpu, motherboard, ram, psu, case, storage, cooler, fans, peripheral",
   "bWattage": "Apenas número (ex: se o TDP for 125W, retorne 125). Em caso de PSU, devolva os Watts totais.",
   "bSocket": "O Socket ou chipset (LGA1700, AM5, ATX, PCIe 4.0, etc.)",
   "bSpecs": "3 especificações chave separadas por vírgula (ex: 24 Cores, 6.2GHz, 125W TDP)",
-  "images": ["URL real 1", "URL real 2"]
+  "images": []
 }`;
 
       const response = await ai.models.generateContent({
@@ -191,11 +198,19 @@ Retorne um JSON válido com esta exata estrutura:
       if (parsed.bWattage !== undefined) setBWattage(String(parsed.bWattage));
       if (parsed.bSocket) setBSocket(parsed.bSocket);
       if (parsed.bSpecs) setBSpecs(parsed.bSpecs);
+      
       if (!bImages) {
+        const validateImageUrl = (url: string) => {
+          if (!url || typeof url !== 'string') return false;
+          if (url.startsWith('data:image') || url.includes('gstatic.com') || url.includes('base64')) return false;
+          if (!url.startsWith('http')) return false;
+          return /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
+        };
+
         if (parsed.images && Array.isArray(parsed.images)) {
-          const validImages = parsed.images.filter((img: string) => img && !img.includes('placeholder'));
-          setBImages(validImages.join('|||'));
-        } else if (parsed.image_url && !parsed.image_url.includes('placeholder')) {
+          const validImages = parsed.images.filter(validateImageUrl);
+          if (validImages.length > 0) setBImages(validImages.join('|||'));
+        } else if (parsed.image_url && validateImageUrl(parsed.image_url)) {
           setBImages(parsed.image_url);
         }
       }
