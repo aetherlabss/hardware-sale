@@ -100,7 +100,7 @@ Extraia especificações reais. Para as imagens, SE E SÓ SE encontrar URLs PÚB
 Retorne um JSON válido com esta exata estrutura:
 {
   "desc": "Uma descrição premium, comercial e detalhada de até 3 frases sobre as qualidades do produto.",
-  "specs": "Especificações chave no formato Chave: Valor, uma por linha (Ex:\\nMemória: 16GB\\nFrequência: 3200MHz)",
+  "specs": "Especificações chave no formato Chave: Valor, uma por linha. Para Desktops, respeite ESTRITAMENTE a ordem: Motherboard, CPU, RAM, Nvme/Disk, Cooling/Wc, GPU/Gráfica, Fonte, Case, Fans. (Ex:\\nMotherboard: MSI B650M\\nCPU: Ryzen 7...)",
   "tags": "3 a 5 tags separadas por vírgula (Ex: premium, rgb, overclock)",
   "category": "Uma destas: Desktop's, Displays, Components, Consolas, Laptops, Gadgets",
   "subCategory": "Uma destas se aplicável: GPU, CPU, RAM, Armazenamento, Air Cooler, Liquid Cooling, Fans, Motherboard, Fonte, Case, Teclado, Rato, Headsets, Webcam, Chairs / Cadeiras, Audio & Som, Routers & Redes, Android, iOS. (Ou null se não aplicável)",
@@ -1270,7 +1270,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                <button type="button" onClick={() => setSpecsList([{key: 'VRAM', value: ''}, {key: 'Interface', value: ''}, {key: 'Clock', value: ''}, {key: 'Cores', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">GPU</button>
                                <button type="button" onClick={() => setSpecsList([{key: 'Cores', value: ''}, {key: 'Threads', value: ''}, {key: 'Clock Base', value: ''}, {key: 'Socket', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">CPU</button>
                                <button type="button" onClick={() => setSpecsList([{key: 'Capacidade', value: ''}, {key: 'Frequência', value: ''}, {key: 'Tipo', value: ''}, {key: 'Latência', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">RAM</button>
-                               <button type="button" onClick={() => setSpecsList([{key: 'CPU', value: ''}, {key: 'GPU', value: ''}, {key: 'RAM', value: ''}, {key: 'Armazenamento', value: ''}, {key: 'Motherboard', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">Desktop</button>
+                               <button type="button" onClick={() => setSpecsList([{key: 'Motherboard', value: ''}, {key: 'CPU', value: ''}, {key: 'RAM', value: ''}, {key: 'Disk', value: ''}, {key: 'Cooling', value: ''}, {key: 'GPU', value: ''}, {key: 'Fonte', value: ''}, {key: 'Case', value: ''}, {key: 'Fans', value: ''}])} className="text-[9px] px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 transition-colors">Desktop</button>
                              </div>
 
                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto custom-scrollbar pr-2" style={{scrollbarWidth: 'thin'}}>

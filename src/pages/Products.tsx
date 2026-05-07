@@ -314,16 +314,10 @@ function ProductModal({
             </h3>
             
             <div className="grid grid-cols-1 gap-4">
-              {Object.entries(product.specs).map(([key, value]) => (
-                <div key={key} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 group">
-                  <span className="text-gray-500 font-bold text-xs tracking-wide uppercase group-hover:text-brand-neon transition-colors">{key.replace(/_/g, ' ')}</span>
-                  <span className="text-gray-200 text-sm font-medium text-right ml-4">{value as string}</span>
-                </div>
-              ))}
-              {/* Product Status forced into specs per requirement */}
+              {/* Product Status forced into specs per requirement - SHOWN FIRST */}
               {(product as any).status && (
-                <div className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
-                  <span className="text-gray-500 font-bold text-xs tracking-wide uppercase">Disponibilidade</span>
+                <div className="flex justify-between items-center py-2 border-b border-white/5 group">
+                  <span className="text-gray-500 font-bold text-xs tracking-wide uppercase group-hover:text-brand-neon transition-colors">Disponibilidade</span>
                   <span className={`text-sm font-bold text-right ml-4 ${
                     (product as any).status === 'stock' ? 'text-green-400' :
                     (product as any).status === 'encomenda' ? 'text-blue-400' :
@@ -334,6 +328,34 @@ function ProductModal({
                   </span>
                 </div>
               )}
+              {(() => {
+                // Determine the correct rendering order for specs
+                const order = ['Motherboard', 'CPU', 'RAM', 'Disk', 'Armazenamento', 'Nvme', 'Cooling', 'Wc', 'Air Cooler', 'Liquid Cooling', 'GPU', 'Gráfica', 'Fonte', 'PSU', 'Case', 'Fans'];
+                
+                const entries = Object.entries(product.specs);
+                entries.sort(([keyA], [keyB]) => {
+                  let indexA = order.findIndex(k => keyA.toLowerCase().includes(k.toLowerCase()));
+                  let indexB = order.findIndex(k => keyB.toLowerCase().includes(k.toLowerCase()));
+                  
+                  // If not in the priority list, push to the end
+                  if (indexA === -1) indexA = 999;
+                  if (indexB === -1) indexB = 999;
+                  
+                  return indexA - indexB;
+                });
+
+                return entries.map(([key, value]) => {
+                  // Skip internal hidden attributes
+                  if (key === 'isBuilderReady' || key === 'builderType' || key === 'builderWattage' || key === 'builderSocket') return null;
+                  
+                  return (
+                    <div key={key} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 group">
+                      <span className="text-gray-500 font-bold text-xs tracking-wide uppercase group-hover:text-brand-neon transition-colors">{key.replace(/_/g, ' ')}</span>
+                      <span className="text-gray-200 text-sm font-medium text-right ml-4">{value as string}</span>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
 
