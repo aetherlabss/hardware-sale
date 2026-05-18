@@ -1,11 +1,14 @@
 import { Card, CardContent } from "./ui/card";
 import { Cpu, Monitor, Zap, ShieldCheck, Gamepad2, Settings, Glasses, Infinity, ThermometerSnowflake, ServerCog } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export function BentoGrid() {
+  const navigate = useNavigate();
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-7xl mx-auto px-4 md:px-0">
       {/* Mega Highlight Feature */}
-      <Card className="md:col-span-2 md:row-span-2 relative overflow-hidden group cursor-pointer border-brand-magenta/20 shadow-2xl bg-brand-dark/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-brand-magenta/40 will-change-transform">
+      <Card onClick={() => navigate('/build-of-the-month')} className="md:col-span-2 md:row-span-2 relative overflow-hidden group cursor-pointer border-brand-magenta/20 shadow-2xl bg-brand-dark/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-brand-magenta/40 will-change-transform">
         <div className="absolute inset-0 z-0 select-none pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1587202372775-e229f172b9d7?q=80&w=1974&auto=format&fit=crop" 
@@ -40,7 +43,7 @@ export function BentoGrid() {
       </Card>
       
       {/* Side Featured 1 */}
-      <Card className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-brand-neon/30 hover:bg-black/60 shadow-lg will-change-transform">
+      <Card onClick={() => navigate('/products?cat=Components&sub=CPU')} className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-brand-neon/30 hover:bg-black/60 shadow-lg will-change-transform">
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?q=80&w=2000&auto=format&fit=crop" 
@@ -68,7 +71,7 @@ export function BentoGrid() {
       </Card>
 
       {/* Side Featured 2 */}
-      <Card className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-[#14F195]/30 hover:bg-black/60 shadow-lg will-change-transform">
+      <Card onClick={() => navigate('/products?cat=Monitores')} className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-[#14F195]/30 hover:bg-black/60 shadow-lg will-change-transform">
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1547119957-637f8679db1e?q=80&w=1964&auto=format&fit=crop" 
@@ -96,7 +99,7 @@ export function BentoGrid() {
       </Card>
 
       {/* Side Featured 3 (New) */}
-      <Card className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-blue-400/30 hover:bg-black/60 shadow-lg xl:mt-0 will-change-transform">
+      <Card onClick={() => navigate('/products?cat=Components&sub=Cooling')} className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-blue-400/30 hover:bg-black/60 shadow-lg xl:mt-0 will-change-transform">
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1591488320449-011701bb6704?q=80&w=2070&auto=format&fit=crop" 

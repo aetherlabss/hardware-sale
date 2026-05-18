@@ -4,7 +4,7 @@ import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Hero3D } from '../components/Hero3D';
 import { BentoGrid } from '../components/BentoGrid';
-import { ArrowDown, Package, Zap, Wrench, PackageCheck, Headphones, ChevronRight, Star } from 'lucide-react';
+import { ArrowDown, Package, Zap, Wrench, PackageCheck, Headphones, ChevronRight, Star, Cpu, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MagneticButton } from '../components/ui/magnetic-button';
 
@@ -178,42 +178,41 @@ export function Home() {
         
         {(() => {
           const brands = [
-            { name: 'NVIDIA', icon: 'nvidia/76B900' },
-            { name: 'AMD', icon: 'amd/ED1C24' },
-            { name: 'Intel', icon: 'intel/0071C5' },
-            { name: 'ASUS', icon: 'asus/FFFFFF' },
-            { name: 'ROG', icon: 'asusrog/FF0000' },
-            { name: 'MSI', icon: 'msi/FF0000' },
-            { name: 'AORUS', icon: 'aorus/FF6B00' },
-            { name: 'Corsair', icon: 'corsair/FFFFFF' },
-            { name: 'Razer', icon: 'razer/00FF00' },
-            { name: 'Logitech', icon: 'logitech/FFFFFF' },
-            { name: 'SteelSeries', icon: 'steelseries/FFFFFF' },
-            { name: 'Samsung', icon: 'samsung/1428A0' },
-            { name: 'Kingston', icon: 'kingstontechnology/FFFFFF' },
-            { name: 'NZXT', icon: 'nzxt/FFFFFF' },
-            { name: 'Gigabyte', icon: 'gigabyte/FFFFFF' },
-            { name: 'Fractal', icon: 'fractaldesign/FFFFFF' },
-            { name: 'Lian Li', icon: 'lianli/FFFFFF' },
-            { name: 'be quiet!', icon: 'bequiet/FFFFFF' },
-            { name: 'DeepCool', icon: 'deepcool/FFFFFF' },
-            { name: 'EVGA', icon: 'evga/FFFFFF' },
-            { name: 'Seasonic', icon: 'seasonic/FF6B00' },
-            { name: 'G.Skill', icon: 'gskill/FFFFFF' },
-            { name: 'Cooler Master', icon: 'coolermaster/FFFFFF' },
-            { name: 'WD', icon: 'westerndigital/FFFFFF' },
+            { name: 'NVIDIA', customUrl: 'https://cdn.simpleicons.org/nvidia/76B900' },
+            { name: 'AMD', customUrl: 'https://cdn.simpleicons.org/amd/ED1C24' },
+            { name: 'Intel', customUrl: 'https://cdn.simpleicons.org/intel/0071C5' },
+            { name: 'ASUS', customUrl: 'https://cdn.simpleicons.org/asus/FFFFFF' },
+            { name: 'ROG', customUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/37/Republic_Of_Gamers_Logo.svg' },
+            { name: 'MSI', customUrl: 'https://cdn.simpleicons.org/msi/FF0000' },
+            { name: 'AORUS', customUrl: 'https://upload.wikimedia.org/wikipedia/en/2/24/Aorus_logo.svg' },
+            { name: 'Corsair', customUrl: 'https://cdn.simpleicons.org/corsair/FFFFFF' },
+            { name: 'Razer', customUrl: 'https://cdn.simpleicons.org/razer/00FF00' },
+            { name: 'Logitech G', customUrl: 'https://cdn.simpleicons.org/logitechg/00B8FC' },
+            { name: 'SteelSeries', customUrl: 'https://cdn.simpleicons.org/steelseries/FFFFFF' },
+            { name: 'Samsung', customUrl: 'https://cdn.simpleicons.org/samsung/1428A0' },
+            { name: 'Kingston', customUrl: 'https://cdn.simpleicons.org/kingstontechnology/FF0000' },
+            { name: 'NZXT', customUrl: 'https://cdn.simpleicons.org/nzxt/FFFFFF' },
+            { name: 'Gigabyte', customUrl: 'https://cdn.simpleicons.org/gigabyte/FFFFFF' },
+            { name: 'Fractal', customUrl: 'https://www.fractal-design.com/wp-content/themes/fractal/assets/img/logo.svg' },
+            { name: 'Lian Li', customUrl: 'https://lian-li.com/wp-content/uploads/2021/01/logo.png' },
+            { name: 'be quiet!', customUrl: 'https://cdn.simpleicons.org/bequiet/FFFFFF' },
+            { name: 'DeepCool', customUrl: 'https://cdn.simpleicons.org/deepcool/FFFFFF' },
+            { name: 'EVGA', customUrl: 'https://cdn.simpleicons.org/evga/FFFFFF' },
+            { name: 'Seasonic', customUrl: 'https://seasonic.com/wp-content/themes/seasonic/assets/images/logo.svg' },
+            { name: 'G.Skill', customUrl: 'https://cdn.simpleicons.org/gskill/FFFFFF' },
+            { name: 'Cooler Master', customUrl: 'https://cdn.simpleicons.org/coolermaster/FFFFFF' },
+            { name: 'WD', customUrl: 'https://cdn.simpleicons.org/westerndigital/FFFFFF' },
           ];
 
           const marqueeContent = brands.map((brand, i) => (
             <div key={i} className="flex flex-col items-center justify-center gap-4 group px-12 shrink-0">
               <div className="relative h-12 flex items-center justify-center">
                 <img 
-                  src={`https://cdn.simpleicons.org/${brand.icon}`}
+                  src={brand.customUrl}
                   alt={brand.name}
-                  className="h-8 md:h-10 w-auto opacity-70 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500 object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(20,241,149,0.3)]"
+                  className={`h-8 md:h-10 w-auto opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500 object-contain drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] group-hover:drop-shadow-[0_0_20px_rgba(20,241,149,0.3)] ${brand.name === 'Lian Li' || brand.name === 'Fractal' || brand.name === 'Seasonic' ? 'brightness-0 invert' : ''}`}
                   onError={(e) => { 
                     const img = e.target as HTMLImageElement;
-                    // Last resort fallback
                     img.src = `https://logo.clearbit.com/${brand.name.toLowerCase().replace(' ', '')}.com`;
                   }}
                 />
@@ -238,6 +237,7 @@ export function Home() {
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 tracking-tight text-white">A Diferença <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">Matrix</span></h2>
           <p className="text-gray-400 text-xl font-medium">O que diferencia um computador genérico de um instrumento de precisão de alta potência computacional.</p>
         </div>
+        
         <BentoGrid />
       </section>
 

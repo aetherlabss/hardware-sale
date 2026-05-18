@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCart } from '../store/useCart';
 import { useStore } from '../store/useStore';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Trash2, ArrowRight, ShieldCheck, CreditCard, Smartphone, Sparkles, PlusCircle, ShoppingCart, Loader2, X } from 'lucide-react';
+import { Trash2, ArrowRight, ShieldCheck, Smartphone, Sparkles, ShoppingCart, Loader2, X, MapPin, User, Mailbox } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { db } from '../lib/firebase';
+import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore';
 
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { useRef } from 'react';
 
 gsap.registerPlugin(useGSAP);
 
@@ -18,13 +19,106 @@ export function Checkout() {
   const navigate = useNavigate();
 
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'emola'>('mpesa');
+  
+  // New Form Fields
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [zipCode, setZipCode] = useState('');
   const [address, setAddress] = useState('');
+  const [addressPredictions, setAddressPredictions] = useState<any[]>([]);
+  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+
   const [calculatingShipping, setCalculatingShipping] = useState(false);
   const [shippingCost, setShippingCost] = useState<number | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+  const [shippingSettings, setShippingSettings] = useState({
+    baseLat: -25.9692,
+    baseLng: 32.5732,
+    freeRadiusKm: 15,
+    costPerKmExtra: 60,
+    fallbackFlatRate: 800
+  });
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sync Shipping Settings from DB
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'admin_settings', 'shipping'), (docSnap) => {
+      if(docSnap.exists()) {
+        setShippingSettings(prev => ({...prev, ...docSnap.data()}));
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Address Autocomplete Logic
+  useEffect(() => {
+    if (!address || selectedPlaceId) {
+      setAddressPredictions([]);
+      return;
+    }
+    
+    const fetchPlaces = async () => {
+      setIsSearchingAddress(true);
+      try {
+        const res = await fetch(`/api/places?input=${encodeURIComponent(address)}`);
+        const data = await res.json();
+        if (data.predictions && data.predictions.length > 0) {
+          setAddressPredictions(data.predictions);
+        } else {
+          // Local offline fallback heuristics
+          const mock = [
+            { description: 'Maputo Central, Cidade de Maputo', place_id: 'm1' },
+            { description: 'Bairro da Polana, Maputo', place_id: 'm2' },
+            { description: 'Sommerschield, Maputo', place_id: 'm3' },
+            { description: 'Alto Maé, Maputo', place_id: 'm4' },
+            { description: 'Zimpeto, Maputo', place_id: 'm5' },
+            { description: 'Matola, Província de Maputo', place_id: 'm6' },
+            { description: 'Machava, Matola', place_id: 'm7' },
+            { description: 'Tchumene, Matola', place_id: 'm8' },
+            { description: 'Boane, Província de Maputo', place_id: 'm9' },
+            { description: 'Marracuene, Província de Maputo', place_id: 'm10' }
+          ].filter(m => m.description.toLowerCase().includes(address.toLowerCase()));
+          setAddressPredictions(mock);
+        }
+      } catch (err) {
+        // Local offline fallback heuristics on fetch fail
+        const mock = [
+          { description: 'Maputo Central, Cidade de Maputo', place_id: 'm1' },
+          { description: 'Matola, Província de Maputo', place_id: 'm6' },
+          { description: 'Zimpeto, Maputo', place_id: 'm5' }
+        ].filter(m => m.description.toLowerCase().includes(address.toLowerCase()));
+        setAddressPredictions(mock);
+      } finally {
+        setIsSearchingAddress(false);
+      }
+    };
+
+    const debounce = setTimeout(fetchPlaces, 400);
+    return () => clearTimeout(debounce);
+  }, [address, selectedPlaceId]);
+
+  const handleSelectAddress = async (prediction: any) => {
+    setAddress(prediction.description);
+    setSelectedPlaceId(prediction.place_id);
+    setAddressPredictions([]);
+    setCalculatingShipping(true);
+
+    try {
+      // Get Exact Lat/Lng
+      const res = await fetch(`/api/geocode?place_id=${prediction.place_id}`);
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+         const location = data.results[0].geometry.location;
+         calculateShippingCostFromCoords(location.lat, location.lng, prediction.description);
+      } else {
+         calculateShippingCostFromCoords(null, null, prediction.description);
+      }
+    } catch (err) {
+      calculateShippingCostFromCoords(null, null, prediction.description);
+    }
+  };
 
   useGSAP(() => {
     const tl = gsap.timeline();
@@ -36,31 +130,45 @@ export function Checkout() {
   const subtotal = total;
   const discount = voucher ? voucher.value : 0;
   
+  const calculateCostFromDistance = (latitude: number, longitude: number) => {
+    const baseLat = Number(shippingSettings.baseLat) || -25.9692;
+    const baseLng = Number(shippingSettings.baseLng) || 32.5732;
+    const R = 6371;
+    const dLat = (latitude - baseLat) * Math.PI / 180;
+    const dLon = (longitude - baseLng) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(baseLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+
+    const freeRad = Number(shippingSettings.freeRadiusKm) || 15;
+    const costPerKm = Number(shippingSettings.costPerKmExtra) || 60;
+    const effectiveDistance = Math.max(0, distance - 2); // 2km tolerance for GPS jitter
+    return effectiveDistance <= freeRad ? 0 : Math.round((effectiveDistance - freeRad) * costPerKm);
+  };
+
   // Auto-GPS on mount
   useEffect(() => {
-    if ("geolocation" in navigator && shippingCost === null) {
-      setCalculatingShipping(true);
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        const maputoLat = -25.9692;
-        const maputoLon = 32.5732;
-        const R = 6371;
-        const dLat = (latitude - maputoLat) * Math.PI / 180;
-        const dLon = (longitude - maputoLon) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(maputoLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        const distance = R * c;
+    let isMounted = true;
+    const timer = setTimeout(() => {
+      if ("geolocation" in navigator && shippingCost === null && isMounted && !address) {
+        setCalculatingShipping(true);
+        navigator.geolocation.getCurrentPosition((position) => {
+          if (!isMounted) return;
+          const cost = calculateCostFromDistance(position.coords.latitude, position.coords.longitude);
+          setShippingCost(cost);
+          setAddress("Localização Atual (GPS)");
+          setSelectedPlaceId("GPS");
+          setCalculatingShipping(false);
+        }, () => {
+          if (isMounted) setCalculatingShipping(false);
+        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }); // Forced fresh GPS
+      }
+    }, 800); // Trigger slightly faster for better UX
 
-        const cost = distance <= 15 ? 0 : Math.round((distance - 15) * 60);
-        setShippingCost(cost);
-        setCalculatingShipping(false);
-      }, () => {
-        setCalculatingShipping(false);
-      });
-    }
-  }, []);
+    return () => { isMounted = false; clearTimeout(timer); };
+  }, [shippingSettings, shippingCost, address]);
   
   // Matrix Synergies (Upsell logic)
   const getUpsells = () => {
@@ -70,10 +178,12 @@ export function Checkout() {
     const cartCategories = new Set(items.map(i => i.category));
     
     const recommendations = products.filter(p => {
-       // If cart has a PC/Components but no display, recommend display
-       if ((cartCategories.has('Masters') || cartCategories.has('Componente')) && p.category === 'Displays') return true;
-       // Recommend gadgets (like keycaps, thermal paste) if cart has components
-       if (cartCategories.has('Componente') && p.category === 'Gadgets') return true;
+       // If cart has a Desktop/Component but no monitor, recommend monitors
+       if ((cartCategories.has("Desktop's") || cartCategories.has('Components')) && (p.category === 'Displays' || p.category === 'Monitores')) return true;
+       // Recommend gadgets if cart has components
+       if (cartCategories.has('Components') && p.category === 'Gadgets') return true;
+       // Recommend peripherals if cart has a desktop
+       if (cartCategories.has("Desktop's") && p.category === 'Periféricos') return true;
        return false;
     }).slice(0, 2);
 
@@ -102,52 +212,55 @@ export function Checkout() {
     return oa - ob;
   });
 
+  const calculateShippingCostFromCoords = (latitude: number | null, longitude: number | null, overrideAddressStr?: string) => {
+     const freeRad = Number(shippingSettings.freeRadiusKm) || 15;
+     const costPerKm = Number(shippingSettings.costPerKmExtra) || 60;
+
+     if (latitude === null || longitude === null) {
+       // Text-based zone detection: estimate distance in km per zone, then apply Admin settings
+       const addr = (overrideAddressStr || address).toLowerCase();
+
+       // Interprovincial ~300-600km
+       if (addr.includes('gaza') || addr.includes('inhambane') || addr.includes('xai') || addr.includes('beira') || addr.includes('sofala') || addr.includes('nampula') || addr.includes('tete') || addr.includes('zambezia') || addr.includes('niassa') || addr.includes('cabo delgado') || addr.includes('pemba') || addr.includes('quelimane') || addr.includes('chimoio')) {
+          const estimatedKm = 350; // Conservative interprovincial estimate
+          const cost = Math.round((estimatedKm - freeRad) * costPerKm);
+          setShippingCost(Math.max(cost, 1500));
+          setCalculatingShipping(false); return;
+       }
+       // Arredores longínquos ~40-60km (Boane, Manhiça)
+       if (addr.includes('boane') || addr.includes('marracuene') || addr.includes('katembe') || addr.includes('txumene') || addr.includes('manhica')) {
+          const estimatedKm = 50;
+          const cost = estimatedKm <= freeRad ? 0 : Math.round((estimatedKm - freeRad) * costPerKm);
+          setShippingCost(cost);
+          setCalculatingShipping(false); return;
+       }
+       // Matola e arredores ~18-30km
+       if (addr.includes('matola') || addr.includes('zimpeto') || addr.includes('machava') || addr.includes('tchumene') || addr.includes('liberdade') || addr.includes('socimol') || addr.includes('fomento')) {
+          const estimatedKm = 22;
+          const cost = estimatedKm <= freeRad ? 0 : Math.round((estimatedKm - freeRad) * costPerKm);
+          setShippingCost(cost);
+          setCalculatingShipping(false); return;
+       }
+       // Maputo Central ~0-10km — dentro do raio grátis
+       if (addr.includes('maputo') || addr.includes('cidade') || addr.includes('central') || addr.includes('museu') || addr.includes('polana') || addr.includes('sommerschield') || addr.includes('malhangalene') || addr.includes('alto mae') || addr.includes('triunfo') || addr.includes('costa do sol')) {
+          setShippingCost(0);
+          setCalculatingShipping(false); return;
+       }
+       // Fallback flat rate do Admin
+       setShippingCost(Number(shippingSettings.fallbackFlatRate) || 800);
+       setCalculatingShipping(false);
+       return;
+     }
+
+     const cost = calculateCostFromDistance(latitude, longitude);
+     setShippingCost(cost);
+     setCalculatingShipping(false);
+  };
+
   const calculateShipping = () => {
-    setCalculatingShipping(true);
-    
-    // Auto-detect based on text input first if no GPS used
-    const addr = address.toLowerCase();
-    if (addr.includes('maputo') && (addr.includes('cidade') || addr.includes('central') || addr.includes('museu') || addr.includes('polana'))) {
-       setTimeout(() => { setShippingCost(0); setCalculatingShipping(false); }, 800);
-       return;
-    } else if (addr.includes('matola') || addr.includes('zimpeto')) {
-       setTimeout(() => { setShippingCost(500); setCalculatingShipping(false); }, 800);
-       return;
-    } else if (addr.includes('boane') || addr.includes('marracuene')) {
-       setTimeout(() => { setShippingCost(1200); setCalculatingShipping(false); }, 800);
-       return;
-    }
-
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords;
-        // Maputo central reference (approximate: Praça da Independência)
-        const maputoLat = -25.9692;
-        const maputoLon = 32.5732;
-
-        // Haversine formula
-        const R = 6371; // km
-        const dLat = (latitude - maputoLat) * Math.PI / 180;
-        const dLon = (longitude - maputoLon) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(maputoLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        const distance = R * c;
-
-        // < 15km = Free, else 60 MT per km
-        const cost = distance <= 15 ? 0 : Math.round((distance - 15) * 60);
-        setShippingCost(cost);
-        setCalculatingShipping(false);
-      }, () => {
-        // Fallback or permission denied
-        setShippingCost(800); // Standard flat rate
-        setCalculatingShipping(false);
-      });
-    } else {
-      setShippingCost(800);
-      setCalculatingShipping(false);
-    }
+     setCalculatingShipping(true);
+     // Force text calculation if they pressed the text calculation button
+     calculateShippingCostFromCoords(null, null);
   };
 
   const isPhoneValid = () => {
@@ -163,34 +276,54 @@ export function Checkout() {
     return false;
   };
 
-  const handleCheckout = () => {
-    if (!address) {
-       alert("Preencha o endereço de entrega.");
-       return;
-    }
-    if (!isPhoneValid()) {
-       alert("Preencha um número válido de 9 dígitos para o método selecionado.");
-       return;
-    }
+  const handleCheckout = async () => {
+    if (!fullName) { alert("Preencha o seu Nome Completo."); return; }
+    if (!address) { alert("Preencha o endereço de entrega."); return; }
+    if (!isPhoneValid()) { alert("Preencha um número válido de 9 dígitos para o método selecionado."); return; }
 
     setPaymentStatus('processing');
     
-    // Simulate USSD Push
-    setTimeout(() => {
-      setPaymentStatus('success');
+    const finalTotal = Math.max(0, subtotal - discount + (shippingCost || 0));
+    
+    try {
+      // Save checkout in Firestore for the Admin
+      await addDoc(collection(db, 'checkouts'), {
+        customerName: fullName,
+        customerPhone: phone,
+        address: address,
+        zipCode: zipCode || 'N/A',
+        paymentMethod: paymentMethod,
+        subtotal: subtotal,
+        discount: discount,
+        shippingCost: shippingCost || 0,
+        total: finalTotal,
+        items: items,
+        status: 'pendente', // 'pendente', 'pago', 'entregue', 'cancelado'
+        createdAt: serverTimestamp()
+      });
+
+      // Simulate USSD Push
       setTimeout(() => {
-        proceedToWhatsApp();
-      }, 3000);
-    }, 4000);
+        setPaymentStatus('success');
+        setTimeout(() => {
+          proceedToWhatsApp(finalTotal);
+        }, 3000);
+      }, 4000);
+
+    } catch (err) {
+      console.error(err);
+      alert("Falha de rede ao registar encomenda. Tente novamente.");
+      setPaymentStatus('idle');
+    }
   };
 
-  const proceedToWhatsApp = () => {
-    const finalTotal = Math.max(0, subtotal - discount + (shippingCost || 0));
+  const proceedToWhatsApp = (finalTotal: number) => {
     const isMpesa = paymentMethod === 'mpesa';
     
     let msg = `*NOVA ENCOMENDA - HARDWARE SALE*\n\n`;
+    msg += `*Cliente:* ${fullName}\n`;
     msg += `*Método:* ${isMpesa ? 'M-Pesa' : 'e-Mola'} (${phone})\n`;
-    msg += `*Entrega:* ${address}\n`;
+    msg += `*Entrega:* ${address} ${zipCode ? `(CEP: ${zipCode})` : ''}\n`;
     if (shippingCost !== null) {
       msg += `*Portes (GPS):* ${shippingCost === 0 ? 'Grátis (Zona Central)' : `${shippingCost} MT`}\n`;
     }
@@ -282,16 +415,46 @@ export function Checkout() {
                        <div className="flex items-center gap-4 sm:gap-6 bg-[#050510]/50 border border-white/5 rounded-3xl p-4 group hover:bg-white/[0.02] hover:border-white/10 transition-all duration-500">
                           <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-black/60 border border-white/5 p-3 flex items-center justify-center shrink-0 relative overflow-hidden group-hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] transition-shadow">
                              <div className="absolute inset-0 bg-brand-neon/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                             <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain mix-blend-lighten group-hover:scale-110 transition-transform duration-700 ease-out relative z-10" />
+                             <img src={item.image} alt={item.name} className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-700 ease-out relative z-10" />
                           </div>
                           <div className="flex-1 min-w-0">
                              <div className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">{item.category}</div>
                              <h4 className="text-white font-bold text-lg sm:text-xl truncate leading-tight group-hover:text-brand-neon transition-colors">{item.name}</h4>
-                             <div className="text-brand-neon font-extrabold mt-2 text-base sm:text-lg">{item.price.toLocaleString()} MT</div>
+                             <div className="text-brand-neon font-extrabold mt-2 text-base sm:text-lg flex items-center gap-2">
+                               {(item.price * (item.quantity || 1)).toLocaleString()} MT
+                               {(item.quantity || 1) > 1 && <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-md border border-white/10">Unidade: {item.price.toLocaleString()} MT</span>}
+                             </div>
                           </div>
-                          <button onClick={() => removeItem(item.id)} className="w-10 h-10 rounded-full bg-black/50 text-gray-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all border border-white/5 hover:border-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:-translate-y-1">
-                             <X size={16} strokeWidth={3} />
-                          </button>
+                          <div className="flex items-center gap-3">
+                             <div className="flex items-center bg-black/50 border border-white/10 rounded-xl overflow-hidden shadow-inner h-10">
+                               <button 
+                                 onClick={() => {
+                                   if ((item.quantity || 1) > 1) {
+                                     // Quick hack to decrease quantity: we remove it and re-add with quantity - 1
+                                     removeItem(item.id);
+                                     for(let i=0; i<(item.quantity || 1)-1; i++) {
+                                       addItem({ id: item.id, name: item.name, price: item.price, image: item.image, category: item.category });
+                                     }
+                                   } else {
+                                     removeItem(item.id);
+                                   }
+                                 }}
+                                 className="w-8 h-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                               >
+                                 -
+                               </button>
+                               <span className="w-6 text-center text-sm font-bold text-white">{item.quantity || 1}</span>
+                               <button 
+                                 onClick={() => addItem({ id: item.id, name: item.name, price: item.price, image: item.image, category: item.category })}
+                                 className="w-8 h-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                               >
+                                 +
+                               </button>
+                             </div>
+                             <button onClick={() => removeItem(item.id)} className="w-10 h-10 rounded-full bg-black/50 text-gray-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all border border-white/5 hover:border-red-500 hover:shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:-translate-y-1">
+                                <X size={16} strokeWidth={3} />
+                             </button>
+                          </div>
                        </div>
                      </React.Fragment>
                    );
@@ -325,7 +488,7 @@ export function Checkout() {
                         <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
                            <div className="text-brand-magenta text-sm font-extrabold">{product.price.toLocaleString()} MT</div>
                            <button onClick={() => {
-                              addItem({ id: product.id, name: product.name, price: product.price, image: product.images?.[0] || product.image, category: product.category });
+                              addItem({ id: product.id, name: product.name, price: product.price, image: product.images?.[0] || product.image || '', category: product.category || '' });
                            }} className="h-8 px-4 rounded-full bg-brand-magenta/10 border border-brand-magenta/30 text-brand-magenta text-xs font-bold flex items-center justify-center hover:bg-brand-magenta hover:text-white transition-all shadow-lg hover:shadow-[0_0_15px_rgba(236,72,153,0.5)]">
                               Adicionar
                            </button>
@@ -366,9 +529,26 @@ export function Checkout() {
                       <span className="text-[10px] text-gray-500 uppercase tracking-widest mt-1 font-bold">Cálculo GPS Integrado</span>
                     </span>
                     {shippingCost === null ? (
-                       <Button onClick={calculateShipping} disabled={calculatingShipping || !address} variant="outline" className="h-9 text-xs font-bold bg-white/5 border-white/10 text-brand-neon hover:bg-brand-neon/10 hover:border-brand-neon/30">
-                         {calculatingShipping ? <Loader2 size={14} className="animate-spin mr-2" /> : 'Calcular Zona'}
-                       </Button>
+                               <div className="flex gap-2">
+                                 <Button onClick={() => {
+                                   if ("geolocation" in navigator) {
+                                     setCalculatingShipping(true);
+                                     navigator.geolocation.getCurrentPosition((position) => {
+                                       calculateShippingCostFromCoords(position.coords.latitude, position.coords.longitude);
+                                       setAddress("Localização Atual (GPS)");
+                                       setSelectedPlaceId("GPS");
+                                     }, () => {
+                                       alert("Permissão de GPS negada ou sinal muito fraco. Por favor, digite o endereço manualmente.");
+                                       setCalculatingShipping(false);
+                                     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+                                   }
+                                 }} variant="outline" className="h-9 px-3 text-xs font-bold bg-brand-neon/10 border-brand-neon/30 text-brand-neon hover:bg-brand-neon/20 transition-all shadow-[0_0_10px_rgba(20,241,149,0.2)]">
+                                   Usar Meu GPS Atual
+                                 </Button>
+                                 <Button onClick={calculateShipping} disabled={calculatingShipping || !address} variant="outline" className="h-9 px-3 text-xs font-bold bg-white/5 border-white/10 text-white hover:bg-white/10 transition-all">
+                                   {calculatingShipping ? <Loader2 size={14} className="animate-spin mr-2" /> : 'Calcular por Texto'}
+                                 </Button>
+                               </div>
                     ) : (
                        <div className="flex flex-col items-end gap-1">
                          <span className="text-brand-neon font-extrabold text-lg">{shippingCost === 0 ? 'Grátis' : `${shippingCost.toLocaleString()} MT`}</span>
@@ -406,14 +586,15 @@ export function Checkout() {
                  </button>
               </div>
 
-              {/* Inputs */}
+              {/* Complex Inputs */}
               <div className="space-y-5 mb-10 relative z-10">
                  <div className="group relative">
                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-brand-neon transition-colors">
-                     <ShieldCheck size={18} />
+                     <User size={18} />
                    </div>
-                   <input required value={address} onChange={e => setAddress(e.target.value)} type="text" placeholder="Endereço Físico de Entrega (Ex: Av. FPLM)" className="w-full bg-white/5 border border-white/10 h-16 rounded-2xl pl-12 pr-5 text-white text-sm font-medium focus:outline-none focus:border-brand-neon focus:bg-white/10 focus:ring-4 focus:ring-brand-neon/10 transition-all shadow-inner placeholder:text-gray-600" />
+                   <input required value={fullName} onChange={e => setFullName(e.target.value)} type="text" placeholder="Nome Completo" className="w-full bg-white/5 border border-white/10 h-16 rounded-2xl pl-12 pr-5 text-white text-sm font-medium focus:outline-none focus:border-brand-neon focus:bg-white/10 focus:ring-4 focus:ring-brand-neon/10 transition-all shadow-inner placeholder:text-gray-600" />
                  </div>
+
                  <div className="group relative">
                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-brand-neon transition-colors">
                      <Smartphone size={18} />
@@ -440,6 +621,50 @@ export function Checkout() {
                  {phone.length === 9 && !isPhoneValid() && (
                    <p className="text-[11px] text-red-400 ml-2 mt-[-10px]">Prefixo inválido para a rede {paymentMethod === 'mpesa' ? 'M-Pesa (use 84/85)' : 'e-Mola (use 86/87)'}.</p>
                  )}
+
+                 <div className="group relative z-20">
+                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-brand-neon transition-colors">
+                     <MapPin size={18} />
+                   </div>
+                   <input 
+                     required 
+                     value={address} 
+                     onChange={e => {
+                       setAddress(e.target.value);
+                       setSelectedPlaceId(null);
+                     }} 
+                     type="text" 
+                     placeholder="Endereço Físico Exato (Ex: Av. FPLM, Maputo)" 
+                     className="w-full bg-white/5 border border-white/10 h-16 rounded-2xl pl-12 pr-12 text-white text-sm font-medium focus:outline-none focus:border-brand-neon focus:bg-white/10 focus:ring-4 focus:ring-brand-neon/10 transition-all shadow-inner placeholder:text-gray-600" 
+                   />
+                   {isSearchingAddress && (
+                     <div className="absolute inset-y-0 right-4 flex items-center">
+                       <Loader2 size={16} className="text-gray-500 animate-spin" />
+                     </div>
+                   )}
+                   {/* Address Autocomplete Dropdown */}
+                   {addressPredictions.length > 0 && !selectedPlaceId && (
+                     <div className="absolute top-full left-0 right-0 mt-2 bg-[#110e1b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-30">
+                       {addressPredictions.map((pred) => (
+                         <div 
+                           key={pred.place_id} 
+                           onClick={() => handleSelectAddress(pred)}
+                           className="p-4 hover:bg-brand-neon/10 cursor-pointer border-b border-white/5 last:border-0 transition-colors flex items-center gap-3"
+                         >
+                           <MapPin size={16} className="text-gray-400 shrink-0" />
+                           <span className="text-sm text-gray-200 truncate">{pred.description}</span>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                 </div>
+
+                 <div className="group relative">
+                   <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-500 group-focus-within:text-brand-neon transition-colors">
+                     <Mailbox size={18} />
+                   </div>
+                   <input value={zipCode} onChange={e => setZipCode(e.target.value)} type="text" placeholder="CEP / Código Postal (Opcional)" className="w-full bg-white/5 border border-white/10 h-16 rounded-2xl pl-12 pr-5 text-white text-sm font-medium focus:outline-none focus:border-brand-neon focus:bg-white/10 focus:ring-4 focus:ring-brand-neon/10 transition-all shadow-inner placeholder:text-gray-600" />
+                 </div>
               </div>
 
               {paymentStatus === 'processing' ? (

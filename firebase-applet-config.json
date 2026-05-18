@@ -1,10 +1,8 @@
 {
-  "projectId": "gen-lang-client-0169808106",
-  "appId": "1:452467752860:web:754227a3b90314bb4c1259",
-  "apiKey": "AIzaSyCHFqkioWNRiDLTT9pJnSa-ddb_NM8YWHY",
-  "authDomain": "gen-lang-client-0169808106.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-9a872585-601d-478d-8634-ab6253e67dfc",
-  "storageBucket": "gen-lang-client-0169808106.firebasestorage.app",
-  "messagingSenderId": "452467752860",
-  "measurementId": ""
+  "apiKey": "AIzaSyBIMZisT2zXWYfEIAwJjhPxWuQLNJE5qrk",
+  "authDomain": "hardware-sale.firebaseapp.com",
+  "projectId": "hardware-sale",
+  "storageBucket": "hardware-sale.firebasestorage.app",
+  "messagingSenderId": "655450180472",
+  "appId": "1:655450180472:web:0956778453eac1ab5fd68d"
 }

@@ -28,8 +28,8 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-[#050510] text-[#f8f8fc] font-sans flex flex-col selection:bg-brand-neon/30 selection:text-white">
       <nav className="sticky top-0 w-full z-50 bg-[#00000080] backdrop-blur-[40px] border-b border-white/5 saturate-[1.8]">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 md:gap-4 group h-full">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between relative">
+          <Link to="/" className="flex items-center gap-3 md:gap-4 group h-full relative z-10 w-1/4">
             <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-white/10 group-hover:scale-105 transition-transform duration-300 shrink-0">
               <img 
                 src="/hardwaresaleogo.jpeg" 
@@ -38,11 +38,11 @@ export function Layout() {
                 referrerPolicy="no-referrer"
               />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white group-hover:text-brand-neon transition-colors hidden sm:inline-block leading-tight">Hardware Sale</span>
+            <span className="text-xl font-bold tracking-tight text-white group-hover:text-brand-neon transition-colors hidden lg:inline-block leading-tight shrink-0 whitespace-nowrap">Hardware Sale</span>
           </Link>
           
           <div 
-            className="flex gap-1 items-center bg-[#1a1a2480] px-1 md:px-2 py-1 md:py-1.5 rounded-xl md:rounded-[1.2rem] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] my-auto overflow-x-auto custom-scrollbar max-w-[50vw] sm:max-w-none"
+            className="absolute left-1/2 -translate-x-1/2 flex gap-1 items-center bg-[#1a1a2480] px-1 md:px-2 py-1 md:py-1.5 rounded-xl md:rounded-[1.2rem] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] my-auto overflow-x-auto custom-scrollbar max-w-[50vw] sm:max-w-none z-10"
             onWheel={(e) => {
               if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
                 e.currentTarget.scrollLeft += e.deltaY;
@@ -56,7 +56,7 @@ export function Layout() {
             <Link to="/build-of-the-month" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/build-of-the-month' ? 'bg-white text-black rounded-lg md:rounded-xl font-extrabold shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'text-yellow-400 hover:text-white font-bold'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2 relative`}><span className="absolute -top-1 -right-1 flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span></span><span className="tracking-widest uppercase text-[10px]">BOM</span></Link>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 relative z-10 w-1/4 justify-end">
             <Link to="/checkout" className="relative group p-1">
               <div className="p-2.5 bg-white/5 rounded-full border border-white/5 group-hover:border-white/10 group-hover:bg-white/10 transition-all shadow-sm">
                 <ShoppingCart className="w-[1.125rem] h-[1.125rem] text-gray-300 group-hover:text-white transition-colors" />
@@ -97,25 +97,25 @@ export function Layout() {
            <div>
               <h4 className="text-white font-semibold mb-5 text-sm">Catálogo Elite</h4>
               <ul className="space-y-3 text-sm font-medium text-gray-500">
-                <li><Link to="/products" className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Desktop's (RTX 40+)</Link></li>
-                <li><Link to="/products" className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Displays QD-OLED</Link></li>
-                <li><Link to="/products" className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Periféricos Premium</Link></li>
-                <li><Link to="/builder" className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Smart PC Builder</Link></li>
+                <li><Link to="/products?cat=Desktop's" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Desktop's (RTX 30+)</Link></li>
+                <li><Link to="/products?cat=Monitores" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Displays QD-OLED</Link></li>
+                <li><Link to="/products?cat=Periféricos" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Periféricos Premium</Link></li>
+                <li><Link to="/builder" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Smart PC Builder</Link></li>
               </ul>
            </div>
            <div>
               <h4 className="text-white font-semibold mb-5 text-sm">Suporte Global</h4>
               <ul className="space-y-3 text-sm font-medium text-gray-500">
-                <li><a href="#" className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Políticas de Cobertura</a></li>
-                <li><a href="#" className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Rastreio de Logística</a></li>
-                <li><a href="#" className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Atendimento VIP</a></li>
+                <li><Link to="/build-of-the-month" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Políticas de Cobertura</Link></li>
+                <li><Link to="/build-of-the-month" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Rastreio de Logística</Link></li>
+                <li><Link to="/build-of-the-month" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Atendimento VIP</Link></li>
               </ul>
            </div>
            <div>
               <h4 className="text-white font-semibold mb-5 text-sm">Transparência</h4>
               <ul className="space-y-3 text-sm font-medium text-gray-500">
-                <li><a href="#" className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Termos de Aquisição</a></li>
-                <li><a href="#" className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Dados &amp; Privacidade</a></li>
+                <li><Link to="/build-of-the-month" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Termos de Aquisição</Link></li>
+                <li><Link to="/build-of-the-month" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Dados & Privacidade</Link></li>
                 <li>
                   <div className="mt-3 inline-flex items-center gap-3 border border-brand-neon/20 px-4 py-2.5 rounded-[1.2rem] bg-brand-neon/5 backdrop-blur-md hover:bg-brand-neon/10 hover:border-brand-neon/40 transition-all cursor-default group">
                     <span className="relative flex h-2.5 w-2.5">

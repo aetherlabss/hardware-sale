@@ -13,139 +13,18 @@ gsap.registerPlugin(useGSAP);
 
 import '@google/model-viewer';
 
-export const mockProducts = [
-  // Desktop's (PCs)
-  { 
-    id: 'pc1', 
-    name: 'Workstation Zenith 9', 
-    price: 350000, 
-    category: "Desktop's", 
-    image: getAssetUrl('/hyte-y70-touch.jpg'),
-    images: [
-      getAssetUrl('/hyte-y70-touch.jpg')
-    ],
-    glbModel: 'https://modelviewer.dev/shared-assets/models/glTF-Sample-Models/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb', // Holographic Helmet placeholder for AR
-    desc: 'Montagem de PC Extrema. Custom Loop Watercooling, RTX 4090, i9-14900K.', 
-    tags: ['Watercooled', '4K 240Hz', 'Workstation'],
-    specs: {
-      Cpu: 'Intel Core i9-14900K (24 Cores / 32 Threads)',
-      Gpu: 'NVIDIA GeForce RTX 4090 24GB GDDR6X',
-      Ram: '64GB (2x32GB) DDR5 6400MHz',
-      Storage: '4TB NVMe PCIe 4.0 (Aprox 7400MB/s)',
-      Motherboard: 'Z790 E-ATX Premium',
-      Psu: '1200W 80+ Platinum ATX 3.0',
-      Servicos: 'Montagem de PC, Teste de Stress, Diagnóstico'
-    }
-  },
-  { 
-    id: 'm1', 
-    name: 'OLED Master 49"', 
-    price: 125000, 
-    category: 'Displays', 
-    image: getAssetUrl('/oled49.webp'),
-    images: [
-      getAssetUrl('/oled49.webp')
-    ],
-    desc: 'Ultrawide OLED, 0.03ms, 240Hz. Imersão absurda para Gamers e Workstation.', 
-    tags: ['OLED', 'Ultrawide'],
-    specs: {
-      Diagonal: '49 polegadas (Super Ultrawide)',
-      Resolucao: '5120 x 1440 (DQHD)',
-      Tecnologia: 'QD-OLED',
-      Taxa: '240Hz',
-      Resposta: '0.03ms (GtG)',
-      Curvatura: '1800R'
-    }
-  },
-  { 
-    id: 'c1', 
-    name: 'ROG Matrix RTX 4090', 
-    price: 280000, 
-    category: 'Components', 
-    image: getAssetUrl('/rog4090.jpg'),
-    images: [
-      getAssetUrl('/rog4090.jpg')
-    ],
-    desc: 'Venda de Hardware: A placa gráfica mais potente já construída.', 
-    tags: ['Venda Hardware', 'Enthusiast', 'Liquid Metal'],
-    specs: {
-      VRAM: '24GB GDDR6X',
-      Interface: 'PCIe 4.0 x16',
-      Cooling: 'Built-in 360mm AIO Custom Loop',
-      Boost_Clock: '2700 MHz+',
-      Warranty: 'Diagnóstico e Assistência Local'
-    }
-  },
-  { 
-    id: 'c2', 
-    name: 'Intel Core i9-14900KS', 
-    price: 62000, 
-    category: 'Components', 
-    image: getAssetUrl('/i9.jpg'),
-    images: [
-      getAssetUrl('/i9.jpg')
-    ],
-    desc: 'Venda de Hardware: Processador de 24 Núcleos chegando até 6.2GHz.', 
-    tags: ['6.2GHz', '24 Cores'],
-    specs: {
-      Cores: '24 (8P + 16E)',
-      Threads: '32',
-      Clock_Base: '3.2 GHz',
-      Clock_Turbo: '6.2 GHz',
-      TDP: '253W Base'
-    }
-  },
-  { 
-    id: 'm2', 
-    name: 'Alienware 34" QD-OLED', 
-    price: 85000, 
-    category: 'Monitores', 
-    image: getAssetUrl('/alien34.jpg'),
-    images: [
-      getAssetUrl('/alien34.jpg')
-    ],
-    desc: 'Cores vibrantes e pretos verdadeiros para os exigentes.', 
-    tags: ['QD-OLED', '175Hz', 'Curved', 'Monitores'],
-    specs: {
-      Diagonal: '34 polegadas (Ultrawide)',
-      Resolucao: '3440 x 1440 (UWQHD)',
-      Tecnologia: 'QD-OLED',
-      Taxa: '175Hz',
-      Resposta: '0.1ms (GtG)'
-    }
-  },
-  {
-    id: 'g1',
-    name: 'Keycaps Artisan Neon',
-    price: 3500,
-    category: 'Gadgets',
-    image: 'https://images.unsplash.com/photo-1595225476474-87563907a212?q=80&w=500',
-    images: [ 'https://images.unsplash.com/photo-1595225476474-87563907a212?q=80&w=500' ],
-    desc: 'Keycaps premium para teclados mecânicos, com brilho neon reativo.',
-    tags: ['Keycaps', 'Modding'],
-    specs: {
-      Material: 'PBT Double-shot',
-      Perfil: 'Cherry Profile',
-      Compatibilidade: 'Switches Cherry MX'
-    }
-  }
-];
-
 import { GoogleGenAI } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { createPortal } from 'react-dom';
 
 // Product Modal Component
 function ProductModal({ 
   product, 
-  onClose,
-  onNext,
-  onPrev
+  onClose
 }: { 
   product: any, 
   onClose: () => void,
-  onNext?: () => void,
-  onPrev?: () => void,
   key?: React.Key
 }) {
   const [imgIndex, setImgIndex] = useState(0);
@@ -153,6 +32,18 @@ function ProductModal({
   const [added, setAdded] = useState(false);
   const [aiTip, setAiTip] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const originalBody = document.body.style.overflow;
+    const originalHtml = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalBody;
+      document.documentElement.style.overflow = originalHtml;
+    };
+  }, []);
 
   useEffect(() => {
     setImgIndex(0);
@@ -165,7 +56,7 @@ function ProductModal({
           if (!apiKey) return;
           const ai = new GoogleGenAI({ 
             apiKey,
-            vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' }
+            vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any
           });
           const prompt = `Atue como Amani, a assistente IA da loja Hardware Sale. O utilizador está a visualizar o produto "${product.name}" (Categoria: ${product.category}). Faça uma recomendação "God Level" extremamente concisa (1 ou 2 frases curtas) sobre que outro acessório ou peça ele deveria comprar junto, ou elogie a escolha de forma premium.`;
           
@@ -176,7 +67,7 @@ function ProductModal({
               config: { temperature: 0.7 }
           });
           const endTime = performance.now();
-          setAiTip(res.text);
+          setAiTip(res.text || "Uma escolha sólida.");
           logAetherLabsUsage(endTime - startTime, prompt, res.text || "");
        } catch (err) {
           console.error(err);
@@ -197,123 +88,199 @@ function ProductModal({
     setTimeout(() => setAdded(false), 2000);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/90 backdrop-blur-3xl transition-all duration-500 animate-in fade-in zoom-in-95">
-      {/* Global Navigation Arrows */}
-      <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 md:px-12 z-[60] pointer-events-none">
-        <button 
-          onClick={(e) => { e.stopPropagation(); onPrev?.(); }}
-          className="p-5 bg-white/5 hover:bg-white/10 text-white rounded-full backdrop-blur-2xl border border-white/10 transition-all duration-300 pointer-events-auto group hover:scale-110 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
-        >
-          <ChevronLeft className="w-8 h-8 group-active:scale-90 transition-transform" strokeWidth={1.5} />
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); onNext?.(); }}
-          className="p-5 bg-white/5 hover:bg-white/10 text-white rounded-full backdrop-blur-2xl border border-white/10 transition-all duration-300 pointer-events-auto group hover:scale-110 shadow-[0_0_30px_rgba(255,255,255,0.1)]"
-        >
-          <ChevronRight className="w-8 h-8 group-active:scale-90 transition-transform" strokeWidth={1.5} />
-        </button>
-      </div>
+  const hasFpsSimulations = product.category === "Desktop's" && (
+    product.specs?.['FPS_Valorant'] || 
+    product.specs?.['FPS_Fortnite'] || 
+    product.specs?.['FPS_Cyberpunk'] || 
+    product.specs?.['FPS_Warzone'] || 
+    product.specs?.['FPS_GTA'] || 
+    product.specs?.['FPS_Forza']
+  );
 
-      <div className="absolute inset-0 max-w-6xl w-full bg-[#0a0a14] border border-white/10 rounded-[3rem] mx-auto my-auto max-h-[90vh] overflow-hidden flex flex-col md:flex-row shadow-[0_0_120px_rgba(168,85,247,0.15)] relative z-[55]">
-        <button onClick={onClose} className="absolute top-8 right-8 z-50 w-12 h-12 flex items-center justify-center bg-black/50 backdrop-blur-xl hover:bg-white/10 text-white border border-white/10 transition-colors rounded-full shadow-2xl">
-          <X size={24} strokeWidth={1.5} />
+  const fpsDataConfig = [
+    { key: 'FPS_Valorant', game: 'Valorant', color: 'from-red-500 to-red-400' },
+    { key: 'FPS_Fortnite', game: 'Fortnite', color: 'from-blue-500 to-blue-400' },
+    { key: 'FPS_Cyberpunk', game: 'CyberPunk 2077', color: 'from-yellow-500 to-orange-500' },
+    { key: 'FPS_Warzone', game: 'COD Warzone', color: 'from-green-500 to-emerald-400' },
+    { key: 'FPS_GTA', game: 'GTA V', color: 'from-brand-neon to-brand-magenta' },
+    { key: 'FPS_Forza', game: 'Forza Horizon 5', color: 'from-pink-500 to-rose-400' }
+  ];
+
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-6 bg-black/95 backdrop-blur-3xl transition-all duration-500 animate-in fade-in zoom-in-95">
+      <div className={`w-full bg-[#0a0a14] border border-white/10 rounded-[2rem] sm:rounded-[2.5rem] mx-auto flex flex-col md:flex-row shadow-[0_0_100px_rgba(168,85,247,0.15)] relative z-[55] overflow-hidden h-[95vh] md:h-auto md:max-h-[90vh] ${hasFpsSimulations ? 'max-w-7xl' : 'max-w-5xl'}`}>
+        <button onClick={onClose} className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-black/50 backdrop-blur-xl hover:bg-white/10 text-white border border-white/10 transition-colors rounded-full shadow-2xl hover:scale-105">
+          <X size={18} strokeWidth={2} />
         </button>
 
         {/* Gallery Section */}
-        <div className="w-full md:w-1/2 relative flex flex-col p-8 bg-gradient-to-br from-black/80 to-[#110e1b]">
-          <div className="absolute inset-0 bg-brand-neon/5 blur-[100px] pointer-events-none rounded-full"></div>
-          <div className="flex-1 relative flex items-center justify-center overflow-hidden group rounded-[2rem] bg-transparent">
-            {product.glbModel ? (
-              <model-viewer
-                src={product.glbModel}
-                alt={product.name}
-                auto-rotate
-                camera-controls
-                ar
-                ar-modes="webxr scene-viewer quick-look"
-                environment-image="neutral"
-                shadow-intensity="1"
-                camera-orbit="45deg 55deg 2.5m"
-                class="w-full h-full outline-none"
-                style={{ width: '100%', height: '100%', outline: 'none' }}
+        <div className={`w-full relative flex flex-col p-4 sm:p-8 bg-black overflow-hidden justify-center items-center shrink-0 ${hasFpsSimulations ? 'md:w-4/12' : 'md:w-1/2'} h-[35vh] md:h-auto`}>
+          <div className="absolute inset-0 bg-brand-neon/5 blur-[80px] pointer-events-none rounded-full"></div>
+          <div className="relative flex items-center justify-center w-full h-full md:aspect-square md:max-h-[50vh] overflow-hidden group rounded-2xl sm:rounded-[2rem] bg-black">
+            {/* Fullscreen Image Lightbox */}
+            {isFullscreen && (
+              <div 
+                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-3xl p-4 sm:p-8 animate-in fade-in zoom-in duration-500 cursor-pointer"
+                onClick={() => setIsFullscreen(false)}
               >
-                <div slot="poster" className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-20">
-                   <div className="w-12 h-12 rounded-full border-4 border-brand-neon border-t-transparent animate-spin"></div>
-                </div>
-                <button slot="ar-button" className="absolute bottom-4 right-4 bg-brand-neon text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(168,85,247,0.5)] z-30 transition-transform hover:scale-105">
-                  Visualizar no Espaço (AR)
+                <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none"></div>
+                <button onClick={(e) => { e.stopPropagation(); setIsFullscreen(false); }} className="absolute top-6 right-6 z-50 w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-colors rounded-full shadow-2xl backdrop-blur-xl">
+                  <X size={20} strokeWidth={2} />
                 </button>
-              </model-viewer>
+
+                <div className="relative w-full max-w-4xl h-full flex items-center justify-center overflow-hidden pointer-events-none mx-auto">
+                  {/* Side Arrows */}
+                  {product.images && product.images.length > 1 && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setImgIndex(i => i === 0 ? product.images.length - 1 : i - 1); }}
+                      className="absolute left-2 sm:left-10 z-50 p-3 bg-black/80 backdrop-blur-xl border border-white/20 rounded-full text-white hover:text-brand-neon hover:border-brand-neon transition-all hover:scale-110 pointer-events-auto"
+                    >
+                      <ChevronLeft size={24} />
+                    </button>
+                  )}
+
+                  <img 
+                    src={product.images && product.images.length > 0 ? product.images[imgIndex] || product.images[0] : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=1200&q=80'} 
+                    alt={product.name} 
+                    className="max-w-[85%] max-h-[85%] object-contain mix-blend-lighten"
+                  />
+
+                  {product.images && product.images.length > 1 && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setImgIndex(i => i === product.images.length - 1 ? 0 : i + 1); }}
+                      className="absolute right-2 sm:right-10 z-50 p-3 bg-black/80 backdrop-blur-xl border border-white/20 rounded-full text-white hover:text-brand-neon hover:border-brand-neon transition-all hover:scale-110 pointer-events-auto"
+                    >
+                      <ChevronRight size={24} />
+                    </button>
+                  )}
+                </div>
+
+                {product.images && product.images.length > 1 && (
+                  <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 backdrop-blur-xl border border-white/10 px-6 py-4 rounded-full z-50">
+                    <div className="flex gap-2">
+                      {product.images.map((_: any, i: number) => (
+                        <div key={i} className={`h-2 rounded-full transition-all duration-300 ${i === imgIndex ? 'w-6 bg-brand-neon shadow-[0_0_10px_rgba(20,241,149,0.8)]' : 'w-2 bg-white/30'}`} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {product.glbModel ? (
+              <div className="w-full h-full" dangerouslySetInnerHTML={{__html: `
+                <model-viewer
+                  src="${product.glbModel}"
+                  alt="${product.name}"
+                  auto-rotate
+                  camera-controls
+                  ar
+                  ar-modes="webxr scene-viewer quick-look"
+                  environment-image="neutral"
+                  shadow-intensity="1"
+                  camera-orbit="45deg 55deg 2.5m"
+                  class="w-full h-full outline-none"
+                  style="width: 100%; height: 100%; outline: none;"
+                >
+                  <div slot="poster" class="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-20">
+                     <div class="w-12 h-12 rounded-full border-4 border-brand-neon border-t-transparent animate-spin"></div>
+                  </div>
+                  <button slot="ar-button" class="absolute bottom-4 right-4 bg-brand-neon text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(168,85,247,0.5)] z-30 transition-transform hover:scale-105">
+                    Visualizar no Espaço (AR)
+                  </button>
+                </model-viewer>
+              `}} />
             ) : (
-              <img 
-                src={product.images && product.images.length > 0 ? product.images[imgIndex] || product.images[0] : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'} 
-                alt={product.name} 
-                className="max-h-[90%] max-w-[90%] object-contain mix-blend-lighten transition-transform duration-700 drop-shadow-[0_0_40px_rgba(255,255,255,0.1)] group-hover:scale-110 group-hover:drop-shadow-[0_0_60px_rgba(168,85,247,0.3)] relative z-10"
-              />
+              <div 
+                className="w-full h-full flex items-center justify-center cursor-zoom-in relative z-10 group/img"
+                onClick={() => setIsFullscreen(true)}
+              >
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center z-20 rounded-[2rem] backdrop-blur-sm">
+                  <div className="bg-white/10 backdrop-blur-md border border-white/20 text-white font-bold text-xs uppercase tracking-widest px-4 py-2 rounded-full flex items-center gap-2 transform translate-y-4 group-hover/img:translate-y-0 transition-all duration-300">
+                    <Sparkles size={14} className="text-brand-neon" /> Ampliar Imagem
+                  </div>
+                </div>
+                <img 
+                  src={product.images && product.images.length > 0 ? product.images[imgIndex] || product.images[0] : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'} 
+                  alt={product.name} 
+                  className="max-h-[90%] max-w-[90%] object-contain mix-blend-lighten transition-transform duration-700 drop-shadow-[0_0_40px_rgba(255,255,255,0.1)] group-hover:scale-110 group-hover:drop-shadow-[0_0_60px_rgba(168,85,247,0.3)] relative z-10"
+                />
+              </div>
             )}
             
             {product.images && product.images.length > 1 && !product.glbModel && (
               <>
                 <button 
-                  className="absolute left-4 p-3 bg-black/50 backdrop-blur-xl hover:bg-brand-neon hover:text-black border border-white/10 text-white rounded-full transition-all shadow-xl z-20"
+                  className="absolute left-2 sm:left-4 p-2 sm:p-3 bg-black/60 backdrop-blur-xl hover:bg-brand-neon hover:text-black border border-white/10 text-white rounded-full transition-all shadow-xl z-20 hover:scale-105"
                   onClick={(e) => { e.stopPropagation(); setImgIndex(i => i === 0 ? product.images.length - 1 : i - 1); }}
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeft size={18} />
                 </button>
                 <button 
-                  className="absolute right-4 p-3 bg-black/50 backdrop-blur-xl hover:bg-brand-neon hover:text-black border border-white/10 text-white rounded-full transition-all shadow-xl z-20"
+                  className="absolute right-2 sm:right-4 p-2 sm:p-3 bg-black/60 backdrop-blur-xl hover:bg-brand-neon hover:text-black border border-white/10 text-white rounded-full transition-all shadow-xl z-20 hover:scale-105"
                   onClick={(e) => { e.stopPropagation(); setImgIndex(i => i === product.images.length - 1 ? 0 : i + 1); }}
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRight size={18} />
                 </button>
               </>
             )}
           </div>
           {/* Thumbnails (iOS dots) */}
           {product.images && product.images.length > 1 && (
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-4 sm:mt-6 flex flex-wrap items-center justify-center gap-2">
               {product.images.map((_: any, i: number) => (
                 <button 
                   key={i} 
                   onClick={() => setImgIndex(i)}
-                  className={`h-2.5 rounded-full transition-all duration-500 ${i === imgIndex ? 'w-10 bg-gradient-to-r from-brand-neon to-brand-magenta shadow-[0_0_15px_rgba(168,85,247,0.8)]' : 'w-2.5 bg-white/20 hover:bg-white/40'}`}
+                  className={`h-1.5 sm:h-2 rounded-full transition-all duration-500 ${i === imgIndex ? 'w-6 sm:w-8 bg-gradient-to-r from-brand-neon to-brand-magenta shadow-[0_0_12px_rgba(168,85,247,0.8)]' : 'w-1.5 sm:w-2 bg-white/20 hover:bg-white/40'}`}
                 />
               ))}
             </div>
           )}
         </div>
 
-        {/* Details Section */}
-        <div className="w-full md:w-1/2 p-8 md:p-12 overflow-y-auto custom-scrollbar flex flex-col relative z-10">
-          <div className="mb-4">
-             <span className="px-4 py-1.5 inline-flex items-center justify-center rounded-full bg-brand-neon/10 border border-brand-neon/30 text-xs font-bold tracking-widest text-brand-neon uppercase shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+        {/* Scrollable Container for Content */}
+        <div className="w-full flex-1 flex flex-col md:flex-row relative z-10 overflow-y-auto md:overflow-hidden" style={{WebkitOverflowScrolling: 'touch'}}>
+        
+        {/* Details Section with Scroll Handler */}
+        <div 
+          className={`w-full p-5 sm:p-8 flex flex-col relative z-10 scrollbar-hide md:overflow-y-auto shrink-0 md:shrink ${hasFpsSimulations ? 'md:w-1/2 border-r border-white/5' : 'md:w-full'}`}
+          onWheel={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}
+        >
+          <style dangerouslySetInnerHTML={{__html: `
+            .scrollbar-hide::-webkit-scrollbar { display: none; }
+          `}} />
+
+          <div className="mb-3">
+             <span className="px-3 py-1 inline-flex items-center justify-center rounded-full bg-brand-neon/10 border border-brand-neon/30 text-[10px] font-bold tracking-widest text-brand-neon uppercase shadow-[0_0_15px_rgba(168,85,247,0.15)]">
                {product.category}
              </span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-4 leading-tight tracking-tight drop-shadow-lg">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-3 leading-tight tracking-tight drop-shadow-lg pr-8">
             {product.name}
           </h2>
-          <div className="flex items-center gap-4 mb-8">
-             <div className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
-               {product.price.toLocaleString()} <span className="text-lg font-medium">MT</span>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
+             <div className="text-xl sm:text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
+               {product.price.toLocaleString()} <span className="text-sm sm:text-base font-medium">MT</span>
              </div>
-             <div className="flex items-center gap-1 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
-                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                <span className="text-yellow-500 font-bold text-xs">5.0</span>
+             <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-full border border-yellow-500/20">
+                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                <span className="text-yellow-500 font-bold text-[10px]">5.0</span>
              </div>
           </div>
           
-          <p className="text-gray-400 mb-10 leading-relaxed text-base font-medium">
+          <p className="text-gray-400 mb-6 sm:mb-8 leading-relaxed text-xs sm:text-sm font-medium">
             {product.desc}
           </p>
 
-          <div className="bg-[#110e1b]/80 backdrop-blur-xl rounded-[2rem] p-6 mb-8 border border-white/5 shadow-inner">
-            <h3 className="text-sm font-bold text-white mb-5 flex items-center gap-2 uppercase tracking-widest">
+          <div className="bg-[#110e1b]/80 backdrop-blur-xl rounded-3xl p-5 mb-8 border border-white/5 shadow-inner">
+            <h3 className="text-xs font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-widest">
               <Settings className="w-4 h-4 text-brand-neon" /> Especificações Técnicas
             </h3>
             
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 gap-3">
               {/* Product Status forced into specs per requirement - SHOWN FIRST */}
               {(product as any).status && (
                 <div className="flex justify-between items-center py-2 border-b border-white/5 group">
@@ -334,6 +301,10 @@ function ProductModal({
                 
                 const entries = Object.entries(product.specs);
                 entries.sort(([keyA], [keyB]) => {
+                  // Estado / Disponibilidade goes to the top (after the hardcoded status above)
+                  if (keyA.toLowerCase() === 'estado') return -2;
+                  if (keyB.toLowerCase() === 'estado') return 2;
+
                   let indexA = order.findIndex(k => keyA.toLowerCase().includes(k.toLowerCase()));
                   let indexB = order.findIndex(k => keyB.toLowerCase().includes(k.toLowerCase()));
                   
@@ -345,8 +316,8 @@ function ProductModal({
                 });
 
                 return entries.map(([key, value]) => {
-                  // Skip internal hidden attributes
-                  if (key === 'isBuilderReady' || key === 'builderType' || key === 'builderWattage' || key === 'builderSocket') return null;
+                  // Skip internal hidden attributes & subcategories which the user doesn't want shown
+                  if (key === 'isBuilderReady' || key === 'builderType' || key === 'builderWattage' || key === 'builderSocket' || key === 'SubCategoria' || key.startsWith('FPS_')) return null;
                   
                   return (
                     <div key={key} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 group">
@@ -360,35 +331,134 @@ function ProductModal({
           </div>
 
 
-          <div className="flex flex-wrap gap-2 mb-10">
+          <div className="flex flex-wrap gap-2 mb-8">
             {product.tags.map((t: string) => (
-              <span key={t} className="px-4 py-2 bg-white/5 rounded-full border border-white/10 text-xs font-bold text-gray-300 hover:border-brand-neon/50 hover:text-white transition-colors cursor-default">
+              <span key={t} className="px-3 py-1.5 bg-white/5 rounded-full border border-white/10 text-[10px] font-bold text-gray-300 hover:border-brand-neon/50 hover:text-white transition-colors cursor-default">
                 #{t}
               </span>
             ))}
           </div>
 
-          <div className="mt-auto pt-6 border-t border-white/10">
+          {/* AI Tip Render */}
+          {aiTip && (
+            <div className="bg-brand-neon/10 border border-brand-neon/20 rounded-2xl p-4 mb-6 flex gap-3 text-brand-neon text-sm leading-snug">
+               <Sparkles className="w-5 h-5 shrink-0" />
+               <span dangerouslySetInnerHTML={{__html: aiTip}} />
+            </div>
+          )}
+
+          <div className="mt-auto pt-4 sm:pt-5 border-t border-white/10 shrink-0 sticky bottom-0 bg-[#0a0a14] z-20 pb-2">
             <Button 
                onClick={handleAdd}
-               className={`w-full h-16 text-base font-bold transition-all duration-500 rounded-full shadow-2xl border-0 ${added ? 'bg-gradient-to-r from-green-500 to-emerald-400 text-white shadow-[0_0_30px_rgba(34,197,94,0.4)] scale-105' : 'bg-white text-black hover:bg-gray-200 hover:scale-105 shadow-[0_0_30px_rgba(255,255,255,0.2)]'}`}
+               className={`w-full h-12 sm:h-14 text-sm font-bold transition-all duration-500 rounded-2xl shadow-2xl border-0 ${added ? 'bg-gradient-to-r from-green-500 to-emerald-400 text-white shadow-[0_0_30px_rgba(34,197,94,0.4)] scale-[1.02]' : 'bg-white text-black hover:bg-gray-200 hover:scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.1)]'}`}
             >
-               {added ? <><CheckCircle2 className="mr-2 w-6 h-6" /> Confirmado no Setup</> : 'Adicionar ao Setup'}
+               {added ? <><CheckCircle2 className="mr-2 w-5 h-5" /> Guardado no Carrinho</> : 'Adicionar ao Carrinho'}
             </Button>
           </div>
         </div>
+
+      {/* FPS Simulator Panel (Only for Desktops) */}
+      {product.category === "Desktop's" && (
+        <div className="w-full md:w-1/2 p-5 sm:p-8 flex flex-col relative z-10 scrollbar-hide md:overflow-y-auto bg-[#050508] border-t md:border-t-0 border-white/5 shrink-0 md:shrink" onWheel={(e) => e.stopPropagation()} onTouchMove={(e) => e.stopPropagation()} style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+          {/* Cyberpunk Grid Background */}
+          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#a855f7 1px, transparent 1px), linear-gradient(90deg, #a855f7 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
+          <div className="absolute top-0 right-0 w-48 h-48 bg-brand-neon/20 blur-[80px] rounded-full pointer-events-none"></div>
+
+          <div className="flex items-center gap-4 mb-10 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-brand-neon/10 border border-brand-neon/40 flex items-center justify-center relative group">
+              <div className="absolute inset-0 bg-brand-neon/20 blur-[15px] rounded-full animate-pulse"></div>
+              <Zap className="w-6 h-6 text-brand-neon relative z-10" />
+            </div>
+            <div>
+              <h3 className="text-white font-black text-2xl leading-none tracking-tighter drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">BENCHMARKS</h3>
+              <span className="text-[9px] uppercase tracking-widest font-bold text-brand-neon">Estimated FPS / 1440p</span>
+            </div>
+          </div>
+
+          <div className="space-y-6 relative z-10">
+            {fpsDataConfig.map(({key, game, color}, index) => {
+              const valStr = product.specs[key];
+              const numericFPS = valStr ? parseInt(valStr.match(/\d+/)?.[0] || '0') : 0;
+              const maxFps = 500; // Reference max FPS for the bar width
+              const percentage = numericFPS > 0 ? Math.min(100, Math.max(5, (numericFPS / maxFps) * 100)) : 0;
+              
+              // Only animate delay based on index for a cascade effect
+              const delay = `${index * 0.15}s`;
+
+              return (
+                <div key={key} className="group relative">
+                  <div className="flex justify-between items-end mb-2">
+                    <span className="text-xs font-bold text-gray-300 uppercase tracking-wide group-hover:text-white transition-colors flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full ${numericFPS > 0 ? 'bg-brand-neon animate-pulse shadow-[0_0_2px_rgba(20,241,149,0.5)]' : 'bg-gray-600'}`}></span>
+                      {game}
+                    </span>
+                    <span className={`text-2xl font-black tabular-nums transition-all ${numericFPS > 0 ? 'text-white group-hover:text-brand-neon group-hover:scale-110 drop-shadow-[0_0_2px_rgba(20,241,149,0.3)]' : 'text-gray-600'}`}>
+                      {valStr || '--'}
+                    </span>
+                  </div>
+                  
+                  {/* Outer Bar */}
+                  <div className="h-3 w-full bg-black/80 rounded-full overflow-hidden border border-white/10 relative shadow-inner">
+                    {/* Inner Animated Bar */}
+                    <div 
+                      className={`absolute top-0 left-0 h-full rounded-full bg-gradient-to-r ${color} transition-all ease-out shadow-[0_0_5px_currentColor]`} 
+                      style={{ width: `${percentage}%`, transitionDuration: '1.5s', transitionDelay: delay }}
+                    >
+                      {/* Laser shine effect on the edge of the bar */}
+                      {numericFPS > 0 && <div className="absolute top-0 right-0 bottom-0 w-4 bg-white/10 blur-[1px]"></div>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-auto pt-10 relative z-10">
+            <div className="bg-black/50 border border-brand-neon/20 rounded-2xl p-5 flex flex-col gap-2 relative overflow-hidden group hover:border-brand-neon/50 transition-colors">
+              <div className="absolute inset-0 bg-gradient-to-r from-brand-neon/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+              <div className="flex justify-between items-center">
+                 <span className="text-[10px] uppercase tracking-widest font-black text-brand-neon flex items-center gap-1.5 drop-shadow-[0_0_10px_rgba(20,241,149,0.8)]">
+                    <Sparkles size={12}/> Hardware Sale Engine
+                 </span>
+                 <div className="flex gap-0.5">
+                    <span className="w-1 h-3 bg-brand-neon animate-[pulse_1s_ease-in-out_infinite]"></span>
+                    <span className="w-1 h-3 bg-brand-neon animate-[pulse_1s_ease-in-out_infinite_100ms]"></span>
+                    <span className="w-1 h-3 bg-brand-neon animate-[pulse_1s_ease-in-out_infinite_200ms]"></span>
+                 </div>
+              </div>
+              <p className="text-[11px] text-gray-400 leading-relaxed font-medium mt-1">Estes FPS são calculados e previstos baseados no Matrix Neural Engine, representando médias esperadas em cenários de stress ultra competitivos.</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+        </div>
       </div>
-    </div>
-  );
+    </div>,
+  document.body
+);
 }
 
+import { useLocation } from 'react-router-dom';
+
 export function Products() {
-  const [activeCategory, setActiveCategory] = useState('Todos');
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const urlCat = searchParams.get('cat');
+  const urlSub = searchParams.get('sub');
+
+  const [activeCategory, setActiveCategory] = useState(urlCat || 'Todos');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const { addItem } = useCart();
   
   // iOS 26 Segment Controls
-  const [subCategory, setSubCategory] = useState<string | null>(null);
+  const [subCategory, setSubCategory] = useState<string | null>(urlSub || null);
+
+  // Sync state if URL changes dynamically
+  useEffect(() => {
+    if (urlCat) setActiveCategory(urlCat);
+    if (urlSub) setSubCategory(urlSub);
+  }, [urlCat, urlSub]);
 
   // Comparator State
   const [compareItems, setCompareItems] = useState<any[]>([]);
@@ -452,8 +522,9 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
   const [caseType, setCaseType] = useState<string>('Todos');
   const [innerSubCategory, setInnerSubCategory] = useState<string | null>(null);
   const [priceSort, setPriceSort] = useState<string>('asc');
+  const [priceRange, setPriceRange] = useState<number>(350000);
 
-  const categories = ['Todos', "Desktop's", 'Monitores', 'Components', 'Consolas', 'Laptops', 'Celulares', 'Gadgets'];
+  const categories = ['Todos', "Desktop's", 'Monitores', 'Components', 'Periféricos', 'Consolas', 'Laptops', 'Celulares', 'Gadgets'];
   const { products, initProducts, loadingProducts } = useStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -477,6 +548,7 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
   }, { scope: containerRef });
 
   const [fomoNotification, setFomoNotification] = useState<{name: string, product: string, time: number} | null>(null);
+  const [addedItemIds, setAddedItemIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     initProducts();
@@ -485,28 +557,33 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
   useEffect(() => {
     // FOMO Simulator
     const names = ["Nelson M.", "Thiago R.", "Rui P.", "Afonso S.", "Neymar J.", "Edson M.", "Gabriel V.", "Leonel M.", "Cristiano R.", "Cândido D."];
-    const items = ["Workstation Zenith 9", "NVIDIA RTX 4090", "Monitor QD-OLED", "Kit Watercooling Custom", "Intel Core i9-14900K", "Setup Custom Watercooled", "Alienware 34 QD-OLED"];
-    
+    const fomoItems = ["Workstation Zenith 9", "NVIDIA RTX 4090", "Monitor QD-OLED", "Kit Watercooling Custom", "Intel Core i9-14900K", "Setup Custom Watercooled", "Alienware 34 QD-OLED"];
+    let hideTimeout: ReturnType<typeof setTimeout> | null = null;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
     const triggerFomo = () => {
       const randomName = names[Math.floor(Math.random() * names.length)];
-      const randomItem = items[Math.floor(Math.random() * items.length)];
+      const randomItem = fomoItems[Math.floor(Math.random() * fomoItems.length)];
       const randomTime = Math.floor(Math.random() * 5) + 1;
-      
       setFomoNotification({ name: randomName, product: randomItem, time: randomTime });
-      
-      setTimeout(() => {
-        setFomoNotification(null);
-      }, 5000); // hide after 5s
+      if (hideTimeout) clearTimeout(hideTimeout);
+      hideTimeout = setTimeout(() => setFomoNotification(null), 5000);
     };
 
-    // First trigger after 15s, then every 30s
+    // First trigger after 15s, then every 30s — with proper cleanup
     const firstTimeout = setTimeout(() => {
       triggerFomo();
-      setInterval(triggerFomo, 30000);
+      intervalId = setInterval(triggerFomo, 30000);
     }, 15000);
 
-    return () => clearTimeout(firstTimeout);
+    return () => {
+      clearTimeout(firstTimeout);
+      if (intervalId) clearInterval(intervalId);
+      if (hideTimeout) clearTimeout(hideTimeout);
+    };
   }, []);
+
+
 
    useEffect(() => {
     if (activeCategory === 'Monitores') setSubCategory('Monitores');
@@ -518,34 +595,58 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
     setLaptopCondition('Todos');
     setSelectedBrand('Todos');
     setCaseType('Todos');
-    setPriceSort('normal');
+    setPriceSort('asc');
   }, [activeCategory]);
 
-  const displayList = products.length > 0 ? products : mockProducts;
+  const displayList = products.filter((p: any) => !p.isBuilderExclusive);
   
   let filteredProducts = activeCategory === 'Todos' 
-    ? displayList.filter((p: any) => !p.isBuilderReady) // Hide specific builder-only parts from default view
-    : displayList.filter(p => p.category === activeCategory || (activeCategory === 'Monitores' && p.category === 'Displays'));
+    ? displayList 
+    : displayList.filter(p => p.category === activeCategory || (activeCategory === 'Monitores' && (p.category === 'Displays' || p.category === 'Monitores')));
 
   if (subCategory && subCategory !== activeCategory) {
      if (subCategory === 'Memória & Disco') {
-       filteredProducts = filteredProducts.filter(p => p.tags?.includes('RAM') || p.tags?.includes('Armazenamento'));
+       filteredProducts = filteredProducts.filter(p => {
+         const t = p.tags || [];
+         return t.includes('RAM') || t.includes('Armazenamento');
+       });
      } else if (subCategory === 'Cooling') {
-       filteredProducts = filteredProducts.filter(p => p.tags?.includes('Air Cooler') || p.tags?.includes('Liquid Cooling') || p.tags?.includes('Fans'));
+       filteredProducts = filteredProducts.filter(p => {
+         const t = p.tags || [];
+         return t.includes('Air Cooler') || t.includes('Liquid Cooling') || t.includes('Fans');
+       });
      } else {
-       filteredProducts = filteredProducts.filter(p => p.tags?.includes(subCategory) || p.category === subCategory);
+       filteredProducts = filteredProducts.filter(p => {
+         const t = p.tags || [];
+         const n = p.name ? p.name.toLowerCase() : '';
+         const subMatch = subCategory.toLowerCase();
+         
+         if (subMatch === 'cpu' && (n.includes('cpu') || n.includes('processador') || n.includes('ryzen') || n.includes('core i'))) return true;
+         if (subMatch === 'gpu' && (n.includes('gpu') || n.includes('placa gráfica') || n.includes('placa grafica') || n.includes('rtx') || n.includes('rx ') || n.includes('radeon') || n.includes('gtx'))) return true;
+         if (subMatch === 'motherboard' && (n.includes('motherboard') || n.includes('placa-mãe') || n.includes('placa mãe') || n.includes('b650') || n.includes('z790') || n.includes('x670') || n.includes('b550'))) return true;
+         if (subMatch === 'fonte' && (n.includes('fonte') || n.includes('psu') || n.includes('power supply') || n.includes('corsair rm'))) return true;
+         if (subMatch === 'case' && (n.includes('case') || n.includes('gabinete') || n.includes('caixa') || n.includes('tower'))) return true;
+         if (subMatch === 'teclado' && (n.includes('teclado') || n.includes('keyboard'))) return true;
+         if (subMatch === 'rato' && (n.includes('rato') || n.includes('mouse') && !n.includes('pad'))) return true;
+         if (subMatch === 'headsets' && (n.includes('headset') || n.includes('auscultador') || n.includes('fone'))) return true;
+
+         return t.includes(subCategory) || p.category === subCategory || p.subCategory === subCategory;
+       });
      }
   } else if (subCategory === activeCategory) {
-     filteredProducts = filteredProducts.filter(p => !p.tags?.includes('Acessórios') && !p.tags?.includes('Suportes'));
-  }
-  
-  // If activeCategory is explicitly 'Components', we can show everything including builder components
-  if (activeCategory !== 'Components' && activeCategory !== 'Todos') {
-    filteredProducts = filteredProducts.filter((p: any) => !p.isBuilderReady);
+     // Apenas ignora Acessórios se estiver nas main categories
+     filteredProducts = filteredProducts.filter(p => {
+       const t = p.tags || [];
+       return !t.includes('Acessórios') && !t.includes('Suportes') && p.subCategory !== 'Acessórios' && p.subCategory !== 'Suportes';
+     });
   }
 
   if (innerSubCategory) {
-    filteredProducts = filteredProducts.filter(p => p.tags?.includes(innerSubCategory) || p.name.toLowerCase().includes(innerSubCategory.toLowerCase()));
+    filteredProducts = filteredProducts.filter(p => {
+      const t = p.tags || [];
+      const n = p.name ? p.name.toLowerCase() : '';
+      return t.includes(innerSubCategory) || n.includes(innerSubCategory.toLowerCase()) || p.subCategory === innerSubCategory;
+    });
   }
 
   if (laptopCondition !== 'Todos') {
@@ -557,12 +658,23 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
   }
 
   if (selectedBrand !== 'Todos') {
-    filteredProducts = filteredProducts.filter(p => p.name.toLowerCase().includes(selectedBrand.toLowerCase()) || p.tags?.includes(selectedBrand));
+    filteredProducts = filteredProducts.filter(p => {
+      const t = p.tags || [];
+      const n = p.name ? p.name.toLowerCase() : '';
+      return n.includes(selectedBrand.toLowerCase()) || t.includes(selectedBrand);
+    });
   }
 
   if (caseType !== 'Todos' && subCategory === 'Case') {
-    filteredProducts = filteredProducts.filter(p => p.specs?.['Formato']?.includes(caseType) || p.tags?.includes(caseType) || p.name.includes(caseType));
+    filteredProducts = filteredProducts.filter(p => {
+      const format = p.specs?.['Formato'] || '';
+      const t = p.tags || [];
+      const n = p.name || '';
+      return format.includes(caseType) || t.includes(caseType) || n.includes(caseType);
+    });
   }
+
+  filteredProducts = filteredProducts.filter(p => p.price <= priceRange);
 
   if (priceSort === 'asc') {
     filteredProducts.sort((a, b) => a.price - b.price);
@@ -595,20 +707,26 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
         </div>
 
         {/* Epic Main Categories */}
-        <div className="flex flex-wrap items-center justify-center gap-3 bg-black/60 p-3 rounded-[2rem] border border-white/10 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-          {categories.map(cat => (
-            <button 
-              key={cat}
-              onClick={() => { setActiveCategory(cat); setSelectedIndex(null); }}
-              className={`products-category-bubble px-8 py-3.5 text-sm font-bold rounded-[1.5rem] transition-all duration-500 ${
-                activeCategory === cat 
-                  ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.4)] scale-105' 
-                  : 'bg-transparent text-gray-400 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="w-full max-w-full overflow-hidden relative px-4">
+          <style dangerouslySetInnerHTML={{__html: `
+            .hide-scroll::-webkit-scrollbar { display: none; }
+            .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+          `}} />
+          <div className="flex flex-nowrap items-center justify-start lg:justify-center gap-3 bg-black/60 p-3 rounded-[2rem] border border-white/10 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)] overflow-x-auto hide-scroll">
+            {categories.map(cat => (
+              <button 
+                key={cat}
+                onClick={() => { setActiveCategory(cat); setSelectedIndex(null); }}
+                className={`products-category-bubble whitespace-nowrap px-8 py-3.5 text-sm font-bold rounded-[1.5rem] transition-all duration-500 shrink-0 ${
+                  activeCategory === cat 
+                    ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.4)] scale-105' 
+                    : 'bg-transparent text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -616,8 +734,8 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
       <div className="flex flex-col gap-8 mb-16 items-center justify-center animate-in fade-in zoom-in-95 duration-500 pb-6">
         
         {/* Bubble Segment Control (iOS 26 Concept) */}
-        <div className={`flex p-1.5 md:p-2 bg-[#110e1b]/80 backdrop-blur-3xl rounded-[2rem] border border-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] relative w-full lg:max-w-4xl ${!['Monitores', 'Consolas', 'Laptops', 'Components', 'Celulares'].includes(activeCategory) ? 'hidden' : ''}`}>
-          {['Monitores', 'Consolas', 'Laptops', 'Components', 'Celulares'].includes(activeCategory) && (
+        <div className={`flex p-1.5 md:p-2 bg-[#110e1b]/80 backdrop-blur-3xl rounded-[2rem] border border-white/10 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] relative w-full lg:max-w-4xl ${!['Monitores', 'Consolas', 'Laptops', 'Components', 'Periféricos', 'Celulares'].includes(activeCategory) ? 'hidden' : ''}`}>
+          {['Monitores', 'Consolas', 'Laptops', 'Components', 'Periféricos', 'Celulares'].includes(activeCategory) && (
             <div className="flex flex-wrap items-center justify-center gap-1 w-full">
               {activeCategory === 'Monitores' && ['Monitores', 'Suportes'].map(sub => (
                 <button 
@@ -646,7 +764,16 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
                   {sub}
                 </button>
               ))}
-               {activeCategory === 'Components' && ['Motherboard', 'CPU', 'Memória & Disco', 'Cooling', 'GPU', 'Fonte', 'Case', 'Periféricos'].map(sub => (
+               {activeCategory === 'Components' && ['Motherboard', 'CPU', 'Memória & Disco', 'Cooling', 'GPU', 'Fonte', 'Case'].map(sub => (
+                 <button 
+                  key={sub} onClick={() => { setSubCategory(sub === subCategory ? null : sub); setInnerSubCategory(null); }}
+                  className={`relative px-3 md:px-5 py-2 text-[10px] md:text-xs font-bold rounded-[1.5rem] transition-all duration-500 z-10 whitespace-nowrap ${subCategory === sub ? 'text-black' : 'text-gray-400 hover:text-white'}`}
+                >
+                  {subCategory === sub && <div className="absolute inset-0 bg-gradient-to-r from-brand-neon to-brand-magenta rounded-[1.5rem] shadow-[0_0_20px_rgba(168,85,247,0.5)] -z-10 animate-in zoom-in-90 duration-300"></div>}
+                  {sub}
+                </button>
+              ))}
+              {activeCategory === 'Periféricos' && ['Teclado', 'Rato', 'Mousepad', 'Headsets', 'Cadeiras'].map(sub => (
                  <button 
                   key={sub} onClick={() => { setSubCategory(sub === subCategory ? null : sub); setInnerSubCategory(null); }}
                   className={`relative px-3 md:px-5 py-2 text-[10px] md:text-xs font-bold rounded-[1.5rem] transition-all duration-500 z-10 whitespace-nowrap ${subCategory === sub ? 'text-black' : 'text-gray-400 hover:text-white'}`}
@@ -669,12 +796,11 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
         </div>
 
         {/* Level 2 Bubbles (Nested Sub-Categories) */}
-        {(subCategory === 'Cooling' || subCategory === 'Periféricos' || subCategory === 'Memória & Disco') && (
+        {(subCategory === 'Cooling' || subCategory === 'Memória & Disco') && (
           <div className="flex p-1.5 md:p-2 bg-black/40 backdrop-blur-2xl rounded-[1.5rem] border border-white/5 shadow-inner animate-in slide-in-from-top-2 duration-500">
              <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
                 {(subCategory === 'Cooling' ? ['Air Cooler', 'Liquid Cooling', 'Fans'] : 
-                  subCategory === 'Memória & Disco' ? ['RAM', 'Armazenamento'] :
-                  ['Teclado', 'Rato', 'Mousepad', 'Headsets', 'Webcam', 'Chairs', 'Audio & Som', 'Routers']).map(inner => (
+                  ['RAM', 'Armazenamento']).map(inner => (
                   <button
                     key={inner}
                     onClick={() => setInnerSubCategory(inner === innerSubCategory ? null : inner)}
@@ -712,10 +838,24 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
                onChange={e => setPriceSort(e.target.value)}
                className="bg-transparent text-white text-xs font-bold outline-none cursor-pointer"
              >
-               <option value="normal" className="bg-black">Relevância</option>
                <option value="asc" className="bg-black">Menor Preço</option>
                <option value="desc" className="bg-black">Maior Preço</option>
+               <option value="normal" className="bg-black">Relevância</option>
              </select>
+          </div>
+
+          <div className="flex items-center gap-3 bg-black/40 border border-white/10 rounded-full px-4 py-2 backdrop-blur-xl group">
+             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Orçamento:</span>
+             <input 
+               type="range" 
+               min="1000" 
+               max="350000" 
+               step="5000"
+               value={priceRange} 
+               onChange={e => setPriceRange(Number(e.target.value))}
+               className="w-24 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-neon" 
+             />
+             <span className="text-xs font-bold text-brand-neon min-w-[70px] text-right">Até {priceRange >= 350000 ? 'Máx' : (priceRange/1000).toFixed(0) + 'k'}</span>
           </div>
 
           {(activeCategory === 'Components' || activeCategory === "Desktop's") && (
@@ -783,22 +923,22 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
               )}
             </div>
             
-            <div className="h-48 overflow-hidden relative p-6 flex items-center justify-center bg-gradient-to-b from-black/40 to-black/10 m-2 rounded-xl border border-white/5 group-hover:bg-white/[0.02]">
+            <div className="h-48 overflow-hidden relative p-6 flex items-center justify-center bg-black rounded-t-2xl transition-colors duration-500">
               <img 
                 src={product.images && product.images.length > 0 ? product.images[0] : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'} 
                 alt={product.name} 
-                className="max-h-full max-w-full object-contain filter group-hover:drop-shadow-[0_10px_20px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-transform duration-700 ease-out" 
+                className="max-h-full max-w-full object-contain mix-blend-lighten filter group-hover:drop-shadow-[0_10px_20px_rgba(20,241,149,0.2)] group-hover:scale-110 transition-transform duration-700 ease-out" 
                 loading="lazy"
                 decoding="async"
               />
               
               {/* FPS Simulator Badge for Desktops */}
-              {product.category === "Desktop's" && (
+              {product.category === "Desktop's" && (product.specs?.['FPS_Valorant'] || product.specs?.['FPS_Fortnite']) && (
                 <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md border border-brand-neon/30 rounded-lg px-2 py-1 flex flex-col items-center shadow-lg group-hover:border-brand-neon group-hover:scale-110 transition-all duration-500 opacity-0 group-hover:opacity-100">
                   <span className="text-[8px] font-black text-brand-neon uppercase tracking-tighter">Est. FPS</span>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-base font-black text-white">{product.name.includes('9') ? '240' : product.name.includes('7') ? '165' : '120'}</span>
-                    <span className="text-[8px] font-bold text-gray-500">4K</span>
+                    <span className="text-base font-black text-white">{product.specs['FPS_Valorant'] || product.specs['FPS_Fortnite']}</span>
+                    <span className="text-[8px] font-bold text-gray-500">FPS</span>
                   </div>
                 </div>
               )}
@@ -824,10 +964,14 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
                       onClick={(e) => {
                          e.stopPropagation();
                          addItem({ ...product, image: product.image || product.images?.[0] || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80' });
+                         setAddedItemIds(prev => ({ ...prev, [product.id]: true }));
+                         setTimeout(() => {
+                           setAddedItemIds(prev => ({ ...prev, [product.id]: false }));
+                         }, 2000);
                       }}
-                      className="w-8 h-8 rounded-lg bg-brand-neon text-black flex items-center justify-center border border-brand-neon hover:bg-brand-magenta hover:border-brand-magenta transition-all duration-300 shadow-[0_0_10px_rgba(20,241,149,0.3)]"
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-300 ${addedItemIds[product.id] ? 'bg-green-500 text-white border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.6)] scale-110' : 'bg-brand-neon text-black border-brand-neon hover:bg-brand-magenta hover:border-brand-magenta shadow-[0_0_10px_rgba(20,241,149,0.3)]'}`}
                     >
-                      <ShoppingCart className="w-3.5 h-3.5" />
+                      {addedItemIds[product.id] ? <CheckCircle2 className="w-4 h-4" /> : <ShoppingCart className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                </div>
@@ -954,8 +1098,6 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
           key={filteredProducts[selectedIndex].id}
           product={filteredProducts[selectedIndex]} 
           onClose={() => setSelectedIndex(null)} 
-          onNext={handleNext}
-          onPrev={handlePrev}
         />
       )}
 

@@ -36,8 +36,55 @@ export function usePCBuilder() {
         const subC = (p as any).builderType || (p as any).subCategory || (p.tags && p.tags.find((t: string) => typeMap[t])) || '';
         const type = (p as any).builderType ? (p as any).builderType : (typeMap[subC] || 'peripheral');
 
-        const wattage = (p as any).builderWattage ? Number((p as any).builderWattage) : (parseInt(p.specs?.['TDP'] || p.specs?.['Consumo'] || p.specs?.['Capacidade'] || p.name.match(/(\d+)W/)?.[1] || '0'));
-        const socket = (p as any).builderSocket ? String((p as any).builderSocket) : (p.specs?.['Socket'] || p.specs?.['LGA'] || p.specs?.['Plataforma'] || undefined);
+        let extractedWattage = 0;
+        if ((p as any).builderWattage) {
+          extractedWattage = Number((p as any).builderWattage);
+        } else {
+          const nameMatch = p.name.match(/(\d+)\s*W/i);
+          if (nameMatch) extractedWattage = parseInt(nameMatch[1]);
+          else if (p.specs) {
+            for (const val of Object.values(p.specs)) {
+              if (typeof val === 'string') {
+                const wMatch = val.match(/(\d+)\s*W/i);
+                if (wMatch) {
+                  extractedWattage = parseInt(wMatch[1]);
+                  break;
+                }
+              }
+            }
+          }
+        }
+        
+        // Baseline fallback wattage if not found
+        if (!extractedWattage) {
+           if (type === 'motherboard') extractedWattage = 45;
+           else if (type === 'ram') extractedWattage = 10;
+           else if (type === 'storage') extractedWattage = 15;
+           else if (type === 'fans' || type === 'cooler') extractedWattage = 20;
+           else if (type === 'peripheral' || type === 'case') extractedWattage = 0;
+           else if (type === 'cpu') extractedWattage = 95;
+           else if (type === 'gpu') extractedWattage = 200;
+        }
+
+        let extractedSocket = '';
+        if ((p as any).builderSocket) {
+          extractedSocket = String((p as any).builderSocket);
+        } else if (p.specs) {
+          extractedSocket = (p.specs as Record<string, string>)['Socket'] || (p.specs as Record<string, string>)['LGA'] || (p.specs as Record<string, string>)['Plataforma'] || '';
+          if (!extractedSocket) {
+            for (const val of Object.values(p.specs)) {
+              if (typeof val === 'string' && (val.includes('LGA') || val.includes('AM4') || val.includes('AM5') || val.includes('TR4'))) {
+                extractedSocket = val;
+                break;
+              }
+            }
+          }
+        }
+        if (!extractedSocket && p.tags) {
+          const sTag = p.tags.find((t: string) => t.includes('LGA') || t.includes('AM4') || t.includes('AM5'));
+          if (sTag) extractedSocket = sTag;
+        }
+
         const specsList = p.specs ? Object.values(p.specs).slice(0, 3) as string[] : [];
 
         return {
@@ -45,8 +92,8 @@ export function usePCBuilder() {
           type,
           name: p.name,
           priceMT: Number(p.price) || 0,
-          socket,
-          wattage,
+          socket: extractedSocket,
+          wattage: extractedWattage,
           image: p.images?.[0] || p.image || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c',
           specs: specsList
         };
@@ -84,12 +131,138 @@ export function usePCBuilder() {
     }
   }, [preset, allComponents]);
 
-  const recommendedMotherboards = useMemo(() => {
-    if (!selectedCPU) return allComponents.filter(c => c.type === "motherboard");
-    if (!selectedCPU.socket) return allComponents.filter(c => c.type === "motherboard");
+  const getFullText = (c: ComponentItem | null) => {
+    if (!c) return '';
+    return (c.name + " " + (c.socket || '') + " " + c.specs.join(" ")).toLowerCase();
+  };
+
+  const isDDR = (c: ComponentItem | null, version: string) => {
+    // Explicitly isolate DDR logic. Many DDR4 products have names that can confuse basic includes.
+    const text = getFullText(c);
+    // e.g. looking for "ddr5", checking for literal match
+    return text.includes(version.toLowerCase());
+  };
+
+  const getSocket = (c: ComponentItem | null) => {
+    const text = getFullText(c);
+    if (text.includes("lga 1851") || text.includes("lga1851") || text.includes("b860") || text.includes("z890")) return "lga1851";
+    if (text.includes("lga 1700") || text.includes("lga1700") || text.includes("b760") || text.includes("z790")) return "lga1700";
+    if (text.includes("am5") || text.includes("x670") || text.includes("b650") || text.includes("x870")) return "am5";
+    if (text.includes("am4") || text.includes("b550") || text.includes("x570")) return "am4";
+    if (c?.socket) return c.socket.toLowerCase();
+    return null;
+  };
+
+  const compatibleMotherboards = useMemo(() => {
+    let list = allComponents.filter(c => c.type === "motherboard");
     
-    return allComponents.filter(c => c.type === "motherboard" && (!c.socket || c.socket.includes(selectedCPU.socket as string) || (selectedCPU.socket as string).includes(c.socket)));
-  }, [selectedCPU, allComponents]);
+    // 1. Filter by CPU Socket
+    if (selectedCPU) {
+       const cpuSocket = getSocket(selectedCPU);
+       if (cpuSocket) {
+         list = list.filter(c => {
+           const mbSocket = getSocket(c);
+           return !mbSocket || mbSocket.includes(cpuSocket) || cpuSocket.includes(mbSocket);
+         });
+       }
+    }
+    
+    // 2. Filter by RAM DDR Version
+    if (selectedRAM) {
+       const isRamDDR5 = isDDR(selectedRAM, "DDR5");
+       const isRamDDR4 = isDDR(selectedRAM, "DDR4");
+       
+       list = list.filter(c => {
+         const isMbDDR5 = isDDR(c, "DDR5");
+         const isMbDDR4 = isDDR(c, "DDR4");
+         
+         if (isRamDDR5 && isMbDDR4) return false;
+         if (isRamDDR4 && isMbDDR5) return false;
+         return true;
+       });
+    }
+    
+    return list;
+  }, [selectedCPU, selectedRAM, allComponents]);
+
+  const compatibleCPUs = useMemo(() => {
+    let list = allComponents.filter(c => c.type === "cpu");
+    if (selectedMotherboard) {
+       const mbSocket = getSocket(selectedMotherboard);
+       if (mbSocket) {
+         list = list.filter(c => {
+           const cpuSocket = getSocket(c);
+           return !cpuSocket || cpuSocket.includes(mbSocket) || mbSocket.includes(cpuSocket);
+         });
+       }
+    }
+    return list;
+  }, [selectedMotherboard, allComponents]);
+
+  const compatibleRAMs = useMemo(() => {
+    let list = allComponents.filter(c => c.type === "ram");
+    if (selectedMotherboard || selectedCPU) {
+       // B860/Z890, LGA1851, AM5 and LGA1700 (often DDR5 natively nowadays in high end builds)
+       // Determine motherboard DDR type implicitly if not explicit
+       let isMbDDR5 = isDDR(selectedMotherboard, "DDR5");
+       let isMbDDR4 = isDDR(selectedMotherboard, "DDR4");
+       
+       const mbSocket = getSocket(selectedMotherboard);
+       const cpuSocket = getSocket(selectedCPU);
+       
+       // Force DDR5 for known modern DDR5-only platforms if not explicitly written
+       if (mbSocket === "am5" || mbSocket === "lga1851" || cpuSocket === "am5" || cpuSocket === "lga1851") {
+          isMbDDR5 = true;
+          isMbDDR4 = false;
+       }
+
+       if (isMbDDR5 || isMbDDR4) {
+         list = list.filter(c => {
+           const isRamDDR5 = isDDR(c, "DDR5");
+           const isRamDDR4 = isDDR(c, "DDR4");
+           
+           if (isMbDDR5 && isRamDDR4) return false;
+           if (isMbDDR4 && isRamDDR5) return false;
+           
+           // Strict Fallback: if board is DDR5, force RAM to be explicitly DDR5
+           if (isMbDDR5 && !isRamDDR5) return false;
+           if (isMbDDR4 && !isRamDDR4) return false;
+           
+           return true;
+         });
+       }
+    }
+    return list;
+  }, [selectedMotherboard, selectedCPU, allComponents]);
+
+  // Auto-deselect incompatible parts when Motherboard changes
+  useEffect(() => {
+     if (selectedMotherboard && selectedCPU) {
+        const mbSocket = getSocket(selectedMotherboard);
+        const cpuSocket = getSocket(selectedCPU);
+        
+        if (mbSocket && cpuSocket && !mbSocket.includes(cpuSocket) && !cpuSocket.includes(mbSocket)) {
+           setSelectedCPU(null);
+        }
+     }
+     
+     if (selectedMotherboard && selectedRAM) {
+        let isMbDDR5 = isDDR(selectedMotherboard, "DDR5");
+        let isMbDDR4 = isDDR(selectedMotherboard, "DDR4");
+        const mbSocket = getSocket(selectedMotherboard);
+        
+        if (mbSocket === "am5" || mbSocket === "lga1851") {
+           isMbDDR5 = true;
+           isMbDDR4 = false;
+        }
+
+        const isRamDDR5 = isDDR(selectedRAM, "DDR5");
+        const isRamDDR4 = isDDR(selectedRAM, "DDR4");
+        
+        if (isMbDDR5 && (isRamDDR4 || !isRamDDR5)) setSelectedRAM(null);
+        if (isMbDDR4 && (isRamDDR5 || !isRamDDR4)) setSelectedRAM(null);
+     }
+  }, [selectedMotherboard, selectedCPU]);
 
   const totalWattage = useMemo(() => {
     return (selectedCPU?.wattage || 0) +
@@ -134,12 +307,14 @@ export function usePCBuilder() {
     selectedPeripherals.reduce((acc, p) => acc + p.priceMT, 0);
 
   return {
-    mockComponents: allComponents,
+    allComponents,
+    compatibleMotherboards,
+    compatibleCPUs,
+    compatibleRAMs,
     selections: { selectedMotherboard, selectedCPU, selectedRAM, selectedStorage, selectedCooler, selectedGPU, selectedPSU, selectedCase, selectedFans, selectedPeripherals },
     setters: { setSelectedMotherboard, setSelectedCPU, setSelectedRAM, setSelectedStorage, setSelectedCooler, setSelectedGPU, setSelectedPSU, setSelectedCase, setSelectedFans, setSelectedPeripherals },
     totalPrice,
     totalWattage,
-    recommendedMotherboards,
     psuWarning,
     smartUpsell
   };

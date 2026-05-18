@@ -33,7 +33,7 @@ interface Message {
 }
 
 export function AmaniChat() {
-  const { mockComponents } = usePCBuilder();
+  const { allComponents } = usePCBuilder();
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -97,7 +97,7 @@ export function AmaniChat() {
 Tens a ferramenta 'navigate_to_page' se o cliente pedir para ir ao carrinho ou montra.
 MUITO IMPORTANTE: Se o cliente quiser ajuda a montar um PC ou pedir uma recomendação de build (com base num orçamento ou objetivo), DEVES fazer perguntas estratégicas primeiro (orçamento, uso principal, resolução de monitor). QUANDO tiveres essas informações, usa OBRIGATORIAMENTE a tool 'build_custom_pc' passando um array com os IDs dos componentes para criar a build perfeita para ele.
 Lista de componentes em stock (use apenas estes IDs na tool build_custom_pc):
-${mockComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).join(", ")}`,
+${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).join(", ")}`,
           temperature: 0.7,
           tools: [{
             functionDeclarations: [
@@ -180,7 +180,7 @@ ${mockComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).jo
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-neon opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-neon"></span>
             </div>
-            <span className="font-bold text-sm tracking-wide">AetherLabs Assist</span>
+            <span className="font-bold text-sm tracking-wide">Hardware Sale Assist</span>
             <Hexagon className="w-4 h-4 text-brand-neon opacity-50 group-hover:opacity-100 transition-opacity" />
           </button>
         )}
@@ -197,7 +197,7 @@ ${mockComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).jo
               <div>
                 <h3 className="font-extrabold text-white text-lg tracking-tight leading-tight">Amani 3</h3>
                 <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mt-0.5 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online • Powered by AetherLabs
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online • Powered by Hardware Sale
                 </p>
               </div>
             </div>

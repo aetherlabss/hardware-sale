@@ -91,7 +91,7 @@ export function Upgrade() {
 
     try {
       const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-      if (!apiKey) throw new Error("AetherLabs API Key missing");
+      if (!apiKey) throw new Error("API Key missing");
 
       const ai = new GoogleGenAI({ 
         apiKey,
@@ -179,7 +179,7 @@ Retorne APENAS um objeto JSON válido estritamente com este formato:
           Hardware Sale <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">Upgrade</span>
         </h1>
         <p className="text-gray-400 text-lg font-medium max-w-3xl mx-auto">
-          Submeta as especificações e fotos reais da sua máquina. A inteligência AetherLabs (Amani 3) analisará os componentes, desgaste e cruzará com valores de mercado em tempo real.
+          Submeta as especificações e fotos reais da sua máquina. A inteligência Hardware Sale (Amani 3) analisará os componentes, desgaste e cruzará com valores de mercado em tempo real.
         </p>
       </div>
 
@@ -304,7 +304,7 @@ Retorne APENAS um objeto JSON válido estritamente com este formato:
                 <Award className="w-12 h-12 text-white" />
               </div>
               
-              <h3 className="text-xl font-bold text-gray-300 uppercase tracking-widest mb-3 relative z-10">Voucher AetherLabs Oficial</h3>
+              <h3 className="text-xl font-bold text-gray-300 uppercase tracking-widest mb-3 relative z-10">Voucher Hardware Sale Oficial</h3>
               <div className="text-6xl md:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 tracking-tighter mb-8 drop-shadow-2xl relative z-10">
                 {voucher.value.toLocaleString()} <span className="text-3xl text-brand-neon">MT</span>
               </div>

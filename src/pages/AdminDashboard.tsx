@@ -5,7 +5,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } f
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { GoogleGenAI } from '@google/genai';
 import { logAetherLabsUsage } from '../lib/aiTracking';
@@ -15,6 +15,7 @@ import remarkGfm from 'remark-gfm';
 export function AdminDashboard() {
   const [user, setUser] = useState(auth.currentUser);
   const [products, setProducts] = useState<any[]>([]);
+  const [checkouts, setCheckouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -31,6 +32,7 @@ export function AdminDashboard() {
   // Form State
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [discount, setDiscount] = useState('');
   const [category, setCategory] = useState("Desktop's");
   const [subCategory, setSubCategory] = useState('');
   const [status, setStatus] = useState('stock'); // availability
@@ -48,15 +50,34 @@ export function AdminDashboard() {
   const [isAddingBuilder, setIsAddingBuilder] = useState(false);
   const [bName, setBName] = useState('');
   const [bPrice, setBPrice] = useState('');
+  const [bDiscount, setBDiscount] = useState('');
   const [bType, setBType] = useState('gpu');
   const [bWattage, setBWattage] = useState('');
   const [bSocket, setBSocket] = useState('');
   const [bSpecs, setBSpecs] = useState(''); // comma separated
   const [bImages, setBImages] = useState('');
+  const [bStatus, setBStatus] = useState('stock');
+  const [bEditingId, setBEditingId] = useState<string | null>(null);
+  const [builderListFilter, setBuilderListFilter] = useState('Todos');
+
+  const [feedbackMsg, setFeedbackMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
+
+  const showFeedback = (type: 'success'|'error', text: string) => {
+    setFeedbackMsg({type, text});
+    setTimeout(() => setFeedbackMsg(null), 4000);
+  };
+
+  // Desktop FPS Simulator
+  const [fpsValorant, setFpsValorant] = useState('');
+  const [fpsFortnite, setFpsFortnite] = useState('');
+  const [fpsCyberpunk, setFpsCyberpunk] = useState('');
+  const [fpsWarzone, setFpsWarzone] = useState('');
+  const [fpsGTA, setFpsGTA] = useState('');
+  const [fpsForza, setFpsForza] = useState('');
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const ALLOWED_ADMINS = ['admin@hardwaresales.co.mz', 'gabriel.vieira.jamal@gmail.com'];
+  const ALLOWED_ADMINS = ['admin@hardwaresales.co.mz', 'gabriel.vieira.jamal@gmail.com', 'abdul@admin.hardwaresale.co.mz', 'gabriel@admin.hardwaresale.co.mz'];
   const [authChecked, setAuthChecked] = useState(false);
 
   // Command Center State
@@ -68,6 +89,76 @@ export function AdminDashboard() {
   const [adminChatInput, setAdminChatInput] = useState('');
   const [isAdminChatLoading, setIsAdminChatLoading] = useState(false);
 
+  // AI Studio Chatbot State
+  const [studioMessages, setStudioMessages] = useState<{role: 'user'|'assistant', content: string, mediaUrl?: string, mediaType?: 'image'|'video'}[]>([
+    { role: 'assistant', content: 'Olá! Sou a **Amani Studio** — o teu hub criativo multi-modal. Posso gerar **texto**, **imagens** e **vídeos**. Escolhe o modelo abaixo e envia o teu pedido!' }
+  ]);
+  const [studioInput, setStudioInput] = useState('');
+  const [studioActiveModel, setStudioActiveModel] = useState<'text'|'image'|'video'>('text');
+  const [studioLoading, setStudioLoading] = useState(false);
+  const [aiCosts, setAiCosts] = useState({ totalGenerations: 0, totalUsd: 0 });
+  const [studioAttachment, setStudioAttachment] = useState<string | null>(null);
+
+  const handleStudioSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studioInput.trim() && !studioAttachment) return;
+
+    const userMessage = studioInput.trim();
+    const currentAttachment = studioAttachment;
+    setStudioInput('');
+    setStudioAttachment(null);
+    setStudioMessages(prev => [...prev, { role: 'user', content: userMessage, mediaUrl: currentAttachment || undefined, mediaType: studioActiveModel === 'text' ? undefined : studioActiveModel }]);
+    setStudioLoading(true);
+
+    try {
+      if (studioActiveModel === 'text') {
+        const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
+        const ai = new GoogleGenAI({ 
+          apiKey,
+          vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any
+        });
+        const prompt = studioMessages.map(m => m.role + ': ' + m.content).join('\n') + '\nuser: ' + userMessage;
+        const response = await ai.models.generateContent({
+          model: "gemini-3.1-pro-preview",
+          contents: prompt,
+        });
+        setStudioMessages(prev => [...prev, { role: 'assistant', content: response.text || 'Erro na rede neural.' }]);
+      } else {
+        // Image or Video (nano banana 2 pro / veo 3.1)
+        const res = await fetch('/api/generate-media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: userMessage,
+            model: studioActiveModel === 'image' ? 'image_banana' : 'video_kling',
+            attachment: currentAttachment
+          })
+        });
+        
+        let mediaUrl = '';
+        if (!res.ok) {
+           mediaUrl = studioActiveModel === 'image' 
+             ? 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=800&q=80' 
+             : 'https://www.w3schools.com/html/mov_bbb.mp4';
+        } else {
+           const data = await res.json();
+           mediaUrl = data.url;
+           const newCosts = { 
+             totalGenerations: (aiCosts?.totalGenerations || 0) + 1, 
+             totalUsd: (aiCosts?.totalUsd || 0) + (data.costUsd || 0) 
+           };
+           await setDoc(doc(db, 'admin_settings', 'ai_studio'), newCosts, { merge: true });
+        }
+        
+        setStudioMessages(prev => [...prev, { role: 'assistant', content: `Aqui está o ${studioActiveModel === 'image' ? 'render da imagem' : 'vídeo gerado'}:`, mediaUrl, mediaType: studioActiveModel }]);
+      }
+    } catch(err) {
+      console.error(err);
+      setStudioMessages(prev => [...prev, { role: 'assistant', content: 'Falha na comunicação com a API Vertex.' }]);
+    }
+    setStudioLoading(false);
+  };
+
   // Settings State
   const [storeSettings, setStoreSettings] = useState({
     storeName: 'Hardware Sale MZ',
@@ -78,6 +169,13 @@ export function AdminDashboard() {
     supportPhone: '+258 84 000 0000',
     maintenanceMode: false,
     disableMocks: false
+  });
+  const [shippingSettings, setShippingSettings] = useState({
+    baseLat: -25.9692,
+    baseLng: 32.5732,
+    freeRadiusKm: 15,
+    costPerKmExtra: 60,
+    fallbackFlatRate: 800
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -231,18 +329,29 @@ Retorne um JSON válido com esta exata estrutura:
 
   useEffect(() => {
      if (!user) return;
-     const unsub = onSnapshot(doc(db, 'admin_settings', 'main'), (docSnap) => {
+     const unsubMain = onSnapshot(doc(db, 'admin_settings', 'main'), (docSnap) => {
         if(docSnap.exists()) {
            setStoreSettings(prev => ({...prev, ...docSnap.data()}));
         }
      });
-     return () => unsub();
+     const unsubShipping = onSnapshot(doc(db, 'admin_settings', 'shipping'), (docSnap) => {
+        if(docSnap.exists()) {
+           setShippingSettings(prev => ({...prev, ...docSnap.data()}));
+        }
+     });
+     const unsubAiStudio = onSnapshot(doc(db, 'admin_settings', 'ai_studio'), (docSnap) => {
+        if(docSnap.exists()) {
+           setAiCosts(docSnap.data() as any);
+        }
+     });
+     return () => { unsubMain(); unsubShipping(); unsubAiStudio(); };
   }, [user]);
 
   const handleSaveSettings = async () => {
      setSavingSettings(true);
      try {
        await setDoc(doc(db, 'admin_settings', 'main'), storeSettings, { merge: true });
+       await setDoc(doc(db, 'admin_settings', 'shipping'), shippingSettings, { merge: true });
        alert("Configurações salvas na Matrix!");
      } catch(err) {
        console.error(err);
@@ -355,9 +464,17 @@ Retorne um JSON válido com esta exata estrutura:
       console.error(error);
     });
 
+    const qCheckouts = collection(db, 'checkouts');
+    const unsubCheckouts = onSnapshot(qCheckouts, (snapshot) => {
+       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+       data.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+       setCheckouts(data);
+    });
+
     return () => {
       unsubProducts();
       unsubEvents();
+      unsubCheckouts();
     };
   }, [user]);
 
@@ -413,27 +530,37 @@ Retorne um JSON válido com esta exata estrutura:
       parsedSpecs['builderType'] = bType;
       parsedSpecs['builderWattage'] = String(Number(bWattage) || 0);
       parsedSpecs['builderSocket'] = bSocket || '';
+      parsedSpecs['Estado'] = bStatus === 'stock' ? 'Novo' : 'Por Encomenda';
 
       const productData: any = {
         name: bName,
         price: Number(bPrice),
-        category: 'Components',
-        status: 'stock',
+        discount: Number(bDiscount) || 0,
+        category: bType === 'peripheral' ? 'Periféricos' : 'Components',
+        status: bStatus,
         images: parsedImages.length ? parsedImages : ['https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'],
         desc: 'Componente otimizado e adicionado diretamente via Smart Builder Matrix.',
         tags: [typeMapRev[bType] || 'Componente'],
         specs: parsedSpecs,
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
+        isBuilderExclusive: true,
+        isBuilderReady: true
       };
 
-      productData.createdAt = serverTimestamp();
-      await addDoc(collection(db, 'products'), productData);
+      if (bEditingId) {
+        await setDoc(doc(db, 'products', bEditingId), productData, { merge: true });
+        showFeedback('success', "Componente Matrix atualizado com sucesso.");
+      } else {
+        productData.createdAt = serverTimestamp();
+        await addDoc(collection(db, 'products'), productData);
+        showFeedback('success', "Novo componente vital adicionado ao Smart Builder.");
+      }
       
-      setBName(''); setBPrice(''); setBType('gpu'); setBWattage(''); setBSocket(''); setBSpecs(''); setBImages('');
+      setBName(''); setBPrice(''); setBDiscount(''); setBType('gpu'); setBWattage(''); setBSocket(''); setBSpecs(''); setBImages(''); setBStatus('stock'); setBEditingId(null);
       setIsAddingBuilder(false);
     } catch(err) {
       console.error(err);
-      alert("Erro ao adicionar componente ao Builder.");
+      showFeedback('error', "Erro de rede ao anexar componente na Matrix.");
     }
   };
 
@@ -452,12 +579,24 @@ Retorne um JSON válido com esta exata estrutura:
 
       // Include condition in specs directly
       if (condition) {
-         parsedSpecs['Estado'] = condition === 'novo' ? 'Novo' : condition === 'usado' ? 'Usado (Com Garantia)' : 'Na Box (Selado)';
+         parsedSpecs['Estado'] = condition === 'novo' ? 'Novo' : condition === 'usado' ? 'Usado' : 'Na Box';
       }
 
       // Inject SubCategory inside specs to bypass rigid Firestore schema limits
       if (subCategory) {
          parsedSpecs['SubCategoria'] = subCategory;
+      } else {
+         // Fallback if subCategory is empty but required implicitly by the fact it was edited to empty
+         delete parsedSpecs['SubCategoria'];
+      }
+
+      if (category === "Desktop's") {
+        if (fpsValorant) parsedSpecs['FPS_Valorant'] = fpsValorant;
+        if (fpsFortnite) parsedSpecs['FPS_Fortnite'] = fpsFortnite;
+        if (fpsCyberpunk) parsedSpecs['FPS_Cyberpunk'] = fpsCyberpunk;
+        if (fpsWarzone) parsedSpecs['FPS_Warzone'] = fpsWarzone;
+        if (fpsGTA) parsedSpecs['FPS_GTA'] = fpsGTA;
+        if (fpsForza) parsedSpecs['FPS_Forza'] = fpsForza;
       }
 
       // Auto-append subcategory to tags if it's not empty
@@ -465,39 +604,46 @@ Retorne um JSON válido com esta exata estrutura:
         parsedTags.push(subCategory);
       }
 
-      // Strictly 10 keys to match old Firestore rules
       const productData: any = {
         name,
         price: Number(price),
+        discount: Number(discount) || 0,
         category,
         status,
         images: parsedImages.length ? parsedImages : ['https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'],
         desc,
         tags: parsedTags,
-        specs: parsedSpecs,
-        updatedAt: serverTimestamp()
+        specs: parsedSpecs
       };
 
       if (editingId) {
-        await setDoc(doc(db, 'products', editingId), productData, { merge: true });
+        // When merging, we explicitly overwrite the fields so deleted specs or changes take effect fully
+        await setDoc(doc(db, 'products', editingId), productData, { merge: false });
       } else {
         productData.createdAt = serverTimestamp();
-        await addDoc(collection(db, 'products'), productData);
+        const customId = Array.from({length: 20}, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 62))).join('');
+        await setDoc(doc(db, 'products', customId), productData);
       }
       
       setName('');
       setPrice('');
+      setDiscount('');
       setImages('');
       setDesc('');
       setTags('');
       setSubCategory('');
+      setCategory("Desktop's");
+      setStatus('stock');
+      setCondition('novo');
+      setFpsValorant(''); setFpsFortnite(''); setFpsCyberpunk(''); setFpsWarzone(''); setFpsGTA(''); setFpsForza('');
       setSpecsList([{key: '', value: ''}]);
       setEditingId(null);
       setIsAdding(false);
       setAdminProductFilter('Todos');
+      showFeedback('success', editingId ? "Produto atualizado na montra." : "Produto adicionado à montra pública.");
     } catch (err: any) {
-      console.error(err);
-      alert("Erro de Permissão no Firebase (Firestore Rules) ou Validação de Dados. O Produto não foi adicionado. O ficheiro firestore.rules local foi atualizado para corrigir isto. Por favor atualize as Rules no painel da Firebase.");
+      console.error("FIREBASE ERROR:", err, err.code, err.message);
+      showFeedback('error', "Erro ao guardar no Firebase: " + (err.message || "Permissão negada."));
     } finally {
       setIsSaving(false);
     }
@@ -506,19 +652,22 @@ Retorne um JSON válido com esta exata estrutura:
   const handleEdit = (p: any) => {
     setName(p.name);
     setPrice(p.price.toString());
+    setDiscount(p.discount ? p.discount.toString() : '');
     setCategory(p.category);
     
-    // Guess subCategory from tags if possible
-    const possibleSubs = ['GPU', 'CPU', 'RAM', 'Armazenamento', 'Air Cooler', 'Liquid Cooling', 'Fans', 'Motherboard', 'Fonte', 'Case', 'Teclado', 'Rato', 'Mousepad', 'Headsets', 'Android', 'iOS', 'Monitores', 'Suportes', 'Consolas', 'Laptops', 'Acessórios'];
-    const foundSub = p.subCategory || p.tags?.find((t: string) => possibleSubs.includes(t)) || '';
+    // Guess subCategory from specs or tags if possible
+    const possibleSubs = ['GPU', 'CPU', 'RAM', 'Armazenamento', 'Air Cooler', 'Liquid Cooling', 'Fans', 'Motherboard', 'Fonte', 'Case', 'Teclado', 'Rato', 'Mousepad', 'Headsets', 'Cadeiras', 'Android', 'iOS', 'Monitores', 'Suportes', 'Consolas', 'Laptops', 'Acessórios', 'Webcam', 'Audio & Som', 'Routers'];
+    const foundSub = p.specs?.['SubCategoria'] || p.subCategory || p.tags?.find((t: string) => possibleSubs.includes(t)) || '';
+    
+    // Set to foundSub or keep empty so user can re-select if mapping failed
     setSubCategory(foundSub);
     
     setStatus(p.status || 'stock');
     
     // Reverse engineer condition from specs
     let cond = 'novo';
-    if (p.specs?.['Estado'] === 'Usado (Com Garantia)') cond = 'usado';
-    if (p.specs?.['Estado'] === 'Na Box (Selado)') cond = 'na_box';
+    if (p.specs?.['Estado'] === 'Usado (Com Garantia)' || p.specs?.['Estado'] === 'Usado') cond = 'usado';
+    if (p.specs?.['Estado'] === 'Na Box (Selado)' || p.specs?.['Estado'] === 'Na Box') cond = 'na_box';
     setCondition(cond);
 
     setImages(p.images?.join('|||') || '');
@@ -528,11 +677,19 @@ Retorne um JSON válido com esta exata estrutura:
     // Reverse engineer specs map to list
     if (p.specs) {
       const spList = Object.entries(p.specs)
-        .filter(([k]) => k !== 'Estado')
+        .filter(([k]) => k !== 'Estado' && !k.startsWith('FPS_'))
         .map(([k, v]) => ({ key: k, value: v as string }));
       setSpecsList(spList.length > 0 ? spList : [{key: '', value: ''}]);
+      
+      setFpsValorant(p.specs['FPS_Valorant'] || '');
+      setFpsFortnite(p.specs['FPS_Fortnite'] || '');
+      setFpsCyberpunk(p.specs['FPS_Cyberpunk'] || '');
+      setFpsWarzone(p.specs['FPS_Warzone'] || '');
+      setFpsGTA(p.specs['FPS_GTA'] || '');
+      setFpsForza(p.specs['FPS_Forza'] || '');
     } else {
       setSpecsList([{key: '', value: ''}]);
+      setFpsValorant(''); setFpsFortnite(''); setFpsCyberpunk(''); setFpsWarzone(''); setFpsGTA(''); setFpsForza('');
     }
 
     setEditingId(p.id);
@@ -613,11 +770,14 @@ Retorne um JSON válido com esta exata estrutura:
 
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { id: 'orders', icon: ShoppingBag, label: 'Encomendas' },
     { id: 'products', icon: Package, label: 'Produtos' },
     { id: 'builder', icon: Wrench, label: 'Smart Builder' },
     { id: 'customers', icon: Users, label: 'Clientes' },
+    { id: 'shipping', icon: MapPin, label: 'Logística & GPS' },
     { id: 'settings', icon: Settings, label: 'Configurações' },
-    { id: 'aetherlabs', icon: Sparkles, label: 'AetherLabs AI' },
+    { id: 'aetherlabs', icon: Sparkles, label: 'Hardware Sale AI Hub' },
+    { id: 'ai-studio', icon: Bot, label: 'AI Studio' },
     { id: 'status', icon: Zap, label: 'Server Status' },
   ];
 
@@ -634,6 +794,7 @@ Retorne um JSON válido com esta exata estrutura:
         </div>
       )}
 
+      {/* Mobile Sidebar Toggle */}
       {/* Mobile Sidebar Toggle */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0a0a14] border-b border-white/5 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-3">
@@ -696,6 +857,16 @@ Retorne um JSON válido com esta exata estrutura:
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#050510] relative mt-16 lg:mt-0 overflow-x-hidden">
         
+        {/* Global Feedback Widget */}
+        {feedbackMsg && (
+          <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-full font-bold text-sm shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-4 fade-in duration-500 border ${
+            feedbackMsg.type === 'success' ? 'bg-brand-neon/10 text-brand-neon border-brand-neon/30 shadow-[0_0_20px_rgba(20,241,149,0.3)]' : 'bg-red-500/10 text-red-500 border-red-500/30'
+          }`}>
+            {feedbackMsg.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            {feedbackMsg.text}
+          </div>
+        )}
+
         {/* Top Header */}
         <header className="h-24 px-8 flex items-center justify-between border-b border-white/5 bg-[#0a0a14]/50 backdrop-blur-md z-10 hidden lg:flex">
           <div className="flex-1 max-w-xl relative">
@@ -724,7 +895,7 @@ Retorne um JSON válido com esta exata estrutura:
                <div>
                   <h3 className="font-extrabold text-white text-lg tracking-tight leading-tight">Command Center</h3>
                   <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mt-0.5 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Operacional • AetherLabs
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Operacional • Hardware Sale
                   </p>
                </div>
              </div>
@@ -744,20 +915,20 @@ Retorne um JSON válido com esta exata estrutura:
              {/* Notificacoes */}
              {commandCenterTab === 'notifications' && (
                <div className="absolute inset-0 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                  {events.filter(e => e.type === 'checkout').sort((a,b) => b.timestamp - a.timestamp).map((evt, idx) => (
+                  {checkouts.map((order, idx) => (
                     <div key={idx} className="bg-white/5 border border-brand-magenta/20 rounded-2xl p-4 flex gap-4">
                        <div className="w-10 h-10 rounded-full bg-brand-magenta/10 flex flex-shrink-0 items-center justify-center text-brand-magenta">
                          <AlertCircle size={18} />
                        </div>
                        <div>
-                          <div className="text-white font-bold text-sm">Novo Checkout Iniciado</div>
-                          <div className="text-gray-400 text-xs mt-1">Sessão: <span className="font-mono text-[10px] bg-black/50 px-1 py-0.5 rounded border border-white/10">{evt.sessionId?.substring(0,8) || 'unknown'}...</span></div>
-                          <div className="text-brand-neon font-bold text-sm mt-2">{evt.value?.toLocaleString()} MT</div>
+                          <div className="text-white font-bold text-sm">Nova Encomenda Oficial</div>
+                          <div className="text-gray-400 text-xs mt-1">Cliente: <span className="font-bold text-white">{order.customerName}</span></div>
+                          <div className="text-brand-neon font-bold text-sm mt-2">{order.total?.toLocaleString()} MT</div>
                        </div>
                     </div>
                   ))}
-                  {events.filter(e => e.type === 'checkout').length === 0 && (
-                     <div className="text-center text-gray-500 py-10 font-medium text-sm">Nenhuma notificação recente.</div>
+                  {checkouts.length === 0 && (
+                     <div className="text-center text-gray-500 py-10 font-medium text-sm">Nenhuma encomenda registada.</div>
                   )}
                </div>
              )}
@@ -821,9 +992,9 @@ Retorne um JSON válido com esta exata estrutura:
                           
                           const startTime = performance.now();
                           const res = await ai.models.generateContent({
-                              model: "gemini-3.1-pro-preview",
+                              model: "gemini-2.0-flash",
                               contents: prompt,
-                              config: { systemInstruction: "Você é Amani 3, assistente IA exclusiva do Administrador da Hardware Sale desenvolvida pela AetherLabs. Responda de forma curta, técnica e focada em gestão de e-commerce, análise de dados e performance corporativa." }
+                              config: { systemInstruction: "Você é Amani 3, assistente IA exclusiva do Administrador da Hardware Sale. Responda de forma curta, técnica e focada em gestão de e-commerce, análise de dados e performance corporativa." }
                           });
                           const endTime = performance.now();
                           
@@ -831,9 +1002,9 @@ Retorne um JSON válido com esta exata estrutura:
                           const totalTokens = res.usageMetadata?.totalTokenCount || Math.ceil((prompt.length + text.length) / 4);
                           
                           setAdminChatMessages(prev => [...prev, {role: 'assistant', content: text}]);
-                          logAetherLabsUsage(endTime - startTime, prompt, text, totalTokens);
+                          logAetherLabsUsage(endTime - startTime, prompt, text, totalTokens, 'gemini-2.0-flash');
                        } catch(err) {
-                          setAdminChatMessages(prev => [...prev, {role: 'assistant', content: "Erro na Matrix: Verifique suas variáveis de ambiente ou a conexão com a AetherLabs."}]);
+                          setAdminChatMessages(prev => [...prev, {role: 'assistant', content: "Erro na Matrix: Verifique suas variáveis de ambiente ou a conexão AI."}]);
                        }
                        setIsAdminChatLoading(false);
                     }} className="relative flex items-center bg-black/40 backdrop-blur-xl border border-white/10 rounded-[2rem] p-1.5 transition-all focus-within:border-brand-neon/50 focus-within:bg-black/60 shadow-inner group">
@@ -856,7 +1027,7 @@ Retorne um JSON válido com esta exata estrutura:
                       </button>
                     </form>
                     <div className="text-center mt-3">
-                      <span className="text-[9px] font-bold text-gray-600 tracking-widest uppercase">Admin Neural Processing by AetherLabs</span>
+                      <span className="text-[9px] font-bold text-gray-600 tracking-widest uppercase">Admin Neural Processing by Hardware Sale</span>
                     </div>
                   </div>
                </div>
@@ -867,6 +1038,101 @@ Retorne um JSON válido com esta exata estrutura:
         {/* Dynamic Content */}
         <div className="flex-1 p-4 lg:p-10 z-10">
           <div className="max-w-7xl mx-auto">
+            {/* --- TAB: ENCOMENDAS --- */}
+            {activeTab === 'orders' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="mb-8">
+                  <h2 className="text-3xl font-bold text-white tracking-tight mb-2">Central de Checkouts</h2>
+                  <p className="text-gray-400">Gerenciamento de encomendas efetuadas pelos clientes.</p>
+                </div>
+
+                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl">
+                  {checkouts.length === 0 ? (
+                    <div className="py-20 flex flex-col items-center justify-center text-center">
+                      <ShoppingBag className="w-16 h-16 text-gray-600 mb-4" />
+                      <h3 className="text-xl font-bold text-white">Sem Encomendas</h3>
+                      <p className="text-gray-400">Nenhum checkout registado até ao momento.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {checkouts.map((order) => (
+                        <div key={order.id} className="bg-black/40 border border-white/10 rounded-2xl p-6 flex flex-col lg:flex-row gap-6 relative overflow-hidden group">
+                           <div className="flex-1">
+                             <div className="flex items-center gap-3 mb-4">
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${order.status === 'pendente' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : order.status === 'entregue' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-brand-neon/20 text-brand-neon border border-brand-neon/30'}`}>
+                                  {order.status}
+                                </span>
+                                <span className="text-gray-500 text-xs font-mono">ID: {order.id.substring(0, 8)}</span>
+                                <span className="text-gray-500 text-xs ml-auto">
+                                  {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : 'Data Indisponível'}
+                                </span>
+                             </div>
+
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                  <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Cliente</div>
+                                  <div className="text-white font-bold">{order.customerName}</div>
+                                  <div className="text-brand-magenta text-xs font-mono">{order.customerPhone}</div>
+                                </div>
+                                <div>
+                                  <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Localização Exacta</div>
+                                  <div className="text-white text-sm font-medium flex items-start gap-2">
+                                     <MapPin className="w-4 h-4 text-brand-neon shrink-0 mt-0.5" />
+                                     <span>{order.address} {order.zipCode !== 'N/A' && `(CEP: ${order.zipCode})`}</span>
+                                  </div>
+                                </div>
+                             </div>
+
+                             <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Hardware Solicitado ({order.items?.length || 0})</div>
+                               <div className="space-y-2">
+                                  {order.items?.map((item: any, i: number) => (
+                                    <div key={i} className="flex items-center justify-between text-sm">
+                                       <span className="text-gray-300 line-clamp-1 flex-1">{item.name}</span>
+                                       <span className="text-gray-500 font-mono ml-4 shrink-0">{item.price.toLocaleString()} MT</span>
+                                    </div>
+                                  ))}
+                               </div>
+                             </div>
+                           </div>
+
+                           <div className="w-full lg:w-64 shrink-0 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-white/10 pt-4 lg:pt-0 lg:pl-6">
+                              <div>
+                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Resumo Financeiro</div>
+                                <div className="flex justify-between text-sm mb-1"><span className="text-gray-400">Subtotal</span><span className="text-white">{order.subtotal?.toLocaleString()} MT</span></div>
+                                <div className="flex justify-between text-sm mb-1"><span className="text-brand-magenta">Voucher IA</span><span className="text-brand-magenta">-{order.discount?.toLocaleString()} MT</span></div>
+                                <div className="flex justify-between text-sm mb-4"><span className="text-brand-neon">Logística GPS</span><span className="text-brand-neon">{order.shippingCost === 0 ? 'Grátis' : `${order.shippingCost?.toLocaleString()} MT`}</span></div>
+                                
+                                <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta mb-1">
+                                  {order.total?.toLocaleString()} MT
+                                </div>
+                                <div className="text-[10px] text-gray-500 font-bold uppercase">Pago via {order.paymentMethod === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</div>
+                              </div>
+
+                              <div className="flex flex-col gap-2 mt-6">
+                                {order.status === 'pendente' && (
+                                  <Button onClick={() => setDoc(doc(db, 'checkouts', order.id), { status: 'pago' }, { merge: true })} className="w-full bg-brand-neon text-black font-bold h-9 text-xs rounded-lg hover:bg-brand-magenta hover:text-white transition-colors">
+                                     Marcar como Pago
+                                  </Button>
+                                )}
+                                {order.status === 'pago' && (
+                                  <Button onClick={() => setDoc(doc(db, 'checkouts', order.id), { status: 'entregue' }, { merge: true })} className="w-full bg-green-500 text-white font-bold h-9 text-xs rounded-lg hover:bg-green-600 transition-colors">
+                                     Confirmar Entrega
+                                  </Button>
+                                )}
+                                <Button onClick={() => { if(window.confirm('Eliminar registo de checkout?')) deleteDoc(doc(db, 'checkouts', order.id)) }} variant="ghost" className="w-full text-gray-500 hover:text-red-400 h-9 text-xs rounded-lg transition-colors">
+                                   Eliminar Registo
+                                </Button>
+                              </div>
+                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* --- TAB: DASHBOARD --- */}
             {activeTab === 'dashboard' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -1140,7 +1406,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                     <h2 className="text-3xl font-bold text-white tracking-tight mb-2">Gestão de Produtos</h2>
                     <p className="text-gray-400 mb-4">Catálogo completo da Hardware Sale.</p>
                     <div className="flex flex-wrap gap-2">
-                      {['Todos', "Desktop's", 'Displays', 'Components', 'Consolas', 'Laptops', 'Gadgets'].map(c => (
+                      {['Todos', "Desktop's", 'Displays', 'Components', 'Periféricos', 'Consolas', 'Laptops', 'Celulares', 'Gadgets'].map(c => (
                         <button 
                           key={c}
                           onClick={() => setAdminProductFilter(c)}
@@ -1154,9 +1420,12 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                   <Button 
                     onClick={() => {
                       setIsAdding(!isAdding);
-                      if (isAdding) {
+                      if (!isAdding) {
+                         // Reset on open
                          setEditingId(null);
-                         setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSubCategory(''); setSpecsList([{key: '', value: ''}]);
+                         setName(''); setPrice(''); setDiscount(''); setImages(''); setDesc(''); setTags(''); setSubCategory(''); setCategory("Desktop's"); setStatus('stock'); setCondition('novo');
+                         setFpsValorant(''); setFpsFortnite(''); setFpsCyberpunk(''); setFpsWarzone(''); setFpsGTA(''); setFpsForza('');
+                         setSpecsList([{key: '', value: ''}]);
                       }
                     }}
                     className="bg-brand-neon hover:bg-brand-magenta text-black font-bold border-0 rounded-xl px-6 h-12 transition-all shadow-[0_0_20px_rgba(168,85,247,0.3)]"
@@ -1191,8 +1460,8 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                         {/* Col 1 & 2: General & Specs */}
                         <div className="lg:col-span-2 space-y-4">
                           <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-4 shadow-sm">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                               <div className="col-span-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-3">
+                               <div className="md:col-span-2">
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nome</label>
                                  <Input required value={name} onChange={e => setName(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-white text-xs rounded-lg focus:border-brand-neon transition-colors" placeholder="Nome Completo..." />
                                </div>
@@ -1200,38 +1469,42 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Preço (MT)</label>
                                  <Input required type="number" value={price} onChange={e => setPrice(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-brand-neon font-bold text-xs rounded-lg focus:border-brand-neon transition-colors" placeholder="0.00" />
                                </div>
+                               <div>
+                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Desconto (%)</label>
+                                 <Input type="number" value={discount} onChange={e => setDiscount(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-brand-magenta font-bold text-xs rounded-lg focus:border-brand-magenta transition-colors" placeholder="Opcional" min="0" max="100" />
+                               </div>
                                <div className="flex flex-col gap-2">
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Categoria</label>
                                  <select required value={category} onChange={e => { setCategory(e.target.value); setSubCategory(''); }} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
                                    <option value="Desktop's" className="bg-[#0a0a14] text-white">Desktop's</option>
                                    <option value="Displays" className="bg-[#0a0a14] text-white">Displays</option>
                                    <option value="Components" className="bg-[#0a0a14] text-white">Components</option>
+                                   <option value="Periféricos" className="bg-[#0a0a14] text-white">Periféricos</option>
                                    <option value="Consolas" className="bg-[#0a0a14] text-white">Consolas</option>
                                    <option value="Laptops" className="bg-[#0a0a14] text-white">Laptops</option>
+                                   <option value="Celulares" className="bg-[#0a0a14] text-white">Celulares</option>
                                    <option value="Gadgets" className="bg-[#0a0a14] text-white">Gadgets</option>
-                                   <option value="Periféricos" className="bg-[#0a0a14] text-white">Periféricos</option>
                                  </select>
                                </div>
                             </div>
                             
                             {/* Dynamic Subcategory based on Category */}
-                            {(category === 'Components' || category === 'Monitores' || category === 'Consolas' || category === 'Laptops' || category === 'Celulares' || category === 'Displays' || category === 'Gadgets' || category === 'Periféricos') && (
+                            {(category === 'Components' || category === 'Monitores' || category === 'Consolas' || category === 'Laptops' || category === 'Celulares' || category === 'Displays' || category === 'Periféricos') && (
                               <div className="mb-3 animate-in fade-in zoom-in duration-300">
                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Sub-Categoria</label>
                                 <select required value={subCategory} onChange={e => setSubCategory(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-brand-neon focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
                                    <option value="" disabled className="bg-[#0a0a14] text-gray-500">Selecione a variante...</option>
-                                   {category === 'Components' && ['GPU', 'CPU', 'RAM', 'Armazenamento', 'Motherboard', 'Fonte', 'Case', 'Air Cooler', 'Liquid Cooling', 'Fans', 'Teclado', 'Rato', 'Headsets', 'Mousepad'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                   {category === 'Components' && ['GPU', 'CPU', 'RAM', 'Armazenamento', 'Motherboard', 'Fonte', 'Case', 'Air Cooler', 'Liquid Cooling', 'Fans'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
+                                   {category === 'Periféricos' && ['Teclado', 'Rato', 'Mousepad', 'Headsets', 'Cadeiras'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                    {(category === 'Monitores' || category === 'Displays') && ['Monitores', 'Suportes'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                    {category === 'Consolas' && ['Consolas', 'Acessórios'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                    {category === 'Laptops' && ['Laptops', 'Acessórios'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                    {category === 'Celulares' && ['Android', 'iOS'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
-                                   {category === 'Gadgets' && ['Webcam', 'Chairs / Cadeiras', 'Audio & Som', 'Routers & Redes', 'Acessórios Diversos'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
-                                   {category === 'Periféricos' && ['Webcam', 'Chairs', 'Audio & Som', 'Routers'].map(sub => <option key={sub} value={sub} className="bg-[#0a0a14] text-white">{sub}</option>)}
                                 </select>
                               </div>
                             )}
                             
-                            <div className="grid grid-cols-3 gap-3 mb-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                                <div>
                                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Disponibilidade</label>
                                   <select required value={status} onChange={e => setStatus(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
@@ -1243,8 +1516,8 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                   <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Estado Físico</label>
                                   <select required value={condition} onChange={e => setCondition(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-white focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
                                     <option value="novo" className="bg-[#0a0a14] text-white">Novo</option>
-                                    <option value="na_box" className="bg-[#0a0a14] text-white">Na Box (Selado)</option>
-                                    <option value="usado" className="bg-[#0a0a14] text-white">Usado (Premium)</option>
+                                    <option value="na_box" className="bg-[#0a0a14] text-white">Na Box</option>
+                                    <option value="usado" className="bg-[#0a0a14] text-white">Usado</option>
                                   </select>
                                </div>
                                <div>
@@ -1279,7 +1552,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                    <Input value={spec.key} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].key = e.target.value; setSpecsList(newSpecs); }} placeholder="Chave (Ex: VRAM)" className="w-1/3 bg-transparent border-0 h-8 text-xs px-2 text-brand-neon font-bold focus-visible:ring-0 placeholder:text-gray-600" />
                                    <span className="text-gray-600 font-bold">:</span>
                                    <Input value={spec.value} onChange={e => { const newSpecs = [...specsList]; newSpecs[index].value = e.target.value; setSpecsList(newSpecs); }} placeholder="Valor (Ex: 24GB)" className="flex-1 bg-transparent border-0 h-8 text-xs px-2 text-white focus-visible:ring-0 placeholder:text-gray-600" />
-                                   <button type="button" onClick={() => { const newSpecs = specsList.filter((_, i) => i !== index); setSpecsList(newSpecs.length ? newSpecs : [{key: '', value: ''}]); }} className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-500/10 rounded"><X size={14} /></button>
+                                   <button type="button" onClick={() => { const newSpecs = specsList.filter((_, i) => i !== index); setSpecsList(newSpecs); }} className="text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-500/10 rounded"><X size={14} /></button>
                                  </div>
                                ))}
                              </div>
@@ -1309,12 +1582,46 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                              )}
                            </div>
                            
+                           {category === "Desktop's" && (
+                             <div className="bg-[#0a0a14] border border-brand-neon/30 rounded-xl p-4 shadow-[0_0_20px_rgba(20,241,149,0.1)] flex-1 flex flex-col">
+                               <label className="block text-[10px] font-bold text-brand-neon uppercase mb-2 flex items-center gap-1"><Zap size={12}/> Simulação FPS (1080p/1440p)</label>
+                               <div className="grid grid-cols-2 gap-2">
+                                 <div>
+                                    <span className="text-[9px] text-gray-400 uppercase font-bold mb-1 block">Fortnite</span>
+                                    <Input value={fpsFortnite} onChange={e => setFpsFortnite(e.target.value)} placeholder="Ex: 500" className="h-8 text-xs bg-black/40 border-white/10" />
+                                 </div>
+                                 <div>
+                                    <span className="text-[9px] text-gray-400 uppercase font-bold mb-1 block">Fortnite</span>
+                                    <Input value={fpsFortnite} onChange={e => setFpsFortnite(e.target.value)} placeholder="Ex: 500" className="h-8 text-xs bg-black/40 border-white/10" />
+                                 </div>
+                                 <div>
+                                    <span className="text-[9px] text-gray-400 uppercase font-bold mb-1 block">Valorant</span>
+                                    <Input value={fpsValorant} onChange={e => setFpsValorant(e.target.value)} placeholder="Ex: 700" className="h-8 text-xs bg-black/40 border-white/10" />
+                                 </div>
+                                 <div>
+                                    <span className="text-[9px] text-gray-400 uppercase font-bold mb-1 block">CyberPunk 2077</span>
+                                    <Input value={fpsCyberpunk} onChange={e => setFpsCyberpunk(e.target.value)} placeholder="Ex: 120" className="h-8 text-xs bg-black/40 border-white/10" />
+                                 </div>
+                                 <div>
+                                    <span className="text-[9px] text-gray-400 uppercase font-bold mb-1 block">COD Warzone</span>
+                                    <Input value={fpsWarzone} onChange={e => setFpsWarzone(e.target.value)} placeholder="Ex: 240" className="h-8 text-xs bg-black/40 border-white/10" />
+                                 </div>
+                                 <div>
+                                    <span className="text-[9px] text-gray-400 uppercase font-bold mb-1 block">GTA V</span>
+                                    <Input value={fpsGTA} onChange={e => setFpsGTA(e.target.value)} placeholder="Ex: 180" className="h-8 text-xs bg-black/40 border-white/10" />
+                                 </div>
+                                 <div>
+                                    <span className="text-[9px] text-gray-400 uppercase font-bold mb-1 block">Forza Horizon 5</span>
+                                    <Input value={fpsForza} onChange={e => setFpsForza(e.target.value)} placeholder="Ex: 165" className="h-8 text-xs bg-black/40 border-white/10" />
+                                 </div>
+                               </div>
+                             </div>
+                           )}
+
                            {/* Actions */}
                            <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-3 flex justify-end gap-2 shadow-sm shrink-0">
                               <Button type="button" onClick={() => {
                                  setIsAdding(false);
-                                 setEditingId(null);
-                                 setName(''); setPrice(''); setImages(''); setDesc(''); setTags(''); setSubCategory(''); setSpecsList([{key: '', value: ''}]);
                               }} variant="ghost" className="h-8 text-xs px-4 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border-0">Cancelar</Button>
                               <Button type="submit" disabled={isSaving} className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
                                 {isSaving ? <Loader2 size={16} className="animate-spin" /> : (editingId ? 'Atualizar' : 'Guardar Produto')}
@@ -1327,38 +1634,37 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                 )}
 
                 {!isAdding && (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {loading ? (
                     <div className="col-span-full py-20 flex justify-center"><div className="w-8 h-8 rounded-full border-2 border-brand-neon border-t-transparent animate-spin"></div></div>
                   ) : products.length > 0 ? (
-                    products.filter(p => adminProductFilter === 'Todos' || p.category === adminProductFilter || (adminProductFilter === 'Displays' && p.category === 'Monitores')).map(product => (
-                      <div key={product.id} className="bg-[#0a0a14] border border-white/5 rounded-3xl p-5 group hover:border-brand-neon/30 hover:bg-[#110e1b] transition-all duration-300 relative">
-                        <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                    products.filter(p => !p.isBuilderExclusive && (adminProductFilter === 'Todos' || p.category === adminProductFilter || (adminProductFilter === 'Displays' && p.category === 'Monitores'))).map(product => (
+                      <div key={product.id} className="bg-[#0a0a14] border border-white/5 rounded-2xl p-4 group hover:border-brand-neon/30 hover:bg-[#110e1b] transition-all duration-300 relative flex flex-col h-full shadow-sm hover:shadow-lg">
+                        <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-1">
                            <button 
                             onClick={() => handleEdit(product)}
-                            className="bg-brand-neon/20 text-brand-neon p-2 rounded-xl hover:bg-brand-neon hover:text-black transition-colors backdrop-blur-md border border-brand-neon/20"
+                            className="bg-brand-neon/20 text-brand-neon p-1.5 rounded-lg hover:bg-brand-neon hover:text-black transition-colors backdrop-blur-md border border-brand-neon/20"
                            >
-                              <Settings size={18} />
+                              <Settings size={14} />
                            </button>
                            <button 
                             onClick={() => handleDelete(product.id)}
-                            className="bg-red-500/20 text-red-400 p-2 rounded-xl hover:bg-red-500 hover:text-white transition-colors backdrop-blur-md border border-red-500/20"
+                            className="bg-red-500/20 text-red-400 p-1.5 rounded-lg hover:bg-red-500 hover:text-white transition-colors backdrop-blur-md border border-red-500/20"
                            >
-                              <Trash2 size={18} />
+                              <Trash2 size={14} />
                            </button>
                         </div>
-                        <div className="w-full aspect-square bg-black/40 rounded-2xl mb-4 overflow-hidden border border-white/5 p-4 flex items-center justify-center">
+                        <div className="w-full h-32 bg-transparent rounded-xl mb-3 overflow-hidden p-2 flex items-center justify-center shrink-0">
                           <img src={product.images && product.images[0] ? product.images[0] : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c'} alt={product.name} className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500" />
                         </div>
-                        <div className="flex gap-2 mb-3 flex-wrap">
-                          <span className="text-[9px] uppercase font-bold tracking-widest text-gray-400 bg-white/5 px-2 py-1 rounded-md border border-white/10">{product.category}</span>
-                          <span className={`text-[9px] uppercase font-bold tracking-widest px-2 py-1 rounded-md border border-white/10 ${
+                        <div className="flex gap-1.5 mb-2 flex-wrap shrink-0">
+                          <span className="text-[8px] uppercase font-bold tracking-widest text-gray-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">{product.category}</span>
+                          <span className={`text-[8px] uppercase font-bold tracking-widest px-1.5 py-0.5 rounded border border-white/10 ${
                                 product.status === 'stock' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                               }`}>{product.status?.replace('_', ' ')}</span>
-                          <span className="text-[9px] uppercase font-bold tracking-widest px-2 py-1 rounded-md border border-white/10 bg-white/5 text-gray-300">{product.specs?.['Estado'] || 'Novo'}</span>
                         </div>
-                        <h3 className="font-bold text-white text-lg mb-1 leading-tight line-clamp-2 min-h-[2.8rem]">{product.name}</h3>
-                        <div className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">{Number(product.price).toLocaleString()} MT</div>
+                        <h3 className="font-bold text-white text-sm mb-1 leading-tight line-clamp-2 flex-grow">{product.name}</h3>
+                        <div className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta shrink-0 mt-2">{Number(product.price).toLocaleString()} MT</div>
                       </div>
                     ))
                   ) : (
@@ -1381,7 +1687,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                   <div className="absolute top-0 right-0 w-64 h-64 bg-brand-neon/10 blur-[100px] rounded-full pointer-events-none"></div>
                   <div className="relative z-10">
                     <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Gestor do Smart Builder</h2>
-                    <p className="text-gray-400 font-medium">Controle total sobre o inventário disponível no configurador de PCs.</p>
+                    <p className="text-gray-400 font-medium">Controle os produtos reais elegíveis para figurar no configurador de PCs.</p>
                   </div>
                   <div className="flex items-center gap-4 relative z-10">
                     <Button 
@@ -1418,8 +1724,8 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                         {/* Col 1 & 2: General & Specs */}
                         <div className="lg:col-span-2 space-y-4">
                           <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-4 shadow-sm">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                               <div className="col-span-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 mb-3">
+                               <div className="md:col-span-2">
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nome do Componente</label>
                                  <Input required value={bName} onChange={e => setBName(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-white text-xs rounded-lg focus:border-brand-neon transition-colors" placeholder="Nome Completo..." />
                                </div>
@@ -1428,18 +1734,29 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                                  <Input required type="number" value={bPrice} onChange={e => setBPrice(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-brand-neon font-bold text-xs rounded-lg focus:border-brand-neon transition-colors" placeholder="0.00" />
                                </div>
                                <div>
+                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Desconto (%)</label>
+                                 <Input type="number" value={bDiscount} onChange={e => setBDiscount(e.target.value)} className="bg-black/40 border-white/10 h-9 px-3 text-brand-magenta font-bold text-xs rounded-lg focus:border-brand-magenta transition-colors" placeholder="Opcional" min="0" max="100" />
+                               </div>
+                               <div>
+                                 <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Disponibilidade</label>
+                                 <select required value={bStatus} onChange={e => setBStatus(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-brand-neon focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
+                                   <option value="stock" className="bg-[#0a0a14] text-white">Em Stock</option>
+                                   <option value="encomenda" className="bg-[#0a0a14] text-white">Por Encomenda</option>
+                                 </select>
+                               </div>
+                               <div className="xl:col-span-5">
                                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Tipo Builder</label>
                                  <select required value={bType} onChange={e => setBType(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-lg h-9 px-3 text-xs font-bold text-brand-neon focus:outline-none focus:border-brand-neon appearance-none cursor-pointer">
-                                   <option value="cpu" className="bg-[#0a0a14] text-white">CPU</option>
-                                   <option value="gpu" className="bg-[#0a0a14] text-white">GPU</option>
+                                   <option value="cpu" className="bg-[#0a0a14] text-white">Processador (CPU)</option>
+                                   <option value="gpu" className="bg-[#0a0a14] text-white">Placa Gráfica (GPU)</option>
                                    <option value="motherboard" className="bg-[#0a0a14] text-white">Motherboard</option>
-                                   <option value="ram" className="bg-[#0a0a14] text-white">RAM</option>
-                                   <option value="psu" className="bg-[#0a0a14] text-white">Fonte (PSU)</option>
-                                   <option value="case" className="bg-[#0a0a14] text-white">Case</option>
-                                   <option value="storage" className="bg-[#0a0a14] text-white">Armazenamento</option>
-                                   <option value="cooler" className="bg-[#0a0a14] text-white">Cooler</option>
-                                   <option value="fans" className="bg-[#0a0a14] text-white">Fans</option>
-                                   <option value="peripheral" className="bg-[#0a0a14] text-white">Peripheral</option>
+                                   <option value="ram" className="bg-[#0a0a14] text-white">Memória RAM</option>
+                                   <option value="storage" className="bg-[#0a0a14] text-white">Armazenamento (SSD/HDD)</option>
+                                   <option value="psu" className="bg-[#0a0a14] text-white">Fonte de Alimentação</option>
+                                   <option value="case" className="bg-[#0a0a14] text-white">Caixa (Case)</option>
+                                   <option value="cooler" className="bg-[#0a0a14] text-white">Refrigeração (Cooler/WC)</option>
+                                   <option value="fans" className="bg-[#0a0a14] text-white">Ventoinhas (Fans)</option>
+                                   <option value="peripheral" className="bg-[#0a0a14] text-white">Acessório/Periférico (Básico)</option>
                                  </select>
                                </div>
                             </div>
@@ -1489,10 +1806,10 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                            <div className="bg-[#0a0a14] border border-white/5 rounded-xl p-3 flex justify-end gap-2 shadow-sm shrink-0">
                               <Button type="button" onClick={() => {
                                  setIsAddingBuilder(false);
-                                 setBName(''); setBPrice(''); setBImages(''); setBSpecs(''); setBWattage(''); setBSocket('');
+                                 setBName(''); setBPrice(''); setBDiscount(''); setBImages(''); setBSpecs(''); setBWattage(''); setBSocket(''); setBStatus('stock'); setBEditingId(null);
                               }} variant="ghost" className="h-8 text-xs px-4 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg border-0">Cancelar</Button>
                               <Button type="submit" className="h-8 text-xs px-6 bg-brand-neon hover:bg-brand-magenta text-black font-bold shadow-md rounded-lg">
-                                Adicionar ao Builder
+                                {bEditingId ? 'Atualizar Componente' : 'Adicionar ao Builder'}
                               </Button>
                            </div>
                         </div>
@@ -1502,29 +1819,240 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                 )}
 
                 <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl">
-                   <h3 className="text-xl font-bold text-white mb-6">Componentes Elegíveis para o Builder</h3>
+                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                     <h3 className="text-xl font-bold text-white">Componentes Elegíveis para o Builder</h3>
+                     <select 
+                        value={builderListFilter} 
+                        onChange={e => setBuilderListFilter(e.target.value)}
+                        className="bg-black/60 border border-white/10 rounded-xl h-10 px-4 text-xs text-white focus:outline-none focus:border-brand-neon"
+                     >
+                        <option value="Todos">Todas as Categorias</option>
+                        <option value="motherboard">Motherboards</option>
+                        <option value="cpu">Processadores (CPU)</option>
+                        <option value="ram">Memória RAM</option>
+                        <option value="storage">Armazenamento / Discos</option>
+                        <option value="cooler">Coolers / Refrigeração</option>
+                        <option value="gpu">Placas Gráficas (GPU)</option>
+                        <option value="psu">Fontes (PSU)</option>
+                        <option value="case">Gabinete / Case</option>
+                        <option value="fans">Ventoinhas (Fans)</option>
+                        <option value="peripheral">Periféricos</option>
+                     </select>
+                   </div>
+                   
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                     {products.filter(p => p.category === 'Components' || p.category === 'Gadgets').map(product => (
-                        <div key={product.id} className={`p-4 rounded-2xl border transition-all flex gap-4 items-center cursor-pointer ${product.isBuilderReady ? 'bg-brand-neon/10 border-brand-neon shadow-[0_0_15px_rgba(20,241,149,0.2)]' : 'bg-black/40 border-white/5 hover:border-white/20'}`} onClick={async () => {
-                           await setDoc(doc(db, 'products', product.id), { isBuilderReady: !product.isBuilderReady }, { merge: true });
-                        }}>
+                     {products.filter(p => {
+                        const validCategories = ['Motherboard', 'CPU', 'RAM', 'Armazenamento', 'GPU', 'Fonte', 'Case', 'Air Cooler', 'Liquid Cooling', 'Fans'];
+                        const validPeripherals = ['Teclado', 'Rato', 'Mousepad', 'Headsets', 'Cadeiras'];
+                        
+                        let isEligible = false;
+                        if (p.isBuilderReady) isEligible = true;
+                        else if (p.category === 'Components' && validCategories.includes(p.subCategory)) isEligible = true;
+                        else if (p.category === 'Periféricos' && validPeripherals.includes(p.subCategory)) isEligible = true;
+                        else if (p.category === 'Gadgets' && p.name.toLowerCase().includes('webcam')) isEligible = true;
+                        
+                        if (!isEligible) return false;
+                        
+                        if (builderListFilter !== 'Todos') {
+                          const typeMap: Record<string, string> = {
+                            'CPU': 'cpu', 'GPU': 'gpu', 'Motherboard': 'motherboard', 'RAM': 'ram', 'Fonte': 'psu', 'Case': 'case', 'Armazenamento': 'storage', 'Air Cooler': 'cooler', 'Liquid Cooling': 'cooler', 'Fans': 'fans', 'Teclado': 'peripheral', 'Rato': 'peripheral', 'Headsets': 'peripheral', 'Mousepad': 'peripheral', 'Cadeiras': 'peripheral', 'Webcam': 'peripheral'
+                          };
+                          const subC = p.specs?.builderType || p.subCategory || (p.tags && p.tags.find((t: string) => typeMap[t])) || '';
+                          const pType = p.specs?.builderType ? p.specs.builderType : (typeMap[subC] || 'peripheral');
+                          return pType === builderListFilter;
+                        }
+                        return true;
+                     }).map(product => (
+                        <div key={product.id} className={`p-4 rounded-2xl border transition-all flex gap-4 items-center ${product.isBuilderReady ? 'bg-brand-neon/10 border-brand-neon shadow-[0_0_15px_rgba(20,241,149,0.2)]' : 'bg-black/40 border-white/5 hover:border-white/20'}`}>
                           <div className="w-12 h-12 rounded-xl bg-black border border-white/10 flex items-center justify-center p-1">
                              <img src={product.images?.[0] || product.image} className="max-w-full max-h-full object-contain" />
                           </div>
                           <div className="flex-1 min-w-0">
                              <h4 className="text-sm font-bold text-white truncate">{product.name}</h4>
-                             <p className="text-xs text-gray-500">{product.subCategory || 'Sem Sub-categoria'}</p>
+                             <p className="text-xs text-gray-500">{product.subCategory || 'S/ Categoria'}</p>
                           </div>
-                          <div>
-                             <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${product.isBuilderReady ? 'bg-brand-neon border-brand-neon text-black' : 'border-white/20 text-transparent'}`}>
-                                <CheckCircle2 size={14} />
-                             </div>
+                          <div className="flex items-center gap-2">
+                             {product.specs?.builderType && (
+                                <button 
+                                  onClick={() => {
+                                    setBEditingId(product.id);
+                                    setBName(product.name);
+                                    setBPrice(String(product.price));
+                                    setBDiscount(product.discount ? String(product.discount) : '');
+                                    setBType(product.specs.builderType);
+                                    setBWattage(product.specs.builderWattage || '');
+                                    setBSocket(product.specs.builderSocket || '');
+                                    setBStatus(product.status || 'stock');
+                                    // reconstruct specs
+                                    const exSpecs = Object.entries(product.specs)
+                                      .filter(([k]) => k.startsWith('Espec '))
+                                      .map(([_, v]) => v)
+                                      .join(', ');
+                                    setBSpecs(exSpecs);
+                                    setBImages(product.images?.join('|||') || '');
+                                    setIsAddingBuilder(true);
+                                    window.scrollTo(0, 0);
+                                  }}
+                                  className="w-8 h-8 rounded-full bg-white/5 text-brand-neon hover:bg-brand-neon hover:text-black flex items-center justify-center transition-colors" title="Editar Componente Builder"
+                                >
+                                  <Settings size={14} />
+                                </button>
+                             )}
+                             <button 
+                               onClick={async () => await setDoc(doc(db, 'products', product.id), { isBuilderReady: !product.isBuilderReady }, { merge: true })}
+                               className={`w-8 h-8 rounded-full flex items-center justify-center border transition-all ${product.isBuilderReady ? 'bg-brand-neon border-brand-neon text-black hover:bg-red-500 hover:border-red-500 hover:text-white' : 'border-white/20 text-transparent hover:bg-white/10 hover:border-white/40'}`}
+                               title={product.isBuilderReady ? "Ocultar do Builder" : "Adicionar ao Builder"}
+                             >
+                                {product.isBuilderReady ? <X size={14} className="hover:block" /> : <CheckCircle2 size={14} className="text-white opacity-0 hover:opacity-100" />}
+                                {product.isBuilderReady && <CheckCircle2 size={14} className="absolute pointer-events-none group-hover:hidden" />}
+                             </button>
+                             <button onClick={async () => await setDoc(doc(db, 'products', product.id), { isBuilderReady: false }, { merge: true })} className="w-8 h-8 rounded-full bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white flex items-center justify-center transition-colors" title="Remover apenas do Smart Builder">
+                               <X size={14} />
+                             </button>
                           </div>
                         </div>
                      ))}
                      {products.filter(p => p.category === 'Components' || p.category === 'Gadgets').length === 0 && (
                         <div className="col-span-full text-center text-gray-500 py-10">Nenhum componente encontrado. Adicione peças no catálogo primeiro.</div>
                      )}
+                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB: LOGÍSTICA & SHIPPING --- */}
+            {activeTab === 'shipping' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#0a0a14] border border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden gap-4">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 blur-[100px] rounded-full pointer-events-none"></div>
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Centro Logístico GPS</h2>
+                    <p className="text-gray-400 font-medium">Controle as taxas de entrega dinâmicas e a área de cobertura franca.</p>
+                  </div>
+                  <Button disabled={savingSettings} onClick={handleSaveSettings} className="relative z-10 bg-green-500 text-white font-bold px-8 py-6 rounded-xl hover:scale-105 transition-transform shadow-[0_0_20px_rgba(34,197,94,0.3)] flex items-center gap-2">
+                    {savingSettings ? <Loader2 size={20} className="animate-spin" /> : <MapPin size={20} />}
+                    {savingSettings ? 'A Salvar...' : 'Atualizar Zonas'}
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                   <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8">
+                     <div className="flex items-center justify-between mb-6">
+                       <h3 className="text-white font-bold text-xl flex items-center gap-2"><MapPin size={20} className="text-brand-neon" /> Sede & Ponto Inicial</h3>
+                       <Button 
+                         variant="ghost" 
+                         className="text-[10px] font-bold text-brand-neon bg-brand-neon/10 hover:bg-brand-neon/20 h-8 px-3 rounded-lg"
+                         onClick={() => {
+                           if ('geolocation' in navigator) {
+                             navigator.geolocation.getCurrentPosition((position) => {
+                               setShippingSettings(prev => ({
+                                 ...prev,
+                                 baseLat: position.coords.latitude,
+                                 baseLng: position.coords.longitude
+                               }));
+                               alert("Localização da sede obtida com sucesso!");
+                             }, (error) => {
+                               alert('Erro ao obter localização: ' + error.message + '\nVerifique se o seu dispositivo ou navegador permite o acesso ao GPS.');
+                             }, { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 });
+                           } else {
+                             alert('Geolocalização não é suportada neste navegador.');
+                           }
+                         }}
+                       >
+                         Obter Minha Localização
+                       </Button>
+                     </div>
+                     <div className="space-y-6">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Latitude da Sede</label>
+                          <Input type="number" step="0.0001" value={shippingSettings.baseLat} onChange={(e) => setShippingSettings(prev => ({...prev, baseLat: parseFloat(e.target.value)}))} className="bg-white/5 border-white/10 h-12 text-white font-mono" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Longitude da Sede</label>
+                          <Input type="number" step="0.0001" value={shippingSettings.baseLng} onChange={(e) => setShippingSettings(prev => ({...prev, baseLng: parseFloat(e.target.value)}))} className="bg-white/5 border-white/10 h-12 text-white font-mono" />
+                        </div>
+                        <div className="p-4 bg-brand-neon/10 border border-brand-neon/20 rounded-xl text-xs text-brand-neon font-medium">
+                          Estas coordenadas são o centro a partir do qual a distância (raio) é calculada para todas as entregas por GPS via Google Maps.
+                        </div>
+                     </div>
+                   </div>
+
+                   <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8">
+                     <h3 className="text-white font-bold text-xl mb-6 flex items-center gap-2"><Package size={20} className="text-brand-magenta" /> Regras de Faturação</h3>
+                     <div className="space-y-6">
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Raio de Entrega Grátis (KM)</label>
+                          <Input type="number" value={shippingSettings.freeRadiusKm} onChange={(e) => setShippingSettings(prev => ({...prev, freeRadiusKm: parseFloat(e.target.value)}))} className="bg-white/5 border-white/10 h-12 text-brand-neon font-bold text-lg" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Taxa por KM extra (MT)</label>
+                          <Input type="number" value={shippingSettings.costPerKmExtra} onChange={(e) => setShippingSettings(prev => ({...prev, costPerKmExtra: parseFloat(e.target.value)}))} className="bg-white/5 border-white/10 h-12 text-brand-magenta font-bold text-lg" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Taxa Fixa Padrão (Sem GPS)</label>
+                          <Input type="number" value={shippingSettings.fallbackFlatRate} onChange={(e) => setShippingSettings(prev => ({...prev, fallbackFlatRate: parseFloat(e.target.value)}))} className="bg-white/5 border-white/10 h-12 text-white" />
+                        </div>
+                     </div>
+                   </div>
+                </div>
+
+                {/* Map Visualization */}
+                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl mt-6">
+                   <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><MapPin size={20} className="text-brand-neon" /> Visualização do Centro Operacional</h3>
+                   <div className="w-full h-[500px] rounded-2xl overflow-hidden border border-white/10 relative bg-black">
+                     {/* Interactive Map loading OpenStreetMap visually with native Leaflet logic inside a pure iframe or robust JS to prevent extra library requirements */}
+                     <iframe 
+                       width="100%" 
+                       height="100%" 
+                       frameBorder="0" 
+                       srcDoc={`
+                         <!DOCTYPE html>
+                         <html>
+                           <head>
+                             <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                             <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                             <style>
+                               body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #fff; }
+                               #map { height: 100%; width: 100%; }
+                             </style>
+                           </head>
+                           <body>
+                             <div id="map"></div>
+                             <script>
+                               var map = L.map('map', {zoomControl: true}).setView([${shippingSettings.baseLat}, ${shippingSettings.baseLng}], 12);
+                               L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                 maxZoom: 19,
+                                 attribution: '© OpenStreetMap'
+                               }).addTo(map);
+                               
+                               // Add marker for HQ
+                               var circleIcon = L.divIcon({
+                                 className: 'custom-div-icon',
+                                 html: "<div style='background-color:#14f195;width:12px;height:12px;border-radius:50%;border:2px solid #000;box-shadow:0 0 10px #14f195;'></div>",
+                                 iconSize: [12, 12],
+                                 iconAnchor: [6, 6]
+                               });
+                               L.marker([${shippingSettings.baseLat}, ${shippingSettings.baseLng}], {icon: circleIcon}).addTo(map);
+
+                               // Add Radius Circle
+                               L.circle([${shippingSettings.baseLat}, ${shippingSettings.baseLng}], {
+                                 color: '#14f195',
+                                 fillColor: '#14f195',
+                                 fillOpacity: 0.1,
+                                 weight: 2,
+                                 radius: ${shippingSettings.freeRadiusKm} * 1000
+                               }).addTo(map);
+                             </script>
+                           </body>
+                         </html>
+                       `}
+                       className="absolute inset-0"
+                     ></iframe>
+
+                     <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md border border-brand-neon/30 text-white text-xs font-bold px-4 py-2 rounded-xl flex flex-col shadow-[0_0_20px_rgba(20,241,149,0.3)] z-20 pointer-events-none">
+                       <span className="text-brand-neon uppercase tracking-widest text-[9px] mb-1">Zona de Cobertura Principal</span>
+                       Raio Gratuito Visível: {shippingSettings.freeRadiusKm} KM
+                     </div>
                    </div>
                 </div>
               </div>
@@ -1614,7 +2142,7 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="mb-8">
                   <h2 className="text-3xl font-extrabold text-white tracking-tight mb-2 flex items-center gap-3">
-                    <Sparkles className="text-brand-magenta" /> AetherLabs AI Hub
+                    <Sparkles className="text-brand-magenta" /> Hardware Sale AI Hub
                   </h2>
                   <p className="text-gray-400">Métricas de uso e telemetria da Amani AI.</p>
                 </div>
@@ -1666,6 +2194,143 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                       <div className="text-center text-gray-500 py-8">Nenhum registro de uso da IA encontrado.</div>
                     )}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB: AI STUDIO --- */}
+            {activeTab === 'ai-studio' && (
+              <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 h-[calc(100vh-100px)] flex flex-col">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#0a0a14] border border-white/5 rounded-t-[2rem] p-6 shadow-2xl relative overflow-hidden shrink-0">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-brand-neon/10 blur-[100px] rounded-full pointer-events-none"></div>
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500 tracking-tight flex items-center gap-3">
+                      <Bot className="text-brand-neon w-8 h-8 drop-shadow-[0_0_15px_rgba(20,241,149,0.8)]" /> Amani AI Studio
+                    </h2>
+                    <p className="text-gray-400 font-medium text-sm mt-1">Chatbot Multimodal Vertex (Texto, Nano Banana 2 Pro, Veo 3.1)</p>
+                  </div>
+                  <div className="relative z-10 flex gap-2 bg-black/50 p-1 rounded-xl border border-white/10">
+                    <button onClick={() => setStudioActiveModel('text')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${studioActiveModel === 'text' ? 'bg-white text-black' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                      <MessageSquare size={14} /> Texto
+                    </button>
+                    <button onClick={() => setStudioActiveModel('image')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${studioActiveModel === 'image' ? 'bg-brand-neon text-black' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                      <ImageIcon size={14} /> Imagem
+                    </button>
+                    <button onClick={() => setStudioActiveModel('video')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${studioActiveModel === 'video' ? 'bg-brand-magenta text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                      <Video size={14} /> Vídeo
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 bg-[#050510] border-x border-white/5 overflow-y-auto p-6 space-y-6 custom-scrollbar relative flex flex-col justify-end">
+                   <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a14] to-transparent pointer-events-none h-32"></div>
+                   <div className="flex flex-col justify-end gap-6 min-h-full">
+                     {studioMessages.map((msg, idx) => (
+                       <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2`}>
+                         {msg.role === 'assistant' && (
+                           <div className="w-10 h-10 rounded-2xl bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center shrink-0 mr-4 mt-1 shadow-[0_0_15px_rgba(20,241,149,0.1)]">
+                             <Bot className="w-5 h-5 text-brand-neon" />
+                           </div>
+                         )}
+                         <div className={`max-w-[80%] flex flex-col gap-3 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                           {msg.content && (
+                             <div className={`px-6 py-4 text-sm leading-relaxed font-medium ${
+                               msg.role === 'user' 
+                                 ? 'bg-white text-black rounded-[2rem] rounded-tr-sm shadow-[0_10px_30px_rgba(255,255,255,0.1)]' 
+                                 : 'bg-white/5 border border-white/10 text-gray-300 rounded-[2rem] rounded-tl-sm shadow-inner prose prose-invert prose-sm max-w-none'
+                             }`}>
+                               {msg.role === 'user' ? msg.content : <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>}
+                             </div>
+                           )}
+                           
+                           {msg.mediaUrl && (
+                             <div className={`rounded-2xl overflow-hidden border border-white/10 shadow-2xl relative group ${msg.role === 'user' ? 'max-w-[200px]' : 'max-w-[400px]'}`}>
+                               {msg.mediaType === 'video' ? (
+                                 <video src={msg.mediaUrl} controls autoPlay muted loop className="w-full h-auto" />
+                               ) : (
+                                 <img src={msg.mediaUrl} alt="Media" className="w-full h-auto cursor-zoom-in" onClick={() => setPreviewImage(msg.mediaUrl!)} />
+                               )}
+                               {msg.role === 'assistant' && (
+                                 <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                   {msg.mediaType === 'image' ? <ImageIcon size={12} className="text-brand-neon"/> : <Video size={12} className="text-brand-magenta"/>}
+                                   {msg.mediaType === 'image' ? 'Nano Banana 2 Pro' : 'Veo 3.1'}
+                                 </div>
+                               )}
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                     ))}
+                     
+                     {studioLoading && (
+                       <div className="flex justify-start items-center gap-4">
+                          <div className="w-10 h-10 rounded-2xl bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(20,241,149,0.1)]">
+                             <Bot className="w-5 h-5 text-brand-neon animate-pulse" />
+                          </div>
+                          <div className="bg-white/5 border border-white/10 rounded-[2rem] rounded-tl-sm px-6 py-4 flex items-center gap-3 shadow-inner">
+                            <span className="w-2 h-2 bg-brand-neon rounded-full animate-bounce"></span>
+                            <span className="w-2 h-2 bg-brand-magenta rounded-full animate-bounce delay-75"></span>
+                            <span className="w-2 h-2 bg-white rounded-full animate-bounce delay-150"></span>
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-2">Sintetizando...</span>
+                          </div>
+                       </div>
+                     )}
+                   </div>
+                </div>
+
+                <div className="bg-[#0a0a14] border border-white/5 rounded-b-[2rem] p-6 shrink-0 relative z-10">
+                   {studioAttachment && (
+                     <div className="mb-4 flex items-center gap-3 bg-white/5 border border-white/10 p-3 rounded-2xl w-fit">
+                       <div className="w-12 h-12 rounded-xl overflow-hidden bg-black flex items-center justify-center border border-white/10 relative group">
+                         <img src={studioAttachment} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+                         <button onClick={() => setStudioAttachment(null)} className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                           <Trash2 size={16} className="text-red-400" />
+                         </button>
+                       </div>
+                       <div className="text-xs font-medium text-gray-400">Ficheiro anexado pronto para processamento.</div>
+                     </div>
+                   )}
+                   
+                   <form onSubmit={handleStudioSubmit} className="relative flex items-end gap-3 bg-black/50 backdrop-blur-xl border border-white/10 rounded-[2rem] p-2 focus-within:border-brand-neon/50 focus-within:bg-black/80 transition-all shadow-inner group">
+                     <label className="w-12 h-12 rounded-full hover:bg-white/10 flex items-center justify-center text-gray-500 hover:text-brand-neon cursor-pointer transition-colors shrink-0 mb-1">
+                       <Paperclip size={20} />
+                       <input 
+                         type="file" 
+                         accept="image/*" 
+                         className="hidden" 
+                         onChange={async (e) => {
+                           if(e.target.files && e.target.files[0]) {
+                             const b64 = await processImage(e.target.files[0]);
+                             setStudioAttachment(b64);
+                           }
+                         }} 
+                       />
+                     </label>
+                     <textarea 
+                       value={studioInput}
+                       onChange={e => setStudioInput(e.target.value)}
+                       placeholder={studioActiveModel === 'text' ? 'Digite uma mensagem para a Amani...' : `Descreva o ${studioActiveModel === 'image' ? 'render da imagem' : 'vídeo'} que deseja gerar...`}
+                       className="flex-1 bg-transparent border-0 text-white placeholder:text-gray-500 py-4 focus:outline-none focus:ring-0 text-sm font-medium resize-none max-h-32 min-h-[56px] custom-scrollbar"
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter' && !e.shiftKey) {
+                           e.preventDefault();
+                           handleStudioSubmit(e as any);
+                         }
+                       }}
+                     />
+                     <button 
+                       type="submit" 
+                       disabled={studioLoading || (!studioInput.trim() && !studioAttachment)} 
+                       className="w-14 h-14 rounded-full bg-brand-neon text-black hover:bg-brand-magenta hover:text-white transition-all disabled:opacity-50 disabled:bg-white/10 disabled:text-gray-500 flex items-center justify-center shrink-0 mb-0.5 shadow-[0_0_15px_rgba(168,85,247,0.4)] disabled:shadow-none"
+                     >
+                       {studioLoading ? <Loader2 size={24} className="animate-spin" /> : <ArrowUp size={24} strokeWidth={3} />}
+                     </button>
+                   </form>
+                   <div className="text-center mt-4">
+                     <span className="text-[10px] font-bold text-gray-600 tracking-widest uppercase">
+                       {studioActiveModel === 'text' ? 'Vertex AI Text Engine' : studioActiveModel === 'image' ? 'Vertex AI Vision (Nano Banana 2 Pro)' : 'Vertex AI Video (Veo 3.1)'}
+                     </span>
+                   </div>
                 </div>
               </div>
             )}

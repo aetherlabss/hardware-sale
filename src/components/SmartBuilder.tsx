@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { usePCBuilder, ComponentItem } from '../hooks/usePCBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { ShoppingCart, AlertTriangle, Lightbulb, CheckCircle2, Settings, Cpu, Loader2, Sparkles, Mic } from 'lucide-react';
+import { ShoppingCart, AlertTriangle, Lightbulb, CheckCircle2, Settings, Cpu, Loader2, Sparkles, Mic, Bot } from 'lucide-react';
 import { useCart } from '../store/useCart';
+import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
 import { GoogleGenAI } from '@google/genai';
 import { logAetherLabsUsage } from '../lib/aiTracking';
@@ -12,12 +13,14 @@ import remarkGfm from 'remark-gfm';
 
 export function SmartBuilder() {
   const {
-    mockComponents,
+    allComponents,
+    compatibleMotherboards,
+    compatibleCPUs,
+    compatibleRAMs,
     selections,
     setters,
     totalPrice,
     totalWattage,
-    recommendedMotherboards,
     psuWarning,
     smartUpsell
   } = usePCBuilder();
@@ -28,6 +31,8 @@ export function SmartBuilder() {
   const [aiFeedback, setAiFeedback] = useState<string | null>(null);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [stockFilter, setStockFilter] = useState<'Todos' | 'stock' | 'encomenda'>('Todos');
+  const { products } = useStore();
 
   const handleVoiceCommand = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -47,7 +52,7 @@ export function SmartBuilder() {
         const ai = new GoogleGenAI({ apiKey, vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any });
         const prompt = `O utilizador usou o comando de voz no Smart Builder: "${transcript}".
 Analise o catálogo disponível e monte a melhor máquina para este pedido.
-Catálogo: ${mockComponents.map(c => `${c.id}: ${c.name} (${c.priceMT} MT)`).join(', ')}
+Catálogo: ${allComponents.map(c => `${c.id}: ${c.name} (${c.priceMT} MT)`).join(', ')}
 Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
 { "motherboard": "id", "cpu": "id", "ram": "id", "storage": "id", "cooler": "id", "gpu": "id", "psu": "id", "case": "id", "fans": "id" }`;
         const startTime = performance.now();
@@ -57,15 +62,15 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
         logAetherLabsUsage(endTime - startTime, prompt, text, res.usageMetadata?.totalTokenCount || Math.ceil(text.length / 4));
         const jsonStr = text.replace(/```json\n/g, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(jsonStr);
-        if (parsed.motherboard) setters.setSelectedMotherboard(mockComponents.find(c => c.id === parsed.motherboard) || null);
-        if (parsed.cpu) setters.setSelectedCPU(mockComponents.find(c => c.id === parsed.cpu) || null);
-        if (parsed.ram) setters.setSelectedRAM(mockComponents.find(c => c.id === parsed.ram) || null);
-        if (parsed.storage) setters.setSelectedStorage(mockComponents.find(c => c.id === parsed.storage) || null);
-        if (parsed.cooler) setters.setSelectedCooler(mockComponents.find(c => c.id === parsed.cooler) || null);
-        if (parsed.gpu) setters.setSelectedGPU(mockComponents.find(c => c.id === parsed.gpu) || null);
-        if (parsed.psu) setters.setSelectedPSU(mockComponents.find(c => c.id === parsed.psu) || null);
-        if (parsed.case) setters.setSelectedCase(mockComponents.find(c => c.id === parsed.case) || null);
-        if (parsed.fans) setters.setSelectedFans(mockComponents.find(c => c.id === parsed.fans) || null);
+        if (parsed.motherboard) setters.setSelectedMotherboard(allComponents.find(c => c.id === parsed.motherboard) || null);
+        if (parsed.cpu) setters.setSelectedCPU(allComponents.find(c => c.id === parsed.cpu) || null);
+        if (parsed.ram) setters.setSelectedRAM(allComponents.find(c => c.id === parsed.ram) || null);
+        if (parsed.storage) setters.setSelectedStorage(allComponents.find(c => c.id === parsed.storage) || null);
+        if (parsed.cooler) setters.setSelectedCooler(allComponents.find(c => c.id === parsed.cooler) || null);
+        if (parsed.gpu) setters.setSelectedGPU(allComponents.find(c => c.id === parsed.gpu) || null);
+        if (parsed.psu) setters.setSelectedPSU(allComponents.find(c => c.id === parsed.psu) || null);
+        if (parsed.case) setters.setSelectedCase(allComponents.find(c => c.id === parsed.case) || null);
+        if (parsed.fans) setters.setSelectedFans(allComponents.find(c => c.id === parsed.fans) || null);
         setAiFeedback("Voz processada: Build montada automaticamente de acordo com o teu pedido!");
       } catch (err) {
         console.error(err);
@@ -86,6 +91,15 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
       selections.selectedPSU?.name
     ].filter(Boolean);
     if (parts.length < 2) { setAiFeedback(null); return; }
+    
+    const cacheKey = 'amani_build_cache_' + [...parts].sort().join('|');
+    const cachedResponse = localStorage.getItem(cacheKey);
+
+    if (cachedResponse) {
+      setAiFeedback(cachedResponse);
+      return;
+    }
+
     const timer = setTimeout(async () => {
       setIsAiThinking(true);
       try {
@@ -96,8 +110,10 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
         const startTime = performance.now();
         const res = await ai.models.generateContent({ model: "gemini-3.1-pro-preview", contents: prompt, config: { temperature: 0.6 } });
         const endTime = performance.now();
-        setAiFeedback(res.text || null);
-        logAetherLabsUsage(endTime - startTime, prompt, res.text || "");
+        const text = res.text || null;
+        setAiFeedback(text);
+        if (text) localStorage.setItem(cacheKey, text);
+        logAetherLabsUsage(endTime - startTime, prompt, text || "");
       } catch (err) { console.error(err); } finally { setIsAiThinking(false); }
     }, 1500);
     return () => clearTimeout(timer);
@@ -143,13 +159,13 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
               className={`relative overflow-hidden p-5 rounded-[2rem] cursor-pointer border transition-all duration-300 group ${isSelected ? 'bg-brand-neon/10 border-brand-magenta shadow-[0_0_30px_rgba(168,85,247,0.15)] scale-[1.02]' : 'bg-black/40 border-white/5 hover:border-brand-neon/30 hover:bg-black/60 shadow-md'}`}
             >
               {isSelected && <div className="absolute top-0 right-0 w-32 h-32 bg-brand-magenta/10 blur-[40px] rounded-full pointer-events-none"></div>}
-              <div className="flex gap-4">
-                <div className="w-20 h-20 rounded-[1.2rem] overflow-hidden shrink-0 border border-white/5 opacity-90 group-hover:opacity-100 bg-white/5 shadow-inner">
-                  <img src={comp.image || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'} alt={comp.name}
-                    onError={(e) => console.error(`Failed to load image: ${comp.image}`, e)}
-                    className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500 p-2 mix-blend-lighten" />
-                </div>
-                <div className="flex-1 flex flex-col justify-center">
+                    <div className="flex gap-4">
+                      <div className="w-20 h-20 rounded-[1.2rem] overflow-hidden shrink-0 opacity-90 group-hover:opacity-100 bg-transparent">
+                        <img src={comp.image || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'} alt={comp.name}
+                          onError={(e) => console.error(`Failed to load image: ${comp.image}`, e)}
+                          className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500 p-2" />
+                      </div>
+                      <div className="flex-1 flex flex-col justify-center">
                   <span className="font-semibold text-gray-100 block mb-1 text-base leading-tight">{comp.name}</span>
                   <span className="text-brand-neon text-sm font-bold block">{comp.priceMT.toLocaleString()} MT</span>
                 </div>
@@ -205,6 +221,22 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
       <div className="text-center mb-16 relative">
         <h2 className="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tighter drop-shadow-2xl"><span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">Smart</span> Builder</h2>
         <p className="text-gray-400 max-w-2xl mx-auto text-lg font-medium tracking-wide leading-relaxed">Monte o sistema de sonho manualmente ou use a Amani Voice. O nosso algoritmo neural previne gargalos físicos e térmicos em tempo real.</p>
+        
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 animate-in fade-in zoom-in-95 duration-500">
+           {['Todos', 'Em Stock', 'Por Encomenda'].map((f, i) => {
+              const val = i === 0 ? 'Todos' : i === 1 ? 'stock' : 'encomenda';
+              return (
+                 <button 
+                    key={f}
+                    onClick={() => setStockFilter(val as any)}
+                    className={`px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded-full transition-all border ${stockFilter === val ? 'bg-brand-neon text-black border-brand-neon' : 'bg-transparent text-gray-500 border-white/10 hover:text-white'}`}
+                 >
+                    {f}
+                 </button>
+              )
+           })}
+        </div>
+
         <div className="mt-8 flex justify-center animate-in fade-in zoom-in-95 duration-700">
           <button onClick={handleVoiceCommand}
             className={`group relative flex items-center gap-4 px-8 py-4 rounded-full font-bold text-sm transition-all duration-500 shadow-[0_0_40px_rgba(168,85,247,0.3)] ${isListening ? 'bg-red-500 text-white scale-105 shadow-[0_0_60px_rgba(239,68,68,0.5)]' : 'bg-[#110e1b] border border-brand-neon/30 hover:bg-brand-neon hover:text-black text-brand-neon'}`}
@@ -220,15 +252,15 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
         <div className="xl:col-span-8 space-y-4">
-          {renderComponentSelect('1. Motherboard (Placa-Mãe)', mockComponents.filter(c => c.type === 'motherboard'), selections.selectedMotherboard, setters.setSelectedMotherboard)}
-          {renderComponentSelect('2. CPU (Processador)', mockComponents.filter(c => c.type === 'cpu'), selections.selectedCPU, setters.setSelectedCPU)}
-          {renderComponentSelect('3. RAM (Memória)', mockComponents.filter(c => c.type === 'ram'), selections.selectedRAM, setters.setSelectedRAM)}
-          {renderComponentSelect('4. Armazenamento', mockComponents.filter(c => c.type === 'storage'), selections.selectedStorage, setters.setSelectedStorage)}
-          {renderComponentSelect('5. CPU Cooler', mockComponents.filter(c => c.type === 'cooler'), selections.selectedCooler, setters.setSelectedCooler)}
-          {renderComponentSelect('6. GPU (Placa Gráfica)', mockComponents.filter(c => c.type === 'gpu'), selections.selectedGPU, setters.setSelectedGPU)}
-          {renderComponentSelect('7. Fonte de Alimentação', mockComponents.filter(c => c.type === 'psu'), selections.selectedPSU, setters.setSelectedPSU)}
-          {renderComponentSelect('8. Case (Gabinete)', mockComponents.filter(c => c.type === 'case'), selections.selectedCase, setters.setSelectedCase)}
-          {renderComponentSelect('9. Fans (Ventoinhas)', mockComponents.filter(c => c.type === 'fans'), selections.selectedFans, setters.setSelectedFans)}
+          {renderComponentSelect('1. Motherboard (Placa-Mãe)', compatibleMotherboards.filter(c => (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedMotherboard, setters.setSelectedMotherboard)}
+          {renderComponentSelect('2. CPU (Processador)', compatibleCPUs.filter(c => (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedCPU, setters.setSelectedCPU)}
+          {renderComponentSelect('3. RAM (Memória)', compatibleRAMs.filter(c => (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedRAM, setters.setSelectedRAM)}
+          {renderComponentSelect('4. Armazenamento', allComponents.filter(c => c.type === 'storage' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedStorage, setters.setSelectedStorage)}
+          {renderComponentSelect('5. CPU Cooler', allComponents.filter(c => c.type === 'cooler' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedCooler, setters.setSelectedCooler)}
+          {renderComponentSelect('6. GPU (Placa Gráfica)', allComponents.filter(c => c.type === 'gpu' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedGPU, setters.setSelectedGPU)}
+          {renderComponentSelect('7. Fonte de Alimentação', allComponents.filter(c => c.type === 'psu' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedPSU, setters.setSelectedPSU)}
+          {renderComponentSelect('8. Case (Gabinete)', allComponents.filter(c => c.type === 'case' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedCase, setters.setSelectedCase)}
+          {renderComponentSelect('9. Fans (Ventoinhas)', allComponents.filter(c => c.type === 'fans' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedFans, setters.setSelectedFans)}
 
           <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <h4 className="flex items-center gap-3 text-sm font-semibold text-gray-300 uppercase tracking-widest mb-6">
@@ -238,7 +270,7 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
               Periféricos Opcionais
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {mockComponents.filter(c => c.type === 'peripheral').map(comp => {
+              {allComponents.filter(c => c.type === 'peripheral' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)).map(comp => {
                 const isSelected = selections.selectedPeripherals.some(p => p.id === comp.id);
                 return (
                   <div key={comp.id}
@@ -250,8 +282,8 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                   >
                     {isSelected && <div className="absolute top-0 right-0 w-32 max-w-[100vw] h-32 bg-brand-neon/10 blur-[40px] rounded-full pointer-events-none"></div>}
                     <div className="flex gap-4">
-                      <div className="w-20 h-20 rounded-[1.2rem] overflow-hidden shrink-0 border border-white/5 opacity-90 group-hover:opacity-100 bg-white/5 shadow-inner">
-                        <img src={comp.image} alt={comp.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500 p-2 mix-blend-lighten" />
+                      <div className="w-20 h-20 rounded-[1.2rem] overflow-hidden shrink-0 opacity-90 group-hover:opacity-100 bg-transparent">
+                        <img src={comp.image} alt={comp.name} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500 p-2" />
                       </div>
                       <div className="flex-1 flex flex-col justify-center">
                         <span className="font-semibold text-gray-100 block mb-1 text-base leading-tight">{comp.name}</span>
@@ -324,22 +356,24 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                     <p className="font-medium leading-relaxed">{psuWarning}</p>
                   </div>
                 )}
-                <div className="bg-gradient-to-br from-brand-neon/10 to-brand-magenta/5 border border-brand-neon/30 p-5 rounded-[1.5rem] flex flex-col gap-3 shadow-[0_0_20px_rgba(168,85,247,0.1)] relative overflow-hidden">
+                <div className={`bg-gradient-to-br border p-5 rounded-[1.5rem] flex flex-col gap-3 shadow-[0_0_20px_rgba(168,85,247,0.1)] relative overflow-hidden transition-colors duration-500 ${
+                  aiFeedback && aiFeedback.toLowerCase().includes('incompatível') ? 'from-red-500/10 to-red-900/10 border-red-500/30' : 'from-brand-neon/10 to-brand-magenta/5 border-brand-neon/30'
+                }`}>
                   <div className="absolute top-0 right-0 w-32 h-32 bg-brand-magenta/10 blur-[40px] rounded-full pointer-events-none"></div>
                   <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-brand-neon" />
-                      <span className="font-bold text-white text-sm">Amani 3 <span className="text-[9px] ml-2 text-brand-neon bg-brand-neon/20 px-2 py-0.5 rounded-full">Powered by AetherLabs</span></span>
+                      {aiFeedback && aiFeedback.toLowerCase().includes('incompatível') ? <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" /> : <Bot className="w-5 h-5 text-brand-neon" />}
+                      <span className="font-bold text-white text-sm">Hardware Sale Validator</span>
                     </div>
                     {isAiThinking && <Loader2 className="w-4 h-4 text-brand-magenta animate-spin" />}
                   </div>
-                  <div className="text-gray-300 text-sm font-medium leading-relaxed relative z-10 min-h-[40px] prose prose-invert max-w-none prose-p:my-1 prose-strong:text-brand-neon">
+                  <div className="text-gray-300 text-sm font-medium leading-relaxed relative z-10 min-h-[40px] prose prose-invert max-w-none prose-p:my-1 prose-strong:text-white">
                     {isAiThinking ? (
-                      <span className="text-brand-neon/70 animate-pulse">A analisar sinergias perfeitas na Matrix...</span>
+                      <span className="text-brand-neon/70 animate-pulse">Neural Engine a validar as especificações cruzadas...</span>
                     ) : aiFeedback ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiFeedback}</ReactMarkdown>
                     ) : (
-                      <p>Selecione componentes chave (CPU, GPU, Placa-Mãe) para receber feedback de compatibilidade e performance da inteligência Matrix.</p>
+                      <p>Adicione componentes (CPU, Board, RAM) e a Matriz fará a triagem de gargalos e compatibilidade em tempo real de forma indetetável.</p>
                     )}
                   </div>
                 </div>
@@ -349,6 +383,7 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                     <p className="font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: smartUpsell.replace('Hardware Sale Tips', '<b class="text-brand-magenta">Hardware Sale Tips</b>') }}></p>
                   </div>
                 )}
+                
               </div>
 
               <Button

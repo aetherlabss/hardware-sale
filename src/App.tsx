@@ -16,6 +16,7 @@ function AnalyticsTracker({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     logEvent('pageview', location.pathname);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); // Scroll to top on navigation
   }, [location]);
 
   return <>{children}</>;

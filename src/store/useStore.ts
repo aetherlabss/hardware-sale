@@ -7,6 +7,7 @@ interface Product {
   name: string;
   price: number;
   category: string;
+  subCategory?: string;
   status?: string;
   image?: string;
   images: string[];
@@ -29,9 +30,9 @@ export const useStore = create<StoreState>((set) => {
     loadingProducts: true,
     initProducts: () => {
       if (unsub) return;
-      const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+      const q = collection(db, 'products');
       unsub = onSnapshot(q, (snapshot) => {
-        const prod = snapshot.docs.map(doc => {
+        let prod = snapshot.docs.map(doc => {
           const data = doc.data();
           return {
             id: doc.id,
@@ -39,6 +40,10 @@ export const useStore = create<StoreState>((set) => {
             image: data.images ? data.images[0] : ''
           } as Product;
         });
+        
+        // Sort by creation time manually as we might not have firestore indexes setup
+        prod.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        
         set({ products: prod, loadingProducts: false });
       }, (error) => {
         // Fall back silent here, might happen if rules not satisfied or offline fully

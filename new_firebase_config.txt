@@ -1,0 +1,11 @@
+{
+  "projectId": "hardware-sale",
+  "appId": "1:655450180472:web:0956778453eac1ab5fd68d",
+  "storageBucket": "hardware-sale.firebasestorage.app",
+  "apiKey": "AIzaSyBIMZisT2zXWYfEIAwJjhPxWuQLNJE5qrk",
+  "authDomain": "hardware-sale.firebaseapp.com",
+  "messagingSenderId": "655450180472",
+  "measurementId": "G-68F3R1NMT6",
+  "projectNumber": "655450180472",
+  "version": "2"
+}
