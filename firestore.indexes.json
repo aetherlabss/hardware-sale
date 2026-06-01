@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "checkouts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "sessionId",  "order": "ASCENDING" },
+        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "checkouts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "customerPhone", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",     "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

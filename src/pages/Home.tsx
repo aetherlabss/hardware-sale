@@ -13,6 +13,7 @@ gsap.registerPlugin(useGSAP, ScrollTrigger);
 export function Home() {
   const container = useRef<HTMLDivElement>(null);
   const testimonialsRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeftStart, setScrollLeftStart] = useState(0);
@@ -47,7 +48,27 @@ export function Home() {
     }
   }, []);
 
+  const handleTilt = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const cx = rect.width / 2, cy = rect.height / 2;
+    const rotX = ((e.clientY - rect.top - cy) / cy) * -10;
+    const rotY = ((e.clientX - rect.left - cx) / cx) * 10;
+    gsap.to(el, { rotateX: rotX, rotateY: rotY, transformPerspective: 800, ease: 'power2.out', duration: 0.3, scale: 1.03 });
+  }, []);
+
+  const handleTiltLeave = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    gsap.to(e.currentTarget, { rotateX: 0, rotateY: 0, scale: 1, duration: 0.6, ease: 'elastic.out(1,0.7)' });
+  }, []);
+
   useGSAP(() => {
+    const moveCursor = (e: MouseEvent) => {
+      if (cursorRef.current) {
+        gsap.to(cursorRef.current, { x: e.clientX, y: e.clientY, duration: 0.6, ease: 'power3.out' });
+      }
+    };
+    window.addEventListener('mousemove', moveCursor);
+
     const tl = gsap.timeline();
     
     // Epic God-Level Intro Animation
@@ -65,7 +86,7 @@ export function Home() {
       { y: 0, opacity: 1, filter: "blur(0px)", duration: 1, ease: 'power3.out' },
       "-=1"
     )
-    .fromTo('.hero-actions button', 
+    .fromTo('.hero-actions > *', 
       { y: 50, opacity: 0, scale: 0.9 },
       { y: 0, opacity: 1, scale: 1, duration: 0.8, stagger: 0.15, ease: 'back.out(1.5)' },
       "-=0.6"
@@ -77,49 +98,78 @@ export function Home() {
     );
 
     gsap.to('.scroll-indicator', {
-      y: 10,
+      y: 12,
       duration: 1.5,
       repeat: -1,
       yoyo: true,
       ease: 'sine.inOut'
     });
 
+    gsap.to('.parallax-blob-1', {
+      y: -200, ease: 'none',
+      scrollTrigger: { trigger: 'body', start: 'top top', end: 'bottom bottom', scrub: 2 }
+    });
+    gsap.to('.parallax-blob-2', {
+      y: -120, x: 60, ease: 'none',
+      scrollTrigger: { trigger: 'body', start: 'top top', end: 'bottom bottom', scrub: 1.5 }
+    });
+
     gsap.utils.toArray('.fade-in-section').forEach((section: any) => {
-      gsap.fromTo(section, 
-        { y: 80, opacity: 0, scale: 0.95 },
+      gsap.fromTo(section,
+        { y: 100, opacity: 0, scale: 0.94, rotateX: 6 },
         {
-          scrollTrigger: {
-            trigger: section,
-            start: 'top 85%',
-            end: 'top 50%',
-            scrub: 1
-          },
-          y: 0,
-          opacity: 1,
-          scale: 1,
-          ease: 'power1.out'
+          scrollTrigger: { trigger: section, start: 'top 88%', end: 'top 55%', scrub: 1 },
+          y: 0, opacity: 1, scale: 1, rotateX: 0, ease: 'power2.out',
+          transformPerspective: 1000, transformOrigin: 'center top'
         }
       );
     });
 
-    gsap.fromTo('.stats-grid div', 
-      { y: 50, opacity: 0 },
-      {
-        scrollTrigger: {
-          trigger: '.stats-section',
-          start: 'top 75%'
-        },
-        y: 0,
-        opacity: 1,
-        stagger: 0.1,
-        duration: 0.8,
-        ease: 'back.out(1.2)'
-      }
-    );
+    gsap.utils.toArray('.stagger-card').forEach((card: any, i: number) => {
+      gsap.fromTo(card,
+        { y: 80, opacity: 0, scale: 0.88 },
+        {
+          scrollTrigger: { trigger: card, start: 'top 92%' },
+          y: 0, opacity: 1, scale: 1, duration: 0.9, delay: i * 0.12, ease: 'back.out(1.6)'
+        }
+      );
+    });
+
+    gsap.utils.toArray('.stat-number').forEach((el: any) => {
+      const target = parseFloat(el.dataset.target);
+      const isFloat = el.dataset.target?.includes('.');
+      const suffix = el.dataset.suffix || '';
+      ScrollTrigger.create({
+        trigger: el, start: 'top 85%',
+        onEnter: () => {
+          const obj = { val: 0 };
+          gsap.to(obj, { val: target, duration: 2.2, ease: 'power2.out',
+            onUpdate: () => { el.textContent = (isFloat ? obj.val.toFixed(1) : Math.round(obj.val)) + suffix; }
+          });
+        }
+      });
+    });
+
+    gsap.utils.toArray('.split-reveal').forEach((el: any) => {
+      gsap.fromTo(el,
+        { clipPath: 'inset(0 100% 0 0)', opacity: 0 },
+        { clipPath: 'inset(0 0% 0 0)', opacity: 1, duration: 1.2, ease: 'power4.out',
+          scrollTrigger: { trigger: el, start: 'top 85%' } }
+      );
+    });
+
+    return () => window.removeEventListener('mousemove', moveCursor);
   }, { scope: container });
 
   return (
     <div ref={container} className="pb-20 relative bg-transparent perspective-1000">
+      {/* Cursor Glow */}
+      <div ref={cursorRef} className="cursor-glow hidden md:block" />
+
+      {/* Parallax Background Blobs */}
+      <div className="parallax-blob-1 fixed top-[-20vh] left-[10%] w-[600px] h-[600px] bg-brand-neon/10 blur-[140px] rounded-full pointer-events-none z-0" />
+      <div className="parallax-blob-2 fixed top-[30vh] right-[5%] w-[400px] h-[400px] bg-brand-magenta/8 blur-[120px] rounded-full pointer-events-none z-0" />
+
       {/* Hero Section */}
       <section className="relative min-h-[95vh] flex flex-col items-center justify-center overflow-hidden">
         <Hero3D />
@@ -130,16 +180,16 @@ export function Home() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-neon opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-neon"></span>
             </span>
-            <span className="text-xs font-bold text-white tracking-widest uppercase">Hardware de Luxo em Moçambique</span>
+            <span className="text-xs font-bold text-white tracking-widest uppercase">Hardware de Elite — Moçambique</span>
           </div>
 
           <h1 className="text-6xl md:text-8xl lg:text-[10rem] font-extrabold tracking-tighter leading-[0.85] mb-8 text-center drop-shadow-2xl flex flex-col" style={{ perspective: '1000px' }}>
-            <span className="hero-title-word block text-white">HARDWARE</span>
+            <span className="hero-title-word block text-white glitch-text" data-text="HARDWARE">HARDWARE</span>
             <span className="hero-title-word block text-transparent bg-clip-text bg-gradient-to-r from-brand-neon via-brand-magenta to-brand-neon bg-[length:200%_auto] animate-gradient pb-2">SUPREMO</span>
           </h1>
           
           <p className="hero-subtitle text-lg md:text-2xl text-gray-400 max-w-2xl font-medium mb-12 flex-col leading-relaxed tracking-wide">
-            Sistemas High-End forjados à mão.<br/>Redefinindo o padrão de performance e luxo tecnológico em <span className="text-white font-bold">Moçambique</span>.
+            Máquinas de guerra, forjadas à perfeição.<br/>O hardware mais poderoso do mundo, agora em <span className="text-white font-bold">Moçambique</span>.
           </p>
           
           <div className="hero-actions flex flex-col sm:flex-row gap-6">
@@ -182,26 +232,27 @@ export function Home() {
             { name: 'AMD', customUrl: 'https://cdn.simpleicons.org/amd/ED1C24' },
             { name: 'Intel', customUrl: 'https://cdn.simpleicons.org/intel/0071C5' },
             { name: 'ASUS', customUrl: 'https://cdn.simpleicons.org/asus/FFFFFF' },
-            { name: 'ROG', customUrl: 'https://upload.wikimedia.org/wikipedia/commons/3/37/Republic_Of_Gamers_Logo.svg' },
+            { name: 'ROG', customUrl: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/republicofgamers.svg' },
             { name: 'MSI', customUrl: 'https://cdn.simpleicons.org/msi/FF0000' },
-            { name: 'AORUS', customUrl: 'https://upload.wikimedia.org/wikipedia/en/2/24/Aorus_logo.svg' },
+            { name: 'AORUS', customUrl: 'https://www.google.com/s2/favicons?sz=128&domain=aorus.com' },
             { name: 'Corsair', customUrl: 'https://cdn.simpleicons.org/corsair/FFFFFF' },
             { name: 'Razer', customUrl: 'https://cdn.simpleicons.org/razer/00FF00' },
-            { name: 'Logitech G', customUrl: 'https://cdn.simpleicons.org/logitechg/00B8FC' },
+            { name: 'Logitech G', customUrl: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/logitechg.svg' },
             { name: 'SteelSeries', customUrl: 'https://cdn.simpleicons.org/steelseries/FFFFFF' },
             { name: 'Samsung', customUrl: 'https://cdn.simpleicons.org/samsung/1428A0' },
             { name: 'Kingston', customUrl: 'https://cdn.simpleicons.org/kingstontechnology/FF0000' },
             { name: 'NZXT', customUrl: 'https://cdn.simpleicons.org/nzxt/FFFFFF' },
-            { name: 'Gigabyte', customUrl: 'https://cdn.simpleicons.org/gigabyte/FFFFFF' },
-            { name: 'Fractal', customUrl: 'https://www.fractal-design.com/wp-content/themes/fractal/assets/img/logo.svg' },
-            { name: 'Lian Li', customUrl: 'https://lian-li.com/wp-content/uploads/2021/01/logo.png' },
-            { name: 'be quiet!', customUrl: 'https://cdn.simpleicons.org/bequiet/FFFFFF' },
+            { name: 'Gigabyte', customUrl: 'https://upload.wikimedia.org/wikipedia/commons/d/d5/Gigabyte_Technology_Logo.svg' },
+            { name: 'Fractal', customUrl: 'https://www.google.com/s2/favicons?sz=128&domain=fractal-design.com' },
+            { name: 'Lian Li', customUrl: 'https://www.google.com/s2/favicons?sz=128&domain=lian-li.com' },
+            { name: 'be quiet!', customUrl: 'https://www.google.com/s2/favicons?sz=128&domain=bequiet.com' },
             { name: 'DeepCool', customUrl: 'https://cdn.simpleicons.org/deepcool/FFFFFF' },
-            { name: 'EVGA', customUrl: 'https://cdn.simpleicons.org/evga/FFFFFF' },
-            { name: 'Seasonic', customUrl: 'https://seasonic.com/wp-content/themes/seasonic/assets/images/logo.svg' },
-            { name: 'G.Skill', customUrl: 'https://cdn.simpleicons.org/gskill/FFFFFF' },
+            { name: 'EVGA', customUrl: 'https://upload.wikimedia.org/wikipedia/commons/e/e9/EVGA_Logo.svg' },
+            { name: 'Seasonic', customUrl: 'https://www.google.com/s2/favicons?sz=128&domain=seasonic.com' },
+            { name: 'G.Skill', customUrl: 'https://www.google.com/s2/favicons?sz=128&domain=gskill.com' },
             { name: 'Cooler Master', customUrl: 'https://cdn.simpleicons.org/coolermaster/FFFFFF' },
-            { name: 'WD', customUrl: 'https://cdn.simpleicons.org/westerndigital/FFFFFF' },
+            { name: 'WD', customUrl: 'https://cdn.jsdelivr.net/npm/simple-icons@v11/icons/westerndigital.svg' },
+            { name: 'Marvo', customUrl: 'https://www.google.com/s2/favicons?sz=128&domain=marvo-tech.com' },
           ];
 
           const marqueeContent = brands.map((brand, i) => (
@@ -396,7 +447,11 @@ export function Home() {
               { name: "Ricardo B.", role: "Streamer Pro", text: "Setup de streaming 4K60 montado em tempo recorde. A Amani AI recomendou-me a combinação perfeita de componentes." },
               { name: "Fátima N.", role: "Engenheira de Software", text: "Compilar código em segundos em vez de minutos. Investimento que se paga a cada deploy. Hardware Sale é nível diferente." },
             ].map((test, i) => (
-              <div key={i} className="shrink-0 w-[85vw] max-w-[360px] md:w-[420px] md:max-w-none bg-white/5 border border-white/10 p-8 rounded-3xl hover:bg-white/10 hover:border-brand-neon/40 transition-all duration-500 group relative overflow-hidden backdrop-blur-md">
+              <div key={i}
+                onMouseMove={handleTilt}
+                onMouseLeave={handleTiltLeave}
+                className="stagger-card tilt-card card-shimmer shrink-0 w-[85vw] max-w-[360px] md:w-[420px] md:max-w-none bg-white/5 border border-white/10 p-8 rounded-3xl hover:border-brand-neon/40 transition-colors duration-500 group relative overflow-hidden backdrop-blur-md"
+              >
                 <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className="text-brand-neon"><path d="M14.017 21L16.41 14.174C16.666 13.435 16.8 12.639 16.8 11.804V3H24V11.804C24 15.652 22.846 18.739 20.538 21H14.017ZM1.25 21L3.642 14.174C3.898 13.435 4.027 12.639 4.027 11.804V3H11.227V11.804C11.227 15.652 10.073 18.739 7.765 21H1.25Z"/></svg>
                 </div>
@@ -420,25 +475,25 @@ export function Home() {
       </section>
 
       {/* Stats/Proof Section */}
-      <section className="w-full bg-black py-24 border-t border-white/5 relative z-10 overflow-hidden stats-section">
-         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] max-w-[100vw] h-[800px] bg-brand-neon/5 blur-[150px] rounded-full pointer-events-none"></div>
-         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-center relative z-10 stats-grid">
-            <div className="will-change-transform opacity-0">
-              <div className="text-5xl md:text-7xl font-bold text-white mb-2 tracking-tighter">70+</div>
+      <section className="w-full bg-black py-24 border-t border-white/5 relative z-10 overflow-hidden">
+         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] max-w-[100vw] h-[800px] bg-brand-neon/5 blur-[150px] rounded-full pointer-events-none" />
+         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-center relative z-10">
+            <div className="stagger-card">
+              <div className="stat-number text-5xl md:text-7xl font-bold text-white mb-2 tracking-tighter counter-number" data-target="70" data-suffix="+">70+</div>
               <div className="text-brand-magenta font-bold uppercase tracking-widest text-[10px]">Setups Entregues</div>
             </div>
-            <div className="will-change-transform opacity-0">
-              <div className="text-5xl md:text-7xl font-bold text-brand-neon mb-2 tracking-tighter">0%</div>
+            <div className="stagger-card">
+              <div className="stat-number text-5xl md:text-7xl font-bold text-brand-neon mb-2 tracking-tighter counter-number" data-target="0" data-suffix="%">0%</div>
               <div className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Taxa de RMA</div>
             </div>
-            <div className="will-change-transform opacity-0">
-              <div className="text-5xl md:text-7xl font-bold text-white mb-2 tracking-tighter hidden md:block">Tier 1</div>
-               <div className="text-5xl md:text-7xl font-bold text-white mb-2 tracking-tighter md:hidden">T1</div>
+            <div className="stagger-card">
+              <div className="text-5xl md:text-7xl font-bold text-white mb-2 tracking-tighter">Tier 1</div>
               <div className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Fornecedores</div>
             </div>
-            <div className="will-change-transform opacity-0">
+            <div className="stagger-card">
               <div className="text-5xl md:text-7xl font-bold text-white mb-2 tracking-tighter flex items-center justify-center gap-2">
-                4.9 <Star className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 fill-yellow-500" />
+                <span className="stat-number counter-number" data-target="4.9">4.9</span>
+                <Star className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 fill-yellow-500" />
               </div>
               <div className="text-gray-500 font-bold uppercase tracking-widest text-[10px]">Avaliação VIP</div>
             </div>

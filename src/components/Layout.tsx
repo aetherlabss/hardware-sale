@@ -1,5 +1,12 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Cpu, Package, Home as HomeIcon, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Cpu, Package, Home as HomeIcon, ChevronRight, MessageCircle, Mail, UserCircle2 } from 'lucide-react';
+
+const SOCIAL = {
+  whatsapp: 'https://wa.me/258840000000',
+  instagram: 'https://instagram.com/hardwaresalemz',
+  facebook: 'https://facebook.com/hardwaresalemz',
+  email: 'mailto:suporte@hardwaresale.co.mz',
+};
 import { useCart } from '../store/useCart';
 import { AmaniChat } from './AmaniChat';
 import { useEffect } from 'react';
@@ -20,10 +27,6 @@ export function Layout() {
   }, [location.pathname]);
 
   const cartItemCount = items.reduce((acc, item) => acc + item.quantity, 0);
-
-  const getLinkClass = (path: string) => {
-    return `text-sm font-bold uppercase tracking-wider transition-colors flex items-center gap-2 hover:text-white ${location.pathname === path ? 'text-brand-neon' : 'text-gray-400'}`;
-  };
 
   return (
     <div className="min-h-screen bg-[#050510] text-[#f8f8fc] font-sans flex flex-col selection:bg-brand-neon/30 selection:text-white">
@@ -56,7 +59,18 @@ export function Layout() {
             <Link to="/build-of-the-month" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/build-of-the-month' ? 'bg-white text-black rounded-lg md:rounded-xl font-extrabold shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'text-yellow-400 hover:text-white font-bold'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2 relative`}><span className="absolute -top-1 -right-1 flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span></span><span className="tracking-widest uppercase text-[10px]">BOM</span></Link>
           </div>
 
-          <div className="flex items-center gap-4 relative z-10 w-1/4 justify-end">
+          <div className="flex items-center gap-3 relative z-10 w-1/4 justify-end">
+            <Link
+              to="/hub"
+              aria-label="Minha Conta"
+              className={`p-2.5 rounded-full border transition-all ${
+                location.pathname === '/hub'
+                  ? 'bg-brand-neon/15 border-brand-neon/40 text-brand-neon shadow-[0_0_14px_rgba(168,85,247,0.25)]'
+                  : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/15 hover:bg-white/10'
+              }`}
+            >
+              <UserCircle2 className="w-[1.125rem] h-[1.125rem]" />
+            </Link>
             <Link to="/checkout" className="relative group p-1">
               <div className="p-2.5 bg-white/5 rounded-full border border-white/5 group-hover:border-white/10 group-hover:bg-white/10 transition-all shadow-sm">
                 <ShoppingCart className="w-[1.125rem] h-[1.125rem] text-gray-300 group-hover:text-white transition-colors" />
@@ -83,16 +97,24 @@ export function Layout() {
            <div className="md:pr-8">
              <h3 className="text-white font-semibold text-xl mb-6 flex items-center gap-3 tracking-tight">
                <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10">
-                 <img 
-                   src="/hardwaresaleogo.jpeg" 
-                   alt="Logo" 
+                 <img
+                   src="/hardwaresaleogo.jpeg"
+                   alt="Logo"
                    className="w-full h-full object-cover"
                    referrerPolicy="no-referrer"
                  />
-               </div> 
+               </div>
                Hardware Sale
              </h3>
-             <p className="text-sm leading-relaxed text-gray-400 font-medium tracking-wide">A sua fonte suprema de computação em Moçambique. Equipamentos forjados à mão com precisão incomparável.</p>
+             <p className="text-sm leading-relaxed text-gray-400 font-medium tracking-wide mb-6">A sua fonte de computação em Moçambique. Equipamentos seleccionados com precisão incomparável.</p>
+             <div className="space-y-2">
+               <a href={SOCIAL.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-gray-500 hover:text-brand-neon transition-colors">
+                 <MessageCircle size={14} /> +258 84 000 0000
+               </a>
+               <a href={SOCIAL.email} className="flex items-center gap-2 text-sm text-gray-500 hover:text-brand-neon transition-colors">
+                 <Mail size={14} /> suporte@hardwaresale.co.mz
+               </a>
+             </div>
            </div>
            <div>
               <h4 className="text-white font-semibold mb-5 text-sm">Catálogo Elite</h4>
@@ -104,11 +126,12 @@ export function Layout() {
               </ul>
            </div>
            <div>
-              <h4 className="text-white font-semibold mb-5 text-sm">Suporte Global</h4>
+              <h4 className="text-white font-semibold mb-5 text-sm">Minha Conta</h4>
               <ul className="space-y-3 text-sm font-medium text-gray-500">
-                <li><Link to="/build-of-the-month" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Políticas de Cobertura</Link></li>
-                <li><Link to="/build-of-the-month" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Rastreio de Logística</Link></li>
-                <li><Link to="/build-of-the-month" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Atendimento VIP</Link></li>
+                <li><Link to="/hub" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Área de Membro</Link></li>
+                <li><Link to="/hub#encomendas" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Histórico de Encomendas</Link></li>
+                <li><Link to="/hub#lealdade" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Programa de Lealdade</Link></li>
+                <li><Link to="/hub#afiliacao" onClick={() => window.scrollTo({top: 0, behavior: 'instant'})} className="group flex items-center gap-2 hover:text-brand-neon transition-all duration-300"><ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-brand-neon" />Programa de Afiliação</Link></li>
               </ul>
            </div>
            <div>
@@ -128,10 +151,36 @@ export function Layout() {
               </ul>
            </div>
         </div>
-        <div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between text-sm text-gray-500 font-medium">
-          <p className="mb-4 md:mb-0 text-center md:text-left">© 2026 Hardware Sale. O Padrão Ouro de Moçambique.</p>
-          <div className="flex items-center gap-2">
-            Desenvolvido por <span className="text-brand-neon font-semibold bg-brand-neon/10 px-3 py-1 rounded-full border border-brand-neon/20">Gabriel Vieira</span>
+        <div className="max-w-7xl mx-auto px-6 mt-16 pt-8 border-t border-white/5">
+          {/* Social icons row */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <a href={SOCIAL.whatsapp} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp"
+               className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-brand-neon hover:border-brand-neon/30 hover:bg-brand-neon/10 transition-all">
+              <MessageCircle size={16} />
+            </a>
+            <a href={SOCIAL.instagram} target="_blank" rel="noopener noreferrer" aria-label="Instagram"
+               className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-brand-magenta hover:border-brand-magenta/30 hover:bg-brand-magenta/10 transition-all">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+              </svg>
+            </a>
+            <a href={SOCIAL.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook"
+               className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-blue-400 hover:border-blue-400/30 hover:bg-blue-400/10 transition-all">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+              </svg>
+            </a>
+            <a href={SOCIAL.email} aria-label="Email"
+               className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:border-white/30 hover:bg-white/10 transition-all">
+              <Mail size={16} />
+            </a>
+          </div>
+          {/* Copyright */}
+          <div className="flex flex-col md:flex-row items-center justify-between text-sm text-gray-500 font-medium gap-4">
+            <p className="text-center md:text-left">© 2026 Hardware Sale. Todos os direitos reservados. Maputo, Moçambique.</p>
+            <div className="flex items-center gap-2">
+              Desenvolvido por <span className="text-brand-neon font-semibold bg-brand-neon/10 px-3 py-1 rounded-full border border-brand-neon/20">Gabriel Vieira</span>
+            </div>
           </div>
         </div>
       </footer>

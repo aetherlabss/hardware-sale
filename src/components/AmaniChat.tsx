@@ -42,7 +42,7 @@ export function AmaniChat() {
   useEffect(() => {
     if (isOpen && !initialMessageTyped && messages.length === 0) {
       let currentText = '';
-      const fullText = 'Protocolo Amani 3 online. Digite a sua diretiva de hardware ou consulta técnica.';
+      const fullText = 'Olá! Sou a Amani, a tua assistente de hardware. Como posso ajudar?';
       let currentIndex = 0;
       
       setMessages([{ role: 'assistant', content: '' }]);
@@ -84,9 +84,9 @@ export function AmaniChat() {
     try {
       const ai = getAiClient();
       // Assemble conversation history for context
-      const contents = messages.map(m => m.content).join("\n");
+      const contents = messages.map(m => `${m.role === 'user' ? 'Cliente' : 'Amani'}: ${m.content}`).join("\n");
       const pageContext = `O usuário está atualmente na página com rota: ${location.pathname}. Adapte suas sugestões focando no contexto dessa página se necessário.`;
-      const currentPrompt = pageContext + "\n" + contents + "\nUser: " + userMessage;
+      const currentPrompt = pageContext + "\n" + contents + "\nCliente: " + userMessage;
       
       const startTime = performance.now();
       const response = await ai.models.generateContent({
@@ -146,23 +146,23 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
          if (call.name === 'navigate_to_page') {
             const page = (call.args as any).page;
             navigate(page);
-            setMessages(prev => [...prev, { role: 'assistant', content: `Protocolo de roteamento ativado. A redirecionar para ${page}...` }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: `A redirecionar para ${page}...` }]);
             logAetherLabsUsage(endTime - startTime, currentPrompt, "Function Call: navigate_to_page", totalTokens);
          } else if (call.name === 'build_custom_pc') {
             const ids = (call.args as any).componentIds;
             const reasoning = (call.args as any).reasoning;
             navigate(`/builder?preset=${ids.join(',')}`);
-            setMessages(prev => [...prev, { role: 'assistant', content: `Matrix Build configurada com sucesso: ${reasoning}. A redirecionar para o Smart Builder...` }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: `Build configurada com sucesso: ${reasoning}. A redirecionar para o Smart Builder...` }]);
             logAetherLabsUsage(endTime - startTime, currentPrompt, `Function Call: build_custom_pc - ${reasoning}`, totalTokens);
          }
       } else {
-         const text = response.text || "Falha na sub-rotina neural. Tente novamente.";
+         const text = response.text || "Serviço indisponível. Tente novamente.";
          setMessages(prev => [...prev, { role: 'assistant', content: text }]);
          logAetherLabsUsage(endTime - startTime, currentPrompt, text, totalTokens);
       }
     } catch (error: any) {
       console.error("AmaniChat Error:", error instanceof Error ? error.message : "Unknown error");
-      setMessages(prev => [...prev, { role: 'assistant', content: "Serviço indisponível no momento. AetherLabs API timeout." }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Serviço indisponível no momento. AI API timeout." }]);
     } finally {
       setIsLoading(false);
     }
@@ -188,7 +188,7 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
 
       {isOpen && (
         <div className="fixed bottom-6 right-6 w-[calc(100vw-3rem)] sm:w-[440px] bg-[#030305]/95 backdrop-blur-[50px] rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden z-50 border border-white/10 max-h-[85vh] sm:max-h-none animate-in fade-in zoom-in-95 duration-500">
-          {/* AetherLabs Header */}
+          {/* AI Assist Header */}
           <div className="p-6 pb-5 border-b border-white/5 flex justify-between items-center bg-gradient-to-b from-white/[0.05] to-transparent">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 shadow-inner">
@@ -251,11 +251,11 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
               <div className="pl-4 pr-2 text-gray-500">
                  <Terminal size={16} strokeWidth={2} className="group-focus-within:text-brand-neon transition-colors" />
               </div>
-              <input 
+              <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Insira a sua diretiva..."
+                placeholder="Faz a tua pergunta..."
                 className="flex-1 bg-transparent border-0 text-white placeholder:text-gray-500 h-12 px-2 focus:outline-none focus:ring-0 text-sm font-medium"
               />
               <button 

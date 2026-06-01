@@ -7,6 +7,7 @@ export interface ComponentItem {
   type: "cpu" | "gpu" | "motherboard" | "ram" | "psu" | "case" | "storage" | "cooler" | "fans" | "peripheral";
   name: string;
   priceMT: number;
+  discount?: number;
   socket?: string;
   wattage?: number;
   image: string;
@@ -92,6 +93,7 @@ export function usePCBuilder() {
           type,
           name: p.name,
           priceMT: Number(p.price) || 0,
+          discount: Number(p.discount) || 0,
           socket: extractedSocket,
           wattage: extractedWattage,
           image: p.images?.[0] || p.image || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c',
@@ -137,10 +139,20 @@ export function usePCBuilder() {
   };
 
   const isDDR = (c: ComponentItem | null, version: string) => {
+    if (!c) return false;
     // Explicitly isolate DDR logic. Many DDR4 products have names that can confuse basic includes.
     const text = getFullText(c);
     // e.g. looking for "ddr5", checking for literal match
-    return text.includes(version.toLowerCase());
+    if (text.includes(version.toLowerCase())) return true;
+    
+    // Fallback based on RAM frequency detection
+    const freqMatch = text.match(/(\d+)\s*mhz/i);
+    if (freqMatch) {
+      const freq = parseInt(freqMatch[1]);
+      if (version.toUpperCase() === 'DDR5' && freq >= 4800) return true;
+      if (version.toUpperCase() === 'DDR4' && freq > 2000 && freq < 4800) return true;
+    }
+    return false;
   };
 
   const getSocket = (c: ComponentItem | null) => {
@@ -294,17 +306,19 @@ export function usePCBuilder() {
     return null;
   }, [totalWattage, selectedPSU, selectedCPU, selectedCase]);
 
+  const getPrice = (c: ComponentItem | null) => c ? (c.discount ? c.priceMT - (c.priceMT * c.discount / 100) : c.priceMT) : 0;
+
   const totalPrice =
-    (selectedMotherboard?.priceMT || 0) +
-    (selectedCPU?.priceMT || 0) +
-    (selectedRAM?.priceMT || 0) +
-    (selectedStorage?.priceMT || 0) +
-    (selectedCooler?.priceMT || 0) +
-    (selectedGPU?.priceMT || 0) +
-    (selectedPSU?.priceMT || 0) +
-    (selectedCase?.priceMT || 0) +
-    (selectedFans?.priceMT || 0) +
-    selectedPeripherals.reduce((acc, p) => acc + p.priceMT, 0);
+    getPrice(selectedMotherboard) +
+    getPrice(selectedCPU) +
+    getPrice(selectedRAM) +
+    getPrice(selectedStorage) +
+    getPrice(selectedCooler) +
+    getPrice(selectedGPU) +
+    getPrice(selectedPSU) +
+    getPrice(selectedCase) +
+    getPrice(selectedFans) +
+    selectedPeripherals.reduce((acc, p) => acc + getPrice(p), 0);
 
   return {
     allComponents,

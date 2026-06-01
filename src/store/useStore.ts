@@ -15,6 +15,8 @@ interface Product {
   tags: string[];
   specs: any;
   createdAt?: any;
+  discount?: number;
+  glbModel?: string;
 }
 
 interface StoreState {

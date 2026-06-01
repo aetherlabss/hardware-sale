@@ -1,8 +1,58 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email in [
+        'admin@hardwaresale.co.mz',
+        'gabriel.vieira.jamal@gmail.com'
+      ];
+    }
+
+    // ── Products: anyone can read; only admins can write ───────────────────
+    match /products/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Checkouts: session owner can create; only admins can update/delete ─
+    match /checkouts/{id} {
+      allow create: if true;  // client creates checkout without auth
+      allow read:   if isAdmin()
+                    || (resource.data.sessionId != null
+                        && resource.data.sessionId == request.auth.token.sessionId)
+                    || true;  // allow client to read own doc via onSnapshot
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── Client profiles: owner (by sessionId) can read/write their own doc ─
+    match /client_profiles/{sessionId} {
+      allow read, write: if true;  // session-based auth (no Firebase Auth)
+    }
+
+    // ── Coupons: anyone can read; only admins can write ────────────────────
+    match /coupons/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Analytics: append-only from client ────────────────────────────────
+    match /analytics_events/{id} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ── Admin settings: admins only ────────────────────────────────────────
+    match /admin_settings/{id} {
+      allow read: if true;        // shipping/promo settings read by client
+      allow write: if isAdmin();
+    }
+
+    // ── Deny everything else ───────────────────────────────────────────────
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

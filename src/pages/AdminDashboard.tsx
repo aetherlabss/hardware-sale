@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, increment } from 'firebase/firestore';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip } from 'lucide-react';
+import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip, Ticket, ToggleLeft, ToggleRight, CalendarDays, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { GoogleGenAI } from '@google/genai';
 import { logAetherLabsUsage } from '../lib/aiTracking';
@@ -79,6 +79,13 @@ export function AdminDashboard() {
 
   const ALLOWED_ADMINS = ['admin@hardwaresales.co.mz', 'gabriel.vieira.jamal@gmail.com', 'abdul@admin.hardwaresale.co.mz', 'gabriel@admin.hardwaresale.co.mz'];
   const [authChecked, setAuthChecked] = useState(false);
+
+  // Coupon Management State
+  const [coupons, setCoupons] = useState<any[]>([]);
+  const [couponForm, setCouponForm] = useState({ code: '', discountPercent: 10, maxUses: 0, maxPerUser: 1, minOrderValue: 0, validFrom: '', validUntil: '', active: true });
+  const [isAddingCoupon, setIsAddingCoupon] = useState(false);
+  const [savingCoupon, setSavingCoupon] = useState(false);
+  const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
 
   // Command Center State
   const [isCommandCenterOpen, setIsCommandCenterOpen] = useState(false);
@@ -471,10 +478,15 @@ Retorne um JSON válido com esta exata estrutura:
        setCheckouts(data);
     });
 
+    const unsubCoupons = onSnapshot(collection(db, 'coupons'), (snapshot) => {
+      setCoupons(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
     return () => {
       unsubProducts();
       unsubEvents();
       unsubCheckouts();
+      unsubCoupons();
     };
   }, [user]);
 
@@ -774,9 +786,11 @@ Retorne um JSON válido com esta exata estrutura:
     { id: 'products', icon: Package, label: 'Produtos' },
     { id: 'builder', icon: Wrench, label: 'Smart Builder' },
     { id: 'customers', icon: Users, label: 'Clientes' },
+    { id: 'coupons', icon: Ticket, label: 'Cupões' },
+    { id: 'affiliates', icon: BarChart3, label: 'Afiliados' },
     { id: 'shipping', icon: MapPin, label: 'Logística & GPS' },
     { id: 'settings', icon: Settings, label: 'Configurações' },
-    { id: 'aetherlabs', icon: Sparkles, label: 'Hardware Sale AI Hub' },
+    { id: 'ai-hub', icon: Sparkles, label: 'AI Hub Metrics' },
     { id: 'ai-studio', icon: Bot, label: 'AI Studio' },
     { id: 'status', icon: Zap, label: 'Server Status' },
   ];
@@ -2137,8 +2151,182 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
               </div>
             )}
 
-            {/* --- TAB: AETHERLABS AI --- */}
-            {activeTab === 'aetherlabs' && (
+            {/* --- TAB: COUPONS --- */}
+            {activeTab === 'coupons' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#0a0a14] border border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden gap-4 mb-8">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-brand-neon/10 blur-[100px] rounded-full pointer-events-none" />
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-bold text-white mb-2 tracking-tight flex items-center gap-3"><Ticket className="text-brand-neon" size={28} /> Gestor de Cupões</h2>
+                    <p className="text-gray-400 font-medium">Crie e gerencie cupões de desconto com regras avançadas de validade e uso.</p>
+                  </div>
+                  <button onClick={() => { setIsAddingCoupon(!isAddingCoupon); setEditingCouponId(null); setCouponForm({ code: '', discountPercent: 10, maxUses: 0, maxPerUser: 1, minOrderValue: 0, validFrom: '', validUntil: '', active: true }); }} className="relative z-10 bg-brand-neon hover:bg-brand-magenta text-black font-bold px-6 h-12 rounded-xl transition-all shadow-[0_0_20px_rgba(20,241,149,0.3)] flex items-center gap-2">
+                    {isAddingCoupon ? <><X size={16} /> Cancelar</> : <><Plus size={16} /> Criar Cupão</>}
+                  </button>
+                </div>
+
+                {isAddingCoupon && (
+                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl mb-8 animate-in fade-in slide-in-from-top-4">
+                    <h3 className="text-lg font-bold text-white mb-6">{editingCouponId ? 'Editar Cupão' : 'Novo Cupão'}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Código do Cupão</label>
+                        <Input value={couponForm.code} onChange={e => setCouponForm(p => ({...p, code: e.target.value.toUpperCase()}))} placeholder="Ex: WELCOME20" className="bg-black/40 border-white/10 h-10 text-white font-bold tracking-widest" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Desconto (%)</label>
+                        <Input type="number" min="1" max="100" value={couponForm.discountPercent} onChange={e => setCouponForm(p => ({...p, discountPercent: Number(e.target.value)}))} className="bg-black/40 border-white/10 h-10 text-brand-neon font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Máx. Usos Total (0=ilimitado)</label>
+                        <Input type="number" min="0" value={couponForm.maxUses} onChange={e => setCouponForm(p => ({...p, maxUses: Number(e.target.value)}))} className="bg-black/40 border-white/10 h-10 text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Máx. Usos por Pessoa</label>
+                        <Input type="number" min="1" value={couponForm.maxPerUser} onChange={e => setCouponForm(p => ({...p, maxPerUser: Number(e.target.value)}))} className="bg-black/40 border-white/10 h-10 text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Valor Mínimo Carrinho (MT)</label>
+                        <Input type="number" min="0" value={couponForm.minOrderValue} onChange={e => setCouponForm(p => ({...p, minOrderValue: Number(e.target.value)}))} className="bg-black/40 border-white/10 h-10 text-white" />
+                      </div>
+                      <div className="flex items-center gap-3 pt-6">
+                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Activo</label>
+                        <button onClick={() => setCouponForm(p => ({...p, active: !p.active}))} className={`w-12 h-6 rounded-full transition-all ${couponForm.active ? 'bg-brand-neon' : 'bg-white/10'}`}>
+                          <div className={`w-5 h-5 rounded-full bg-white mx-0.5 transition-transform ${couponForm.active ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Data de Início</label>
+                        <Input type="datetime-local" value={couponForm.validFrom} onChange={e => setCouponForm(p => ({...p, validFrom: e.target.value}))} className="bg-black/40 border-white/10 h-10 text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Data de Expiração</label>
+                        <Input type="datetime-local" value={couponForm.validUntil} onChange={e => setCouponForm(p => ({...p, validUntil: e.target.value}))} className="bg-black/40 border-white/10 h-10 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button disabled={savingCoupon || !couponForm.code.trim()} onClick={async () => {
+                        setSavingCoupon(true);
+                        try {
+                          const data = {
+                            code: couponForm.code.toUpperCase().trim(),
+                            discountPercent: couponForm.discountPercent,
+                            maxUses: couponForm.maxUses,
+                            maxPerUser: couponForm.maxPerUser,
+                            minOrderValue: couponForm.minOrderValue,
+                            active: couponForm.active,
+                            validFrom: couponForm.validFrom ? new Date(couponForm.validFrom).getTime() : null,
+                            validUntil: couponForm.validUntil ? new Date(couponForm.validUntil).getTime() : null,
+                            usedCount: editingCouponId ? undefined : 0,
+                            usedBy: editingCouponId ? undefined : [],
+                            createdAt: editingCouponId ? undefined : serverTimestamp(),
+                            updatedAt: serverTimestamp(),
+                          };
+                          if (editingCouponId) {
+                            await setDoc(doc(db, 'coupons', editingCouponId), data, { merge: true });
+                          } else {
+                            await addDoc(collection(db, 'coupons'), data);
+                          }
+                          setIsAddingCoupon(false); setEditingCouponId(null);
+                          showFeedback('success', editingCouponId ? 'Cupão actualizado!' : 'Cupão criado com sucesso!');
+                        } catch(err) { showFeedback('error', 'Falha ao guardar cupão.'); }
+                        setSavingCoupon(false);
+                      }} className="bg-brand-neon hover:bg-brand-magenta text-black font-bold h-10 px-8 rounded-xl">
+                        {savingCoupon ? <Loader2 size={16} className="animate-spin" /> : editingCouponId ? 'Actualizar' : 'Criar Cupão'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {coupons.length === 0 && !isAddingCoupon && (
+                    <div className="text-center py-20 text-gray-500">
+                      <Ticket size={40} className="mx-auto mb-4 opacity-30" />
+                      <p>Nenhum cupão criado. Clique em "Criar Cupão" para começar.</p>
+                    </div>
+                  )}
+                  {coupons.map(c => {
+                    const now = Date.now();
+                    const expired = c.validUntil && now > c.validUntil;
+                    const exhausted = c.maxUses > 0 && c.usedCount >= c.maxUses;
+                    const statusLabel = !c.active ? 'Inativo' : expired ? 'Expirado' : exhausted ? 'Esgotado' : 'Activo';
+                    const statusColor = !c.active ? 'text-gray-400 bg-gray-500/10 border-gray-500/20' : expired || exhausted ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-brand-neon bg-brand-neon/10 border-brand-neon/20';
+                    const pct = c.maxUses > 0 ? Math.min(100, Math.round((c.usedCount / c.maxUses) * 100)) : 0;
+                    return (
+                      <div key={c.id} className="bg-[#0a0a14] border border-white/5 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:border-white/10 transition-all">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-1">
+                            <span className="text-white font-black text-lg tracking-wider">{c.code}</span>
+                            <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border ${statusColor}`}>{statusLabel}</span>
+                            <span className="text-brand-magenta font-bold text-sm">{c.discountPercent}% OFF</span>
+                          </div>
+                          <div className="flex flex-wrap gap-3 text-[10px] text-gray-500 font-semibold uppercase tracking-widest">
+                            {c.maxUses > 0 && <span>{c.usedCount}/{c.maxUses} usos</span>}
+                            {c.maxUses === 0 && <span>{c.usedCount} usos (ilimitado)</span>}
+                            {c.minOrderValue > 0 && <span>Mín: {c.minOrderValue.toLocaleString()} MT</span>}
+                            {c.maxPerUser > 0 && <span>Máx {c.maxPerUser}x/pessoa</span>}
+                            {c.validUntil && <span>Expira: {new Date(c.validUntil).toLocaleDateString('pt-MZ')}</span>}
+                          </div>
+                          {c.maxUses > 0 && (
+                            <div className="mt-2 h-1.5 bg-white/5 rounded-full overflow-hidden w-full max-w-xs">
+                              <div className={`h-full rounded-full transition-all ${pct >= 80 ? 'bg-red-500' : 'bg-brand-neon'}`} style={{ width: `${pct}%` }} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button onClick={async () => await setDoc(doc(db, 'coupons', c.id), { active: !c.active }, { merge: true })} className={`h-8 px-3 rounded-lg text-xs font-bold border transition-all ${c.active ? 'border-red-500/30 text-red-400 hover:bg-red-500/10' : 'border-brand-neon/30 text-brand-neon hover:bg-brand-neon/10'}`}>
+                            {c.active ? 'Desativar' : 'Ativar'}
+                          </button>
+                          <button onClick={() => { setEditingCouponId(c.id); setCouponForm({ code: c.code, discountPercent: c.discountPercent, maxUses: c.maxUses, maxPerUser: c.maxPerUser, minOrderValue: c.minOrderValue, validFrom: c.validFrom ? new Date(c.validFrom).toISOString().slice(0,16) : '', validUntil: c.validUntil ? new Date(c.validUntil).toISOString().slice(0,16) : '', active: c.active }); setIsAddingCoupon(true); window.scrollTo(0,0); }} className="h-8 px-3 rounded-lg text-xs font-bold border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition-all">Editar</button>
+                          <button onClick={async () => { if(window.confirm('Eliminar este cupão?')) await deleteDoc(doc(db, 'coupons', c.id)); }} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB: AFFILIATES --- */}
+            {activeTab === 'affiliates' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="bg-[#0a0a14] border border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden mb-8">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-brand-magenta/10 blur-[100px] rounded-full pointer-events-none" />
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-bold text-white mb-2 tracking-tight flex items-center gap-3"><BarChart3 className="text-brand-magenta" size={28} /> Programa de Afiliados</h2>
+                    <p className="text-gray-400 font-medium">Visão geral dos clientes afiliados, referrals e comissões pendentes.</p>
+                  </div>
+                </div>
+                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl">
+                  <p className="text-gray-400 text-sm font-medium">Os perfis de afiliados são geridos automaticamente pela plataforma. Os dados de comissões são calculados em tempo real com base nas compras dos clientes referenciados (5% por venda convertida).</p>
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-5 text-center">
+                      <BarChart3 size={24} className="mx-auto mb-2 text-brand-magenta" />
+                      <div className="text-2xl font-black text-white">5%</div>
+                      <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Taxa de Comissão Padrão</div>
+                    </div>
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-5 text-center">
+                      <Users size={24} className="mx-auto mb-2 text-brand-neon" />
+                      <div className="text-2xl font-black text-white">Auto</div>
+                      <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Geração de Código Referral</div>
+                    </div>
+                    <div className="bg-black/40 border border-white/5 rounded-2xl p-5 text-center">
+                      <CheckCircle2 size={24} className="mx-auto mb-2 text-green-400" />
+                      <div className="text-2xl font-black text-white">Activo</div>
+                      <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Status do Programa</div>
+                    </div>
+                  </div>
+                  <div className="mt-6 p-4 bg-brand-neon/5 border border-brand-neon/20 rounded-xl text-sm text-brand-neon/80 font-medium">
+                    Os clientes gerem os seus referrals e visualizam comissões em tempo real via <strong className="text-brand-neon">/hub</strong> → Tab Afiliação.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB: AI HUB METRICS --- */}
+            {activeTab === 'ai-hub' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="mb-8">
                   <h2 className="text-3xl font-extrabold text-white tracking-tight mb-2 flex items-center gap-3">

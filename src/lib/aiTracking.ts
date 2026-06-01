@@ -12,7 +12,7 @@ const MODEL_COST_PER_1K_TOKENS: Record<string, number> = {
 
 const MARKUP_FACTOR = 1.15; // 15% markup on top of API cost
 
-export async function logAetherLabsUsage(
+export async function logAIUsage(
   latencyMs: number,
   promptText: string,
   responseText: string,
@@ -33,15 +33,21 @@ export async function logAetherLabsUsage(
     }
     const costWithMarkup = rawCostUsd * MARKUP_FACTOR;
 
+    const sessionId = localStorage.getItem('hs_session_id') || 'unknown';
     await addDoc(collection(db, 'analytics_events'), {
       type: 'ai_usage',
       path: model,
-      sessionId: String(Math.round(latencyMs)),
+      sessionId,
+      latencyMs: Math.round(latencyMs),
       value: tokensToLog,
       costUsd: costWithMarkup,
       timestamp: serverTimestamp()
     });
   } catch (error) {
-    console.error("Falha ao registar telemetria AetherLabs", error);
+    console.error("Falha ao registar telemetria AI", error);
   }
 }
+
+// Backward compatibility alias without references to AetherLabs
+export const logAetherLabsUsage = logAIUsage;
+

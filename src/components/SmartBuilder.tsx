@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePCBuilder, ComponentItem } from '../hooks/usePCBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -82,6 +82,91 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
     recognition.start();
   };
 
+  // Proposal B: Static Caching Vault for Instant Elite Evaluations
+  const AMANI_STATIC_VAULT: Record<string, string> = {
+    'rtx 4090|14900k': 'Combinação de elite absoluta! A RTX 4090 e o i9-14900K representam o topo do desempenho mundial. Perfeito para gaming 4K nativo com Ray Tracing e fluxos de Inteligência Artificial pesados. Certifique-se de manter refrigeração de alto nível (360mm+) para evitar thermal throttling.',
+    'rtx 4090|7800x3d': 'O monstro supremo dos jogos! O Ryzen 7 7800X3D com sua 3D V-Cache elimina gargalos no processador em jogos competitivos, casando impecavelmente com os 24GB de VRAM da RTX 4090. Excelente eficiência energética e performance máxima.',
+    'rtx 4070 ti|14700k': 'Sinergia premium para produtividade e gaming profissional. O i7-14700K lida brilhantemente com multitarefas complexas (Premiere/Blender) enquanto a RTX 4070 Ti domina resoluções 1440p competitivas com taxas de frames acima de 144Hz.',
+    'rtx 4080|14900k': 'Poder extremo para criadores e gamers entusiastas. A RTX 4080 entrega estabilidade estonteante em 4K e excelente aceleração de Ray Tracing, enquanto o i9 garante fluidez cirúrgica em renderização 3D e simulações complexas.'
+  };
+
+  const selectedItems = [
+    selections.selectedMotherboard, selections.selectedCPU, selections.selectedRAM,
+    selections.selectedStorage, selections.selectedCooler, selections.selectedGPU,
+    selections.selectedPSU, selections.selectedCase, selections.selectedFans,
+  ].filter(Boolean).length;
+
+  const [isBuildCardOpen, setIsBuildCardOpen] = useState(false);
+
+  // Proposal C: Dynamic SEO and OpenGraph metatags for instant rich sharing previews
+  useEffect(() => {
+    if (selectedItems > 0) {
+      const partsList = [
+        selections.selectedCPU?.name,
+        selections.selectedGPU?.name,
+        selections.selectedRAM?.name
+      ].filter(Boolean).join(' + ');
+      
+      document.title = `Smart Builder | Setup Personalizado (${totalPrice.toLocaleString()} MT) | Hardware Sale`;
+      
+      const updateMeta = (property: string, content: string) => {
+        let el = document.querySelector(`meta[property="${property}"]`);
+        if (!el) {
+          el = document.createElement('meta');
+          el.setAttribute('property', property);
+          document.head.appendChild(el);
+        }
+        el.setAttribute('content', content);
+      };
+      
+      updateMeta('og:title', `🚀 Minha Matrix Build - ${totalPrice.toLocaleString()} MT`);
+      updateMeta('og:description', `Montei este setup insano no Smart Builder da Hardware Sale: ${partsList || 'Componentes de Elite'}. Clique para ver!`);
+      updateMeta('og:image', selections.selectedGPU?.image || selections.selectedCase?.image || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c');
+    } else {
+      document.title = "Smart Builder | Monte seu PC Supremo | Hardware Sale";
+    }
+  }, [selections.selectedCPU, selections.selectedGPU, selections.selectedRAM, totalPrice, selectedItems]);
+
+  // Feature 2: "Upgrades Inteligentes" de Um Clique (Amani Upsell)
+  const activeUpsell = useMemo(() => {
+    // Check GPU first (highest impact)
+    if (selections.selectedGPU) {
+      const betterGpu = allComponents.find(c => c.type === 'gpu' && c.priceMT > selections.selectedGPU!.priceMT);
+      if (betterGpu) {
+        const diff = betterGpu.priceMT - selections.selectedGPU!.priceMT;
+        return {
+          type: 'gpu',
+          current: selections.selectedGPU,
+          better: betterGpu,
+          diff,
+          text: `Suba o seu poder gráfico! Por apenas mais ${diff.toLocaleString()} MT, mude para a ${betterGpu.name} e atinja taxas de 4K nativo @ 144Hz.`
+        };
+      }
+    }
+    // Check RAM
+    if (selections.selectedRAM) {
+      const betterRam = allComponents.find(c => c.type === 'ram' && c.priceMT > selections.selectedRAM!.priceMT);
+      if (betterRam) {
+        const diff = betterRam.priceMT - selections.selectedRAM!.priceMT;
+        return {
+          type: 'ram',
+          current: selections.selectedRAM,
+          better: betterRam,
+          diff,
+          text: `Aumente a largura de banda! Por apenas mais ${diff.toLocaleString()} MT, mude para ${betterRam.name} para multitarefas e renderização ultra-fluida DDR5.`
+        };
+      }
+    }
+    return null;
+  }, [selections.selectedGPU, selections.selectedRAM, allComponents]);
+
+  const applyUpsell = () => {
+    if (activeUpsell) {
+      if (activeUpsell.type === 'gpu') setters.setSelectedGPU(activeUpsell.better);
+      if (activeUpsell.type === 'ram') setters.setSelectedRAM(activeUpsell.better);
+    }
+  };
+
   useEffect(() => {
     const parts = [
       selections.selectedCPU?.name,
@@ -92,6 +177,23 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
     ].filter(Boolean);
     if (parts.length < 2) { setAiFeedback(null); return; }
     
+    // Look for vault matches first
+    const activeCPU = selections.selectedCPU?.name.toLowerCase() || '';
+    const activeGPU = selections.selectedGPU?.name.toLowerCase() || '';
+    let vaultMatch: string | null = null;
+    for (const key of Object.keys(AMANI_STATIC_VAULT)) {
+      const [vGpu, vCpu] = key.split('|');
+      if (activeGPU.includes(vGpu) && activeCPU.includes(vCpu)) {
+        vaultMatch = AMANI_STATIC_VAULT[key];
+        break;
+      }
+    }
+
+    if (vaultMatch) {
+      setAiFeedback(vaultMatch);
+      return;
+    }
+
     const cacheKey = 'amani_build_cache_' + [...parts].sort().join('|');
     const cachedResponse = localStorage.getItem(cacheKey);
 
@@ -133,7 +235,7 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
     ].filter(Boolean) as ComponentItem[];
     const allParts = [...parts, ...selections.selectedPeripherals];
     allParts.forEach(part => {
-      addItem({ id: part.id, name: part.name, price: part.priceMT, image: part.image, category: part.type === 'peripheral' ? 'Acessório' : 'Componente' });
+      addItem({ id: part.id, name: part.name, price: part.priceMT, discount: part.discount, image: part.image, category: part.type === 'peripheral' ? 'Acessório' : 'Componente' });
     });
     navigate('/checkout');
   };
@@ -167,7 +269,17 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                       </div>
                       <div className="flex-1 flex flex-col justify-center">
                   <span className="font-semibold text-gray-100 block mb-1 text-base leading-tight">{comp.name}</span>
-                  <span className="text-brand-neon text-sm font-bold block">{comp.priceMT.toLocaleString()} MT</span>
+                  {(comp.discount ?? 0) > 0 ? (
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-gray-500 line-through leading-none">{comp.priceMT.toLocaleString()} MT</span>
+                      <span className="text-brand-neon text-sm font-bold flex items-center gap-2">
+                         {(comp.priceMT - (comp.priceMT * (comp.discount ?? 0) / 100)).toLocaleString()} MT
+                         <span className="bg-brand-neon/20 text-brand-neon px-1 rounded-[2px] text-[8px] animate-pulse">-{comp.discount}%</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-brand-neon text-sm font-bold block">{comp.priceMT.toLocaleString()} MT</span>
+                  )}
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap gap-2 text-[9px] font-bold uppercase tracking-widest text-gray-400">
@@ -181,12 +293,6 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
       </div>
     </div>
   );
-
-  const selectedItems = [
-    selections.selectedMotherboard, selections.selectedCPU, selections.selectedRAM,
-    selections.selectedStorage, selections.selectedCooler, selections.selectedGPU,
-    selections.selectedPSU, selections.selectedCase, selections.selectedFans,
-  ].filter(Boolean).length;
 
   const totalSteps = 9;
   const progressPercent = Math.round((selectedItems / totalSteps) * 100);
@@ -210,6 +316,35 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
     if (!selections.selectedGPU || !selections.selectedCPU) return 0;
     return Math.round(base * (getGpuScore(selections.selectedGPU.name) / 100) * (getCpuScore(selections.selectedCPU.name) / 100));
   };
+
+  const getGamingTier = () => {
+    const name = selections.selectedGPU?.name.toLowerCase() || '';
+    if (name.includes('4090')) return { tier: 'S+ Extreme', color: 'text-brand-neon' };
+    if (name.includes('4080')) return { tier: 'S Ultra', color: 'text-brand-magenta' };
+    if (name.includes('4070') || name.includes('7900')) return { tier: 'A High', color: 'text-white' };
+    return { tier: 'B Competitivo', color: 'text-gray-400' };
+  };
+
+  const getWorkstationTier = () => {
+    const cpuName = selections.selectedCPU?.name.toLowerCase() || '';
+    const ramName = selections.selectedRAM?.name.toLowerCase() || '';
+    if ((cpuName.includes('i9') || cpuName.includes('7950')) && ramName.includes('64gb')) {
+      return { tier: 'S+ Divino', color: 'text-brand-neon' };
+    }
+    if (cpuName.includes('i7') || cpuName.includes('7800') || ramName.includes('32gb')) {
+      return { tier: 'S Avançado', color: 'text-brand-magenta' };
+    }
+    return { tier: 'A Estável', color: 'text-white' };
+  };
+
+  const getAiTier = () => {
+    const gpuName = selections.selectedGPU?.name.toLowerCase() || '';
+    if (gpuName.includes('4090')) return { tier: 'S+ Core (24GB)', color: 'text-brand-neon' };
+    if (gpuName.includes('4080')) return { tier: 'S Core (16GB)', color: 'text-brand-magenta' };
+    if (gpuName.includes('4070')) return { tier: 'A Accelerated', color: 'text-white' };
+    return { tier: 'B Basic', color: 'text-gray-400' };
+  };
+
   const fpsData = [
     { game: 'Cyberpunk 2077 (4K RT)', base: 85, color: 'bg-yellow-500' },
     { game: 'Warzone (1440p)', base: 220, color: 'bg-green-500' },
@@ -287,7 +422,17 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                       </div>
                       <div className="flex-1 flex flex-col justify-center">
                         <span className="font-semibold text-gray-100 block mb-1 text-base leading-tight">{comp.name}</span>
-                        <span className="text-brand-magenta text-sm font-bold block">{comp.priceMT.toLocaleString()} MT</span>
+                        {(comp.discount ?? 0) > 0 ? (
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 line-through leading-none">{comp.priceMT.toLocaleString()} MT</span>
+                            <span className="text-brand-magenta text-sm font-bold flex items-center gap-2">
+                               {(comp.priceMT - (comp.priceMT * (comp.discount ?? 0) / 100)).toLocaleString()} MT
+                               <span className="bg-brand-magenta/20 text-brand-magenta px-1 rounded-[2px] text-[8px] animate-pulse">-{comp.discount}%</span>
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-brand-magenta text-sm font-bold block">{comp.priceMT.toLocaleString()} MT</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -384,6 +529,25 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                   </div>
                 )}
                 
+                {/* Feature 2: Amani dynamic 1-click upsell card */}
+                {activeUpsell && (
+                  <div className="bg-gradient-to-r from-brand-magenta/15 to-brand-neon/5 border border-brand-magenta/40 p-5 rounded-[1.5rem] flex flex-col gap-4 text-gray-200 text-sm shadow-[0_0_20px_rgba(236,72,153,0.15)] relative overflow-hidden group/upsell animate-pulse duration-3000">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-brand-neon/15 blur-[30px] rounded-full pointer-events-none" />
+                    <div className="flex gap-3 items-start">
+                      <Sparkles className="shrink-0 w-6 h-6 text-brand-magenta animate-spin duration-3000" />
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-brand-magenta block mb-1">Amani Upsell Recomendado</span>
+                        <p className="font-semibold leading-relaxed text-xs">{activeUpsell.text}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={applyUpsell}
+                      className="w-full py-2.5 rounded-xl bg-brand-magenta hover:bg-brand-neon text-white hover:text-black font-black text-xs uppercase tracking-widest transition-all duration-300 shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" /> Fazer Upgrade por +{activeUpsell.diff.toLocaleString()} MT
+                    </button>
+                  </div>
+                )}
               </div>
 
               <Button
@@ -393,10 +557,154 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
               >
                 <ShoppingCart className={`mr-2 w-5 h-5 ${progressPercent === 100 ? 'text-black' : ''}`} /> {progressPercent < 100 ? 'Seleção Incompleta' : 'Finalizar e Encomendar'}
               </Button>
+
+              {selectedItems > 0 && (
+                <button
+                  onClick={() => setIsBuildCardOpen(true)}
+                  className="w-full h-12 mt-3 rounded-[1.5rem] border border-brand-neon/30 bg-transparent text-brand-neon hover:bg-brand-neon/10 font-bold text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                >
+                  <Sparkles className="w-4 h-4 animate-pulse" /> Gerar Ficha da Matrix (Build Card)
+                </button>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Matrix Build Card Modal */}
+      {isBuildCardOpen && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-xl z-[999] flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-300">
+          <div className="relative bg-[#050508] border border-brand-neon/30 rounded-[3rem] w-full max-w-lg p-6 sm:p-8 shadow-[0_0_80px_rgba(20,241,149,0.25)] flex flex-col gap-6 overflow-hidden">
+            {/* Ambient glows inside modal */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-brand-neon/10 blur-[80px] rounded-full pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-brand-magenta/10 blur-[80px] rounded-full pointer-events-none" />
+            
+            {/* Header */}
+            <div className="flex justify-between items-start relative z-10">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-brand-neon">Ficha Militar de Telemetria</span>
+                <h3 className="text-2xl font-black text-white tracking-tight uppercase mt-1">Matrix Build Card</h3>
+              </div>
+              <button 
+                onClick={() => setIsBuildCardOpen(false)}
+                className="w-10 h-10 rounded-full border border-white/10 hover:border-brand-neon/50 text-gray-400 hover:text-white flex items-center justify-center transition-all bg-white/5 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Spec RPG Sheet */}
+            <div className="border border-white/5 bg-black/60 rounded-[2rem] p-5 sm:p-6 relative z-10 flex flex-col gap-4 shadow-inner">
+              <div className="text-center pb-4 border-b border-white/5">
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-500">Designação do Setup</span>
+                <h4 className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta tracking-wide mt-0.5">HARDWARE SALE ARCHON PROTOCOL</h4>
+              </div>
+
+              {/* Tiers Grid */}
+              <div className="grid grid-cols-3 gap-3 text-center my-2">
+                <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                  <span className="text-[8px] font-black uppercase text-gray-500 tracking-wider">Gaming</span>
+                  <div className={`text-xs font-black uppercase mt-1 ${getGamingTier().color}`}>{getGamingTier().tier}</div>
+                </div>
+                <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                  <span className="text-[8px] font-black uppercase text-gray-500 tracking-wider">Workstation</span>
+                  <div className={`text-xs font-black uppercase mt-1 ${getWorkstationTier().color}`}>{getWorkstationTier().tier}</div>
+                </div>
+                <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                  <span className="text-[8px] font-black uppercase text-gray-500 tracking-wider">AI Engine</span>
+                  <div className={`text-xs font-black uppercase mt-1 ${getAiTier().color}`}>{getAiTier().tier}</div>
+                </div>
+              </div>
+
+              {/* Hardware checklist */}
+              <div className="space-y-2.5 text-xs font-medium">
+                {selections.selectedCPU && (
+                  <div className="flex justify-between items-center bg-white/5 p-2 px-3 rounded-xl border border-white/5">
+                    <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">PROCESSADOR</span>
+                    <span className="text-white truncate max-w-[190px] font-semibold">{selections.selectedCPU.name}</span>
+                  </div>
+                )}
+                {selections.selectedGPU && (
+                  <div className="flex justify-between items-center bg-white/5 p-2 px-3 rounded-xl border border-white/5">
+                    <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">PLACA GRÁFICA</span>
+                    <span className="text-white truncate max-w-[190px] font-semibold">{selections.selectedGPU.name}</span>
+                  </div>
+                )}
+                {selections.selectedRAM && (
+                  <div className="flex justify-between items-center bg-white/5 p-2 px-3 rounded-xl border border-white/5">
+                    <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">MEMÓRIA</span>
+                    <span className="text-white truncate max-w-[190px] font-semibold">{selections.selectedRAM.name}</span>
+                  </div>
+                )}
+                {selections.selectedMotherboard && (
+                  <div className="flex justify-between items-center bg-white/5 p-2 px-3 rounded-xl border border-white/5">
+                    <span className="text-gray-400 font-bold uppercase text-[9px] tracking-wider">MOTHERBOARD</span>
+                    <span className="text-white truncate max-w-[190px] font-semibold">{selections.selectedMotherboard.name}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Value and energy */}
+              <div className="pt-4 border-t border-white/5 flex justify-between items-center text-xs font-semibold">
+                <div>
+                  <span className="text-[8px] text-gray-500 uppercase tracking-widest block font-black">Consumo Estimado</span>
+                  <span className="text-white font-mono">{totalWattage} W</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[8px] text-gray-500 uppercase tracking-widest block font-black">Investimento Total</span>
+                  <span className="text-brand-neon font-mono font-black text-lg">{totalPrice.toLocaleString()} MT</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Neon QR Code and copy link */}
+            <div className="flex gap-4 items-center bg-white/5 p-4 rounded-[2rem] border border-white/10 relative z-10">
+              <div className="w-20 h-20 bg-brand-neon/10 rounded-2xl border border-brand-neon/30 p-2 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(20,241,149,0.15)] relative overflow-hidden group/qr">
+                {/* Glowing neon simulation for QR Code */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-brand-neon/20 via-transparent to-brand-magenta/20 animate-pulse duration-2000" />
+                <svg viewBox="0 0 100 100" className="w-full h-full text-brand-neon relative z-10" fill="currentColor">
+                  <path d="M5,5 h30 v30 h-30 z M12,12 h16 v16 h-16 z M5,65 h30 v30 h-30 z M12,72 h16 v16 h-16 z M65,5 h30 v30 h-30 z M72,12 h16 v16 h-16 z M45,45 h10 v10 h-10 z M55,55 h10 v10 h-10 z M45,65 h10 v10 h-10 z M75,45 h15 v15 h-15 z M65,75 h10 v10 h-10 z M85,85 h10 v10 h-10 z" />
+                </svg>
+              </div>
+              <div className="flex-1 flex flex-col justify-center">
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Partilhar com a Comunidade</span>
+                <p className="text-xs text-gray-300 mt-1 font-semibold leading-relaxed">Mostre o seu poder de escolha para amigos nas redes e ganhe prestígio com a sua build.</p>
+              </div>
+            </div>
+
+            {/* Sharing Action CTA */}
+            <div className="flex gap-3 relative z-10">
+              <button 
+                onClick={() => {
+                  const parts = [
+                    selections.selectedMotherboard?.id,
+                    selections.selectedCPU?.id,
+                    selections.selectedRAM?.id,
+                    selections.selectedStorage?.id,
+                    selections.selectedCooler?.id,
+                    selections.selectedGPU?.id,
+                    selections.selectedPSU?.id,
+                    selections.selectedCase?.id,
+                    selections.selectedFans?.id
+                  ].filter(Boolean).join(',');
+                  const link = `${window.location.origin}/builder?preset=${parts}`;
+                  navigator.clipboard.writeText(link);
+                  alert("Link da Matrix Build copiado para a área de transferência!");
+                }}
+                className="flex-1 py-4 bg-gradient-to-r from-brand-neon to-brand-magenta text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+              >
+                Copiar Preset Link
+              </button>
+              <button 
+                onClick={() => window.print()}
+                className="px-5 py-4 border border-white/10 hover:border-brand-neon/50 text-white rounded-2xl text-xs font-bold transition-all bg-white/5 cursor-pointer"
+              >
+                Imprimir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

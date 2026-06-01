@@ -3,7 +3,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { useCart } from '../store/useCart';
 import { useStore } from '../store/useStore';
-import { ShoppingCart, CheckCircle2, X, ChevronLeft, ChevronRight, Zap, Settings, Star, Sparkles, Filter, Scale } from 'lucide-react';
+import { ShoppingCart, CheckCircle2, X, ChevronLeft, ChevronRight, Zap, Settings, Star, Sparkles, Filter, Scale, Cpu, Layers, HardDrive, Power, Fan, ShieldCheck } from 'lucide-react';
 import { getAssetUrl } from '../lib/assets';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -17,6 +17,19 @@ import { GoogleGenAI } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createPortal } from 'react-dom';
+
+// Helper for specification icons
+const getSpecIcon = (key: string) => {
+  const k = key.toLowerCase();
+  if (k.includes('cpu') || k.includes('processador')) return <Cpu className="w-3.5 h-3.5 text-brand-neon shrink-0" />;
+  if (k.includes('ram') || k.includes('memória') || k.includes('memoria')) return <Layers className="w-3.5 h-3.5 text-brand-neon shrink-0" />;
+  if (k.includes('disk') || k.includes('armazenamento') || k.includes('nvme') || k.includes('ssd') || k.includes('hdd') || k.includes('disco')) return <HardDrive className="w-3.5 h-3.5 text-brand-neon shrink-0" />;
+  if (k.includes('gpu') || k.includes('gráfica') || k.includes('grafica') || k.includes('rtx') || k.includes('rx ') || k.includes('gráfico') || k.includes('grafico')) return <Zap className="w-3.5 h-3.5 text-brand-neon shrink-0" />;
+  if (k.includes('fonte') || k.includes('psu') || k.includes('power')) return <Power className="w-3.5 h-3.5 text-brand-neon shrink-0" />;
+  if (k.includes('cooler') || k.includes('cooling') || k.includes('wc') || k.includes('fan') || k.includes('ventoinha') || k.includes('refrigeração') || k.includes('refrigeracao')) return <Fan className="w-3.5 h-3.5 text-brand-neon shrink-0" />;
+  if (k.includes('estado') || k.includes('disponibilidade')) return <ShieldCheck className="w-3.5 h-3.5 text-brand-neon shrink-0" />;
+  return <Settings className="w-3.5 h-3.5 text-gray-500 shrink-0" />;
+};
 
 // Product Modal Component
 function ProductModal({ 
@@ -88,14 +101,7 @@ function ProductModal({
     setTimeout(() => setAdded(false), 2000);
   };
 
-  const hasFpsSimulations = product.category === "Desktop's" && (
-    product.specs?.['FPS_Valorant'] || 
-    product.specs?.['FPS_Fortnite'] || 
-    product.specs?.['FPS_Cyberpunk'] || 
-    product.specs?.['FPS_Warzone'] || 
-    product.specs?.['FPS_GTA'] || 
-    product.specs?.['FPS_Forza']
-  );
+  const hasFpsSimulations = product.category === "Desktop's";
 
   const fpsDataConfig = [
     { key: 'FPS_Valorant', game: 'Valorant', color: 'from-red-500 to-red-400' },
@@ -108,13 +114,13 @@ function ProductModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-6 bg-black/95 backdrop-blur-3xl transition-all duration-500 animate-in fade-in zoom-in-95">
-      <div className={`w-full bg-[#0a0a14] border border-white/10 rounded-[2rem] sm:rounded-[2.5rem] mx-auto flex flex-col md:flex-row shadow-[0_0_100px_rgba(168,85,247,0.15)] relative z-[55] overflow-hidden h-[95vh] md:h-auto md:max-h-[90vh] ${hasFpsSimulations ? 'max-w-7xl' : 'max-w-5xl'}`}>
+      <div className={`w-full bg-[#0a0a14] border border-white/10 rounded-[2rem] sm:rounded-[2.5rem] mx-auto flex flex-col md:flex-row shadow-[0_0_100px_rgba(168,85,247,0.15)] relative z-[55] overflow-hidden h-[95vh] md:h-[82vh] md:max-h-[85vh] ${hasFpsSimulations ? 'max-w-7xl' : 'max-w-5xl'}`}>
         <button onClick={onClose} className="absolute top-4 right-4 sm:top-6 sm:right-6 z-50 w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-black/50 backdrop-blur-xl hover:bg-white/10 text-white border border-white/10 transition-colors rounded-full shadow-2xl hover:scale-105">
           <X size={18} strokeWidth={2} />
         </button>
 
         {/* Gallery Section */}
-        <div className={`w-full relative flex flex-col p-4 sm:p-8 bg-black overflow-hidden justify-center items-center shrink-0 ${hasFpsSimulations ? 'md:w-4/12' : 'md:w-1/2'} h-[35vh] md:h-auto`}>
+        <div className={`w-full relative flex flex-col p-4 sm:p-8 bg-black overflow-hidden justify-center items-center shrink-0 ${hasFpsSimulations ? 'md:w-[28%]' : 'md:w-[45%]'} h-[35vh] md:h-full`}>
           <div className="absolute inset-0 bg-brand-neon/5 blur-[80px] pointer-events-none rounded-full"></div>
           <div className="relative flex items-center justify-center w-full h-full md:aspect-square md:max-h-[50vh] overflow-hidden group rounded-2xl sm:rounded-[2rem] bg-black">
             {/* Fullscreen Image Lightbox */}
@@ -240,11 +246,11 @@ function ProductModal({
         </div>
 
         {/* Scrollable Container for Content */}
-        <div className="w-full flex-1 flex flex-col md:flex-row relative z-10 overflow-y-auto md:overflow-hidden" style={{WebkitOverflowScrolling: 'touch'}}>
+        <div className="w-full flex-1 flex flex-col md:flex-row relative z-10 overflow-y-auto md:overflow-hidden min-w-0" style={{WebkitOverflowScrolling: 'touch'}}>
         
         {/* Details Section with Scroll Handler */}
         <div 
-          className={`w-full p-5 sm:p-8 flex flex-col relative z-10 scrollbar-hide md:overflow-y-auto shrink-0 md:shrink ${hasFpsSimulations ? 'md:w-1/2 border-r border-white/5' : 'md:w-full'}`}
+          className={`w-full p-5 sm:p-8 flex flex-col relative z-10 scrollbar-hide md:overflow-y-auto shrink-0 md:shrink min-w-0 ${hasFpsSimulations ? 'md:w-[46%] border-r border-white/5' : 'md:w-full'}`}
           onWheel={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
           style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}
@@ -258,12 +264,22 @@ function ProductModal({
                {product.category}
              </span>
           </div>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-3 leading-tight tracking-tight drop-shadow-lg pr-8">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-3 leading-tight tracking-tight drop-shadow-lg pr-8 md:pr-16">
             {product.name}
           </h2>
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
-             <div className="text-xl sm:text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
-               {product.price.toLocaleString()} <span className="text-sm sm:text-base font-medium">MT</span>
+             <div className="text-xl sm:text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 flex items-center gap-3">
+               {product.discount > 0 ? (
+                 <>
+                   <span className="text-gray-500 line-through text-lg font-medium">{product.price.toLocaleString()} MT</span>
+                   <span className="text-brand-magenta drop-shadow-[0_0_15px_rgba(236,72,153,0.5)]">
+                     {(product.price - (product.price * product.discount / 100)).toLocaleString()} MT
+                   </span>
+                   <span className="bg-brand-magenta text-white px-2 py-1 rounded-lg text-xs font-black animate-bounce shadow-[0_0_15px_rgba(236,72,153,0.6)]">-{product.discount}% OFF</span>
+                 </>
+               ) : (
+                 <>{product.price.toLocaleString()} <span className="text-sm sm:text-base font-medium">MT</span></>
+               )}
              </div>
              <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-1 rounded-full border border-yellow-500/20">
                 <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
@@ -284,7 +300,10 @@ function ProductModal({
               {/* Product Status forced into specs per requirement - SHOWN FIRST */}
               {(product as any).status && (
                 <div className="flex justify-between items-center py-2 border-b border-white/5 group">
-                  <span className="text-gray-500 font-bold text-xs tracking-wide uppercase group-hover:text-brand-neon transition-colors">Disponibilidade</span>
+                  <span className="text-gray-500 font-bold text-xs tracking-wide uppercase group-hover:text-brand-neon transition-colors flex items-center gap-2">
+                    <ShieldCheck className="w-3.5 h-3.5 text-brand-neon shrink-0" />
+                    Disponibilidade
+                  </span>
                   <span className={`text-sm font-bold text-right ml-4 ${
                     (product as any).status === 'stock' ? 'text-green-400' :
                     (product as any).status === 'encomenda' ? 'text-blue-400' :
@@ -321,7 +340,10 @@ function ProductModal({
                   
                   return (
                     <div key={key} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 group">
-                      <span className="text-gray-500 font-bold text-xs tracking-wide uppercase group-hover:text-brand-neon transition-colors">{key.replace(/_/g, ' ')}</span>
+                      <span className="text-gray-500 font-bold text-xs tracking-wide uppercase group-hover:text-brand-neon transition-colors flex items-center gap-2">
+                        {getSpecIcon(key)}
+                        {key.replace(/_/g, ' ')}
+                      </span>
                       <span className="text-gray-200 text-sm font-medium text-right ml-4">{value as string}</span>
                     </div>
                   );
@@ -359,12 +381,12 @@ function ProductModal({
 
       {/* FPS Simulator Panel (Only for Desktops) */}
       {product.category === "Desktop's" && (
-        <div className="w-full md:w-1/2 p-5 sm:p-8 flex flex-col relative z-10 scrollbar-hide md:overflow-y-auto bg-[#050508] border-t md:border-t-0 border-white/5 shrink-0 md:shrink" onWheel={(e) => e.stopPropagation()} onTouchMove={(e) => e.stopPropagation()} style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
+        <div className="w-full md:w-[54%] p-5 sm:p-8 flex flex-col relative z-10 scrollbar-hide md:overflow-y-auto bg-[#050508] border-t md:border-t-0 border-white/5 shrink-0 md:shrink min-w-0" onWheel={(e) => e.stopPropagation()} onTouchMove={(e) => e.stopPropagation()} style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}>
           {/* Cyberpunk Grid Background */}
           <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#a855f7 1px, transparent 1px), linear-gradient(90deg, #a855f7 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
           <div className="absolute top-0 right-0 w-48 h-48 bg-brand-neon/20 blur-[80px] rounded-full pointer-events-none"></div>
 
-          <div className="flex items-center gap-4 mb-10 relative z-10">
+          <div className="flex items-center gap-4 mb-8 relative z-10 md:pr-12">
             <div className="w-12 h-12 rounded-xl bg-brand-neon/10 border border-brand-neon/40 flex items-center justify-center relative group">
               <div className="absolute inset-0 bg-brand-neon/20 blur-[15px] rounded-full animate-pulse"></div>
               <Zap className="w-6 h-6 text-brand-neon relative z-10" />
@@ -375,7 +397,7 @@ function ProductModal({
             </div>
           </div>
 
-          <div className="space-y-6 relative z-10">
+          <div className="space-y-4 relative z-10">
             {fpsDataConfig.map(({key, game, color}, index) => {
               const valStr = product.specs[key];
               const numericFPS = valStr ? parseInt(valStr.match(/\d+/)?.[0] || '0') : 0;
@@ -386,26 +408,33 @@ function ProductModal({
               const delay = `${index * 0.15}s`;
 
               return (
-                <div key={key} className="group relative">
-                  <div className="flex justify-between items-end mb-2">
-                    <span className="text-xs font-bold text-gray-300 uppercase tracking-wide group-hover:text-white transition-colors flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full ${numericFPS > 0 ? 'bg-brand-neon animate-pulse shadow-[0_0_2px_rgba(20,241,149,0.5)]' : 'bg-gray-600'}`}></span>
+                <div key={key} className="group relative bg-white/[0.01] hover:bg-white/[0.03] border border-white/5 hover:border-brand-neon/30 p-4 sm:p-5 rounded-2xl transition-all duration-300 shadow-md hover:scale-[1.01] overflow-hidden">
+                  <div className={`absolute -right-10 -top-10 w-24 h-24 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-[0.03] blur-2xl rounded-full transition-opacity duration-500`}></div>
+                  
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-sm sm:text-base font-black text-gray-300 uppercase tracking-wide group-hover:text-white transition-colors flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${numericFPS > 0 ? 'bg-brand-neon animate-pulse shadow-[0_0_8px_rgba(20,241,149,0.8)]' : 'bg-gray-600'}`}></span>
                       {game}
                     </span>
-                    <span className={`text-2xl font-black tabular-nums transition-all ${numericFPS > 0 ? 'text-white group-hover:text-brand-neon group-hover:scale-110 drop-shadow-[0_0_2px_rgba(20,241,149,0.3)]' : 'text-gray-600'}`}>
-                      {valStr || '--'}
-                    </span>
+                    <div className="flex flex-col items-end">
+                      <span className={`text-3xl sm:text-4xl font-black tabular-nums transition-all ${numericFPS > 0 ? 'text-white group-hover:text-brand-neon group-hover:scale-105 drop-shadow-[0_0_10px_rgba(20,241,149,0.2)]' : 'text-gray-600'}`}>
+                        {numericFPS > 0 ? `${numericFPS}` : '--'}
+                      </span>
+                      {numericFPS > 0 && (
+                        <span className="text-[9px] font-black uppercase text-gray-500 tracking-widest mt-0.5">FPS MEDIO</span>
+                      )}
+                    </div>
                   </div>
                   
                   {/* Outer Bar */}
-                  <div className="h-3 w-full bg-black/80 rounded-full overflow-hidden border border-white/10 relative shadow-inner">
+                  <div className="h-3 w-full bg-black/60 rounded-full overflow-hidden border border-white/5 relative shadow-inner">
                     {/* Inner Animated Bar */}
                     <div 
-                      className={`absolute top-0 left-0 h-full rounded-full bg-gradient-to-r ${color} transition-all ease-out shadow-[0_0_5px_currentColor]`} 
+                      className={`absolute top-0 left-0 h-full rounded-full bg-gradient-to-r ${color} transition-all ease-out shadow-[0_0_10px_currentColor]`} 
                       style={{ width: `${percentage}%`, transitionDuration: '1.5s', transitionDelay: delay }}
                     >
                       {/* Laser shine effect on the edge of the bar */}
-                      {numericFPS > 0 && <div className="absolute top-0 right-0 bottom-0 w-4 bg-white/10 blur-[1px]"></div>}
+                      {numericFPS > 0 && <div className="absolute top-0 right-0 bottom-0 w-8 bg-white/20 blur-[2px] animate-pulse"></div>}
                     </div>
                   </div>
                 </div>
@@ -951,7 +980,17 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
                </div>
                <div className="flex items-center justify-between mt-4">
                   <div className="text-lg font-black text-white group-hover:text-brand-neon transition-colors">
-                    {product.price.toLocaleString()} <span className="text-[10px] text-gray-500 font-bold">MT</span>
+                    {product.discount > 0 ? (
+                      <div className="flex flex-col">
+                        <span className="text-xs text-gray-500 line-through font-medium leading-none mb-1">{product.price.toLocaleString()} MT</span>
+                        <span className="text-brand-magenta flex items-center gap-2 drop-shadow-[0_0_8px_rgba(236,72,153,0.4)]">
+                          {(product.price - (product.price * product.discount / 100)).toLocaleString()} MT
+                          <span className="bg-brand-magenta/20 text-brand-magenta text-[9px] px-1.5 py-0.5 rounded-sm animate-pulse border border-brand-magenta/30">-{product.discount}%</span>
+                        </span>
+                      </div>
+                    ) : (
+                      <>{product.price.toLocaleString()} <span className="text-[10px] text-gray-500 font-bold">MT</span></>
+                    )}
                   </div>
                   <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">
                     <button 

@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useCart } from '../store/useCart';
 import { useStore } from '../store/useStore';
-import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Trash2, ArrowRight, ShieldCheck, Smartphone, Sparkles, ShoppingCart, Loader2, X, MapPin, User, Mailbox } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { useCoupons } from '../hooks/useCoupons';
+import { useClientProfile } from '../hooks/useClientProfile';
 
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -14,9 +15,38 @@ import { useGSAP } from '@gsap/react';
 gsap.registerPlugin(useGSAP);
 
 export function Checkout() {
-  const { items, addItem, removeItem, total, voucher, clearCart } = useCart();
+  const { items, addItem, removeItem, updateQuantity, total, voucher, clearCart } = useCart();
+  const { validateCoupon, applyCoupon } = useCoupons();
   const { products } = useStore();
+  const { recordPurchase } = useClientProfile();
   const navigate = useNavigate();
+
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{ id: string; code: string; discountPercent: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  const sessionId = (() => {
+    let id = localStorage.getItem('hs_session_id');
+    if (!id) { id = 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10); localStorage.setItem('hs_session_id', id); }
+    return id;
+  })();
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponError(null);
+    const result = validateCoupon(couponCode.trim(), sessionId, subtotal);
+    if (result.valid && result.coupon) {
+      setAppliedCoupon({ id: result.coupon.id, code: result.coupon.code, discountPercent: result.coupon.discountPercent });
+    } else {
+      setCouponError(result.error);
+    }
+    setCouponLoading(false);
+  };
+
+  const removeCoupon = () => { setAppliedCoupon(null); setCouponCode(''); setCouponError(null); };
 
   const [paymentMethod, setPaymentMethod] = useState<'mpesa' | 'emola'>('mpesa');
   
@@ -31,7 +61,13 @@ export function Checkout() {
 
   const [calculatingShipping, setCalculatingShipping] = useState(false);
   const [shippingCost, setShippingCost] = useState<number | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success'>('idle');
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const gpsCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentCountdown, setPaymentCountdown] = useState(120);
+  const paymentListenerRef = useRef<(() => void) | null>(null);
+  const paymentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [shippingSettings, setShippingSettings] = useState({
     baseLat: -25.9692,
     baseLng: 32.5732,
@@ -41,6 +77,14 @@ export function Checkout() {
   });
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Cleanup payment listener and timer on unmount
+  useEffect(() => {
+    return () => {
+      if (paymentListenerRef.current) { paymentListenerRef.current(); paymentListenerRef.current = null; }
+      if (paymentTimerRef.current) { clearInterval(paymentTimerRef.current); paymentTimerRef.current = null; }
+    };
+  }, []);
 
   // Sync Shipping Settings from DB
   useEffect(() => {
@@ -129,46 +173,68 @@ export function Checkout() {
 
   const subtotal = total;
   const discount = voucher ? voucher.value : 0;
+  const couponDiscount = appliedCoupon ? Math.round(subtotal * (appliedCoupon.discountPercent / 100)) : 0;
+  const totalDiscount = discount + couponDiscount;
   
-  const calculateCostFromDistance = (latitude: number, longitude: number) => {
+  // Stable haversine function — memoised so effects can list it as a dependency safely
+  const calculateCostFromDistance = useCallback((latitude: number, longitude: number): number => {
     const baseLat = Number(shippingSettings.baseLat) || -25.9692;
     const baseLng = Number(shippingSettings.baseLng) || 32.5732;
     const R = 6371;
     const dLat = (latitude - baseLat) * Math.PI / 180;
     const dLon = (longitude - baseLng) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    const a = Math.sin(dLat / 2) ** 2 +
               Math.cos(baseLat * Math.PI / 180) * Math.cos(latitude * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const distance = R * c;
+              Math.sin(dLon / 2) ** 2;
+    const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    const freeRad = Number(shippingSettings.freeRadiusKm) || 15;
+    const freeRad  = Number(shippingSettings.freeRadiusKm)  || 15;
     const costPerKm = Number(shippingSettings.costPerKmExtra) || 60;
-    const effectiveDistance = Math.max(0, distance - 2); // 2km tolerance for GPS jitter
-    return effectiveDistance <= freeRad ? 0 : Math.round((effectiveDistance - freeRad) * costPerKm);
-  };
 
-  // Auto-GPS on mount
+    // 2 km GPS jitter buffer: extends the free zone threshold only — not the cost base
+    const FREE_BUFFER = 2;
+    if (distance <= freeRad + FREE_BUFFER) return 0;
+    const chargeableKm = distance - freeRad; // always charge from the real free-radius edge
+    const raw = Math.round(chargeableKm * costPerKm);
+    return distance > 100 ? Math.min(raw, 2500) : raw; // courier cap for interprovincial
+  }, [shippingSettings]);
+
+  // Auto-GPS — runs ONCE on mount; does not re-fire when shippingSettings arrives
   useEffect(() => {
+    if (!("geolocation" in navigator) || address) return;
     let isMounted = true;
+    setCalculatingShipping(true);
     const timer = setTimeout(() => {
-      if ("geolocation" in navigator && shippingCost === null && isMounted && !address) {
-        setCalculatingShipping(true);
-        navigator.geolocation.getCurrentPosition((position) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
           if (!isMounted) return;
-          const cost = calculateCostFromDistance(position.coords.latitude, position.coords.longitude);
+          gpsCoordsRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          const cost = calculateCostFromDistance(pos.coords.latitude, pos.coords.longitude);
           setShippingCost(cost);
-          setAddress("Localização Atual (GPS)");
-          setSelectedPlaceId("GPS");
+          setAddress('Localização Actual (GPS)');
+          setSelectedPlaceId('GPS');
+          setGpsError(null);
           setCalculatingShipping(false);
-        }, () => {
-          if (isMounted) setCalculatingShipping(false);
-        }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }); // Forced fresh GPS
-      }
-    }, 800); // Trigger slightly faster for better UX
-
+        },
+        () => {
+          if (!isMounted) return;
+          setGpsError('GPS negado pelo browser. Escreve o teu endereço manualmente.');
+          setCalculatingShipping(false);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }, 600);
     return () => { isMounted = false; clearTimeout(timer); };
-  }, [shippingSettings, shippingCost, address]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — single run on mount
+
+  // When Firestore shipping settings arrive (or change), recalculate cost from cached GPS coords
+  useEffect(() => {
+    if (gpsCoordsRef.current && selectedPlaceId === 'GPS') {
+      const cost = calculateCostFromDistance(gpsCoordsRef.current.lat, gpsCoordsRef.current.lng);
+      setShippingCost(cost);
+    }
+  }, [calculateCostFromDistance, selectedPlaceId]);
   
   // Matrix Synergies (Upsell logic)
   const getUpsells = () => {
@@ -276,43 +342,117 @@ export function Checkout() {
     return false;
   };
 
+  const cancelPayment = () => {
+    if (paymentListenerRef.current) { paymentListenerRef.current(); paymentListenerRef.current = null; }
+    if (paymentTimerRef.current) { clearInterval(paymentTimerRef.current); paymentTimerRef.current = null; }
+    setPaymentStatus('idle');
+    setPaymentError(null);
+    setPaymentCountdown(120);
+  };
+
   const handleCheckout = async () => {
     if (!fullName) { alert("Preencha o seu Nome Completo."); return; }
     if (!address) { alert("Preencha o endereço de entrega."); return; }
     if (!isPhoneValid()) { alert("Preencha um número válido de 9 dígitos para o método selecionado."); return; }
 
     setPaymentStatus('processing');
-    
-    const finalTotal = Math.max(0, subtotal - discount + (shippingCost || 0));
-    
+    setPaymentError(null);
+    setPaymentCountdown(120);
+
+    const finalTotal = Math.max(0, subtotal - totalDiscount + (shippingCost || 0));
+
     try {
-      // Save checkout in Firestore for the Admin
-      await addDoc(collection(db, 'checkouts'), {
+      if (appliedCoupon) await applyCoupon(appliedCoupon.id, sessionId);
+
+      const docRef = await addDoc(collection(db, 'checkouts'), {
+        sessionId,
         customerName: fullName,
         customerPhone: phone,
-        address: address,
+        address,
         zipCode: zipCode || 'N/A',
-        paymentMethod: paymentMethod,
-        subtotal: subtotal,
-        discount: discount,
+        paymentMethod,
+        subtotal,
+        discount,
+        couponCode: appliedCoupon?.code || null,
+        couponDiscount,
         shippingCost: shippingCost || 0,
         total: finalTotal,
-        items: items,
-        status: 'pendente', // 'pendente', 'pago', 'entregue', 'cancelado'
-        createdAt: serverTimestamp()
+        items,
+        status: 'pendente',
+        paymentStatus: 'awaiting_push',
+        createdAt: serverTimestamp(),
       });
 
-      // Simulate USSD Push
-      setTimeout(() => {
-        setPaymentStatus('success');
-        setTimeout(() => {
-          proceedToWhatsApp(finalTotal);
-        }, 3000);
-      }, 4000);
+      // Try real payment push
+      const pushEndpoint = paymentMethod === 'mpesa' ? '/api/mpesa-push' : '/api/emola-push';
+      let pushOk = false;
+      try {
+        const pushRes = await fetch(pushEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, amount: finalTotal, reference: `HWS-${docRef.id}`, orderId: docRef.id }),
+        });
+        const pushData = await pushRes.json();
+        pushOk = pushData.success === true;
+        if (!pushOk && pushData.error?.includes('not configured')) {
+          if (import.meta.env.DEV) {
+            // Dev/demo mode only: simulate confirmation without real payment
+            pushOk = true;
+            await updateDoc(docRef, { paymentStatus: 'confirmed', status: 'pago' });
+          } else {
+            setPaymentError('Sistema de pagamento não configurado. Contacta o suporte.');
+            setPaymentStatus('idle');
+            return;
+          }
+        }
+      } catch {
+        if (import.meta.env.DEV) {
+          // Dev/demo mode only: simulate on network error
+          pushOk = true;
+          await updateDoc(docRef, { paymentStatus: 'confirmed', status: 'pago' });
+        } else {
+          setPaymentError('Erro de ligação ao sistema de pagamento. Tenta novamente.');
+          setPaymentStatus('idle');
+          return;
+        }
+      }
+
+      if (!pushOk) {
+        setPaymentError('Não foi possível enviar a notificação de pagamento. Tenta novamente.');
+        setPaymentStatus('idle');
+        return;
+      }
+
+      // Countdown timer (120s)
+      let remaining = 120;
+      paymentTimerRef.current = setInterval(() => {
+        remaining -= 1;
+        setPaymentCountdown(remaining);
+        if (remaining <= 0) {
+          cancelPayment();
+          setPaymentError('Tempo esgotado. O pagamento não foi confirmado. Tenta novamente.');
+        }
+      }, 1000);
+
+      // Listen for paymentStatus update from webhook
+      paymentListenerRef.current = onSnapshot(docRef, (snap) => {
+        const data = snap.data();
+        if (!data) return;
+        if (data.paymentStatus === 'confirmed') {
+          if (paymentTimerRef.current) clearInterval(paymentTimerRef.current);
+          if (paymentListenerRef.current) paymentListenerRef.current();
+          recordPurchase(finalTotal);
+          setPaymentStatus('success');
+          setTimeout(() => proceedToWhatsApp(finalTotal), 2500);
+        } else if (data.paymentStatus === 'failed') {
+          cancelPayment();
+          setPaymentError('Pagamento recusado ou cancelado. Tenta novamente.');
+        }
+      });
 
     } catch (err) {
       console.error(err);
-      alert("Falha de rede ao registar encomenda. Tente novamente.");
+      alert("Falha de rede ao registar encomenda. Tenta novamente.");
       setPaymentStatus('idle');
     }
   };
@@ -333,7 +473,10 @@ export function Checkout() {
     });
     
     if (voucher) {
-       msg += `\n*Voucher Aplicado:* -${voucher.value.toLocaleString()} MT`;
+       msg += `\n*Voucher Trade-in:* -${voucher.value.toLocaleString()} MT`;
+    }
+    if (appliedCoupon) {
+       msg += `\n*Cupão (${appliedCoupon.code}):* -${couponDiscount.toLocaleString()} MT (${appliedCoupon.discountPercent}%)`;
     }
     
     msg += `\n\n*TOTAL A PAGAR:* ${finalTotal.toLocaleString()} MT`;
@@ -366,7 +509,7 @@ export function Checkout() {
          <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6 border border-white/10">
            <ShoppingCart className="w-10 h-10 text-gray-500" />
          </div>
-         <h2 className="text-3xl font-extrabold text-white mb-4">A Matrix está vazia</h2>
+         <h2 className="text-3xl font-extrabold text-white mb-4">O carrinho está vazio</h2>
          <p className="text-gray-400 mb-8 max-w-md">O teu setup de sonho começa com a primeira peça. Explora a nossa montra ou usa o Smart Builder.</p>
          <Button onClick={() => navigate('/products')} className="bg-brand-neon text-black font-bold h-14 px-8 rounded-full">Explorar Hardware</Button>
       </div>
@@ -388,7 +531,7 @@ export function Checkout() {
              <h1 className="text-5xl md:text-7xl font-black text-white tracking-tighter mb-4 leading-none">
                Finalizar <br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-white">Aquisição.</span>
              </h1>
-             <p className="text-gray-400 font-medium text-lg max-w-md">Revise as peças do seu arsenal. O próximo passo é o domínio absoluto.</p>
+             <p className="text-gray-400 font-medium text-lg max-w-md">Confirma os teus produtos antes de finalizar.</p>
            </div>
 
            {/* Items List */}
@@ -420,9 +563,19 @@ export function Checkout() {
                           <div className="flex-1 min-w-0">
                              <div className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1">{item.category}</div>
                              <h4 className="text-white font-bold text-lg sm:text-xl truncate leading-tight group-hover:text-brand-neon transition-colors">{item.name}</h4>
-                             <div className="text-brand-neon font-extrabold mt-2 text-base sm:text-lg flex items-center gap-2">
-                               {(item.price * (item.quantity || 1)).toLocaleString()} MT
-                               {(item.quantity || 1) > 1 && <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-md border border-white/10">Unidade: {item.price.toLocaleString()} MT</span>}
+                             <div className="text-brand-neon font-extrabold mt-2 text-base sm:text-lg flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                               {(item.discount ?? 0) > 0 ? (
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-xs text-gray-500 line-through">{(item.price * (item.quantity || 1)).toLocaleString()} MT</span>
+                                   <span className="text-brand-magenta">
+                                     {((item.price - (item.price * (item.discount ?? 0) / 100)) * (item.quantity || 1)).toLocaleString()} MT
+                                     <span className="ml-2 bg-brand-magenta/20 text-brand-magenta px-1.5 py-0.5 rounded-[4px] text-[10px] animate-pulse">-{item.discount}%</span>
+                                   </span>
+                                 </div>
+                               ) : (
+                                 <span>{(item.price * (item.quantity || 1)).toLocaleString()} MT</span>
+                               )}
+                               {(item.quantity || 1) > 1 && <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-md border border-white/10 w-fit">Unidade: {((item.discount ?? 0) > 0 ? (item.price - (item.price * (item.discount ?? 0) / 100)) : item.price).toLocaleString()} MT</span>}
                              </div>
                           </div>
                           <div className="flex items-center gap-3">
@@ -430,22 +583,18 @@ export function Checkout() {
                                <button 
                                  onClick={() => {
                                    if ((item.quantity || 1) > 1) {
-                                     // Quick hack to decrease quantity: we remove it and re-add with quantity - 1
-                                     removeItem(item.id);
-                                     for(let i=0; i<(item.quantity || 1)-1; i++) {
-                                       addItem({ id: item.id, name: item.name, price: item.price, image: item.image, category: item.category });
-                                     }
+                                     updateQuantity(item.id, (item.quantity || 1) - 1);
                                    } else {
                                      removeItem(item.id);
                                    }
                                  }}
                                  className="w-8 h-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
-                               >
+                                >
                                  -
                                </button>
                                <span className="w-6 text-center text-sm font-bold text-white">{item.quantity || 1}</span>
                                <button 
-                                 onClick={() => addItem({ id: item.id, name: item.name, price: item.price, image: item.image, category: item.category })}
+                                 onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
                                  className="w-8 h-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
                                >
                                  +
@@ -469,9 +618,9 @@ export function Checkout() {
                 
                 <div className="mb-8 relative z-10">
                   <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-                     <Sparkles className="text-brand-magenta w-6 h-6 animate-pulse" /> Sinergias Sugeridas
+                     <Sparkles className="text-brand-magenta w-6 h-6 animate-pulse" /> Também podes gostar
                   </h3>
-                  <p className="text-sm text-gray-400 font-medium">Eleve o seu sistema ao próximo patamar com recomendações cruzadas da Amani.</p>
+                  <p className="text-sm text-gray-400 font-medium">Produtos que combinam com o teu pedido.</p>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
@@ -522,6 +671,40 @@ export function Checkout() {
                       <span>-{discount.toLocaleString()} MT</span>
                    </div>
                  )}
+
+                 {/* Coupon Input */}
+                 <div className="pt-1">
+                   {appliedCoupon ? (
+                     <div className="flex justify-between items-center text-sm font-bold text-brand-neon bg-brand-neon/10 p-3 rounded-2xl border border-brand-neon/20 shadow-inner">
+                       <span className="flex items-center gap-2"><Sparkles size={16}/> {appliedCoupon.code} ({appliedCoupon.discountPercent}% off)</span>
+                       <div className="flex items-center gap-2">
+                         <span>-{couponDiscount.toLocaleString()} MT</span>
+                         <button onClick={removeCoupon} className="text-gray-500 hover:text-red-400 transition-colors text-xs">✕</button>
+                       </div>
+                     </div>
+                   ) : (
+                     <div className="flex gap-2">
+                       <div className="relative flex-1">
+                         <input
+                           value={couponCode}
+                           onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError(null); }}
+                           onKeyDown={e => e.key === 'Enter' && handleApplyCoupon()}
+                           type="text"
+                           placeholder="Código de cupão..."
+                           className="w-full bg-white/5 border border-white/10 h-11 rounded-2xl px-4 text-white text-xs font-bold placeholder:text-gray-600 focus:outline-none focus:border-brand-neon/50 transition-all uppercase tracking-widest"
+                         />
+                       </div>
+                       <button
+                         onClick={handleApplyCoupon}
+                         disabled={couponLoading || !couponCode.trim()}
+                         className="h-11 px-4 rounded-2xl bg-brand-neon/10 border border-brand-neon/30 text-brand-neon text-xs font-black uppercase tracking-wider hover:bg-brand-neon hover:text-black transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0"
+                       >
+                         {couponLoading ? <Loader2 size={14} className="animate-spin" /> : 'Aplicar'}
+                       </button>
+                     </div>
+                   )}
+                   {couponError && <p className="text-red-400 text-[11px] font-bold mt-2 ml-1">{couponError}</p>}
+                 </div>
                  
                  <div className="flex justify-between items-center text-sm font-medium pt-5 border-t border-white/5">
                     <span className="text-gray-300 flex flex-col">
@@ -529,31 +712,41 @@ export function Checkout() {
                       <span className="text-[10px] text-gray-500 uppercase tracking-widest mt-1 font-bold">Cálculo GPS Integrado</span>
                     </span>
                     {shippingCost === null ? (
-                               <div className="flex gap-2">
-                                 <Button onClick={() => {
-                                   if ("geolocation" in navigator) {
+                               <div className="flex flex-col items-end gap-2">
+                                 <div className="flex gap-2">
+                                   <Button onClick={() => {
+                                     if (!("geolocation" in navigator)) return;
                                      setCalculatingShipping(true);
-                                     navigator.geolocation.getCurrentPosition((position) => {
-                                       calculateShippingCostFromCoords(position.coords.latitude, position.coords.longitude);
-                                       setAddress("Localização Atual (GPS)");
-                                       setSelectedPlaceId("GPS");
-                                     }, () => {
-                                       alert("Permissão de GPS negada ou sinal muito fraco. Por favor, digite o endereço manualmente.");
-                                       setCalculatingShipping(false);
-                                     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-                                   }
-                                 }} variant="outline" className="h-9 px-3 text-xs font-bold bg-brand-neon/10 border-brand-neon/30 text-brand-neon hover:bg-brand-neon/20 transition-all shadow-[0_0_10px_rgba(20,241,149,0.2)]">
-                                   Usar Meu GPS Atual
-                                 </Button>
-                                 <Button onClick={calculateShipping} disabled={calculatingShipping || !address} variant="outline" className="h-9 px-3 text-xs font-bold bg-white/5 border-white/10 text-white hover:bg-white/10 transition-all">
-                                   {calculatingShipping ? <Loader2 size={14} className="animate-spin mr-2" /> : 'Calcular por Texto'}
-                                 </Button>
+                                     setGpsError(null);
+                                     navigator.geolocation.getCurrentPosition(
+                                       (pos) => {
+                                         gpsCoordsRef.current = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                                         const cost = calculateCostFromDistance(pos.coords.latitude, pos.coords.longitude);
+                                         setShippingCost(cost);
+                                         setAddress('Localização Actual (GPS)');
+                                         setSelectedPlaceId('GPS');
+                                         setCalculatingShipping(false);
+                                       },
+                                       () => {
+                                         setGpsError('GPS negado. Escreve o teu endereço manualmente.');
+                                         setCalculatingShipping(false);
+                                       },
+                                       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                                     );
+                                   }} variant="outline" className="h-9 px-3 text-xs font-bold bg-brand-neon/10 border-brand-neon/30 text-brand-neon hover:bg-brand-neon/20 transition-all shadow-[0_0_10px_rgba(20,241,149,0.2)]">
+                                     {calculatingShipping ? <Loader2 size={14} className="animate-spin" /> : 'Usar GPS'}
+                                   </Button>
+                                   <Button onClick={calculateShipping} disabled={calculatingShipping || !address} variant="outline" className="h-9 px-3 text-xs font-bold bg-white/5 border-white/10 text-white hover:bg-white/10 transition-all">
+                                     {calculatingShipping ? <Loader2 size={14} className="animate-spin" /> : 'Calcular por Texto'}
+                                   </Button>
+                                 </div>
+                                 {gpsError && <p className="text-orange-400 text-[10px] font-bold text-right max-w-[220px]">{gpsError}</p>}
                                </div>
                     ) : (
                        <div className="flex flex-col items-end gap-1">
                          <span className="text-brand-neon font-extrabold text-lg">{shippingCost === 0 ? 'Grátis' : `${shippingCost.toLocaleString()} MT`}</span>
-                         {shippingCost === 0 && <span className="text-[9px] text-black bg-brand-neon px-2 py-0.5 rounded-full font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(20,241,149,0.5)]">Zona VIP Central</span>}
-                         <button onClick={() => setShippingCost(null)} className="text-[10px] text-gray-500 hover:text-white underline mt-1 transition-colors">Recalcular</button>
+                         {shippingCost === 0 && <span className="text-[9px] text-black bg-brand-neon px-2 py-0.5 rounded-full font-bold uppercase tracking-widest shadow-[0_0_10px_rgba(20,241,149,0.5)]">Zona Central — Grátis</span>}
+                         <button onClick={() => { setShippingCost(null); gpsCoordsRef.current = null; }} className="text-[10px] text-gray-500 hover:text-white underline mt-1 transition-colors">Recalcular</button>
                        </div>
                     )}
                  </div>
@@ -563,7 +756,7 @@ export function Checkout() {
               <div className="flex justify-between items-end mb-10 px-2 relative z-10">
                  <span className="text-sm font-extrabold text-gray-500 uppercase tracking-widest mb-2">Total Final</span>
                  <div className="text-5xl sm:text-6xl font-black text-white tracking-tighter drop-shadow-lg flex items-start gap-2">
-                    {Math.max(0, subtotal - discount + (shippingCost || 0)).toLocaleString()} 
+                    {Math.max(0, subtotal - discount - couponDiscount + (shippingCost || 0)).toLocaleString()} 
                     <span className="text-xl sm:text-2xl text-brand-neon font-bold mt-2">MT</span>
                  </div>
               </div>
@@ -632,7 +825,10 @@ export function Checkout() {
                      onChange={e => {
                        setAddress(e.target.value);
                        setSelectedPlaceId(null);
-                     }} 
+                       setShippingCost(null);   // reset cost so user sees the recalculate UI
+                       gpsCoordsRef.current = null; // typed address — discard cached GPS coords
+                       setGpsError(null);
+                     }}
                      type="text" 
                      placeholder="Endereço Físico Exato (Ex: Av. FPLM, Maputo)" 
                      className="w-full bg-white/5 border border-white/10 h-16 rounded-2xl pl-12 pr-12 text-white text-sm font-medium focus:outline-none focus:border-brand-neon focus:bg-white/10 focus:ring-4 focus:ring-brand-neon/10 transition-all shadow-inner placeholder:text-gray-600" 
@@ -667,20 +863,30 @@ export function Checkout() {
                  </div>
               </div>
 
+              {paymentError && (
+                <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-sm font-medium relative z-10">
+                  {paymentError}
+                </div>
+              )}
               {paymentStatus === 'processing' ? (
-                 <div className="w-full h-16 rounded-2xl bg-black/60 border border-brand-neon/30 flex items-center justify-center gap-3 relative z-10 text-brand-neon">
-                    <Loader2 className="animate-spin" size={24} />
-                    <span className="font-bold text-lg">Aguardando USSD Push no telemóvel...</span>
+                 <div className="relative z-10 space-y-3">
+                   <div className="w-full h-16 rounded-2xl bg-black/60 border border-brand-neon/30 flex items-center justify-center gap-3 text-brand-neon">
+                     <Loader2 className="animate-spin shrink-0" size={20} />
+                     <span className="font-bold text-sm">Aprova no teu telemóvel — {paymentCountdown}s</span>
+                   </div>
+                   <button onClick={cancelPayment} className="w-full h-10 rounded-2xl bg-transparent border border-white/10 text-gray-500 hover:text-white hover:border-white/20 text-xs font-bold uppercase tracking-widest transition-all">
+                     Cancelar
+                   </button>
                  </div>
               ) : (
                  <Button 
                    onClick={handleCheckout}
-                   disabled={!address || !isPhoneValid()}
+                   disabled={!address || !isPhoneValid() || !fullName.trim()}
                    className={`w-full h-16 rounded-2xl transition-all hover:scale-[1.02] shadow-[0_20px_40px_rgba(255,255,255,0.2)] font-black text-lg flex items-center justify-center gap-3 relative z-10 border-0 ${
-                     address && isPhoneValid() ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/10 text-gray-500 cursor-not-allowed'
+                     address && isPhoneValid() && fullName.trim() ? 'bg-white text-black hover:bg-gray-200' : 'bg-white/10 text-gray-500 cursor-not-allowed'
                    }`}
                  >
-                   <ArrowRight className="w-5 h-5" /> Submeter Protocolo Pago
+                   <ArrowRight className="w-5 h-5" /> Confirmar Encomenda
                  </Button>
               )}
               
