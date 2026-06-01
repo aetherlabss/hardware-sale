@@ -1,12 +1,20 @@
 import { GoogleGenAI } from '@google/genai';
+import { gateBrowserRequest } from './_security';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  // Admin-only feature, but still restrict to known origins and rate limit
+  if (!gateBrowserRequest(req, res, { rateLimit: 5, windowMs: 60_000 })) return;
 
-  // A chave Vertex API fornecida para os modelos Nano Banana 2 Pro e Veo 3.1
-  const vertexApiKey = process.env.VITE_VERTEX_API_KEY;
+  // Prefer server-only env var (not exposed by Vite). Falls back to the
+  // legacy VITE_-prefixed var for compatibility — TODO: rotate the key and
+  // drop the VITE_ fallback so the key never reaches the client bundle.
+  const vertexApiKey = process.env.VERTEX_API_KEY || process.env.VITE_VERTEX_API_KEY;
+  if (!vertexApiKey) {
+    return res.status(503).json({ error: 'VERTEX_API_KEY env var is not set' });
+  }
 
   const { prompt, model, resolution, style, aspectRatio } = req.body;
 
@@ -67,6 +75,6 @@ export default async function handler(req: any, res: any) {
 
   } catch (error: any) {
     console.error('Vertex Generation Error:', error);
-    return res.status(500).json({ error: 'Failed to synthesize matrix media. Vertex API Erro: ' + error.message });
+    return res.status(500).json({ error: 'Falha ao gerar média. Vertex API erro: ' + error.message });
   }
 }

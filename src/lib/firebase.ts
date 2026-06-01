@@ -1,11 +1,36 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId); // CRITICAL: The app will break without this line
 export const auth = getAuth(app);
+
+// Anonymous sign-in for all visitors so every request carries a stable UID.
+// Lets Firestore rules gate per-user data (own checkouts, own profile writes)
+// without requiring customers to manage a password. Admins sign in with email
+// on top — anonymous auth is overridden by the email login at that point.
+onAuthStateChanged(auth, (user) => {
+  if (!user) {
+    signInAnonymously(auth).catch((err) => {
+      console.warn('Anonymous auth failed:', err?.message || err);
+    });
+  }
+});
+
+// Resolves to the current UID once auth has bootstrapped (synchronous if
+// already signed in, otherwise waits for the next auth state change).
+export function getUidWhenReady(timeoutMs = 4000): Promise<string | null> {
+  if (auth.currentUser?.uid) return Promise.resolve(auth.currentUser.uid);
+  return new Promise((resolve) => {
+    let done = false;
+    const timer = setTimeout(() => { if (!done) { done = true; unsub(); resolve(null); } }, timeoutMs);
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user?.uid && !done) { done = true; clearTimeout(timer); unsub(); resolve(user.uid); }
+    });
+  });
+}
 
 // Validation check
 export async function testConnection() {

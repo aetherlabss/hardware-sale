@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useClientProfile, LEVELS, XP_REWARDS, getLevelFromXP, ClientProfile } from '../hooks/useClientProfile';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import {
   Crown, Star, Trophy, Users, Copy, CheckCircle2, Gift, ShoppingBag,
@@ -196,19 +196,27 @@ export function ClientHub() {
     if (!profile) return;
     setLoadingOrders(true);
     try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) { setOrders([]); return; }
+      // Query by the anonymous-auth UID — matches the Firestore rule which
+      // only releases checkouts where doc.userId == request.auth.uid.
+      // Old checkouts (pre-auth migration) without a userId aren't returned
+      // here; admins still see them in the admin dashboard.
+      const snap = await getDocs(query(
+        collection(db, 'checkouts'),
+        where('userId', '==', uid),
+        orderBy('createdAt', 'desc'),
+      ));
       const results: Order[] = [];
-      const seen = new Set<string>();
-      const snap1 = await getDocs(query(collection(db, 'checkouts'), where('sessionId', '==', sessionId), orderBy('createdAt', 'desc')));
-      snap1.forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); results.push({ id: d.id, ...d.data() } as Order); } });
-      if (profile.phone) {
-        const snap2 = await getDocs(query(collection(db, 'checkouts'), where('customerPhone', '==', profile.phone), orderBy('createdAt', 'desc')));
-        snap2.forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); results.push({ id: d.id, ...d.data() } as Order); } });
-      }
-      results.sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0));
+      snap.forEach(d => results.push({ id: d.id, ...d.data() } as Order));
       setOrders(results);
-    } catch { setOrders([]); }
-    finally { setLoadingOrders(false); }
-  }, [profile, sessionId]);
+    } catch (err) {
+      console.warn('Order history blocked or failed:', err);
+      setOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  }, [profile]);
 
   useEffect(() => { if (activeTab === 'encomendas') loadOrders(); }, [activeTab, loadOrders]);
 

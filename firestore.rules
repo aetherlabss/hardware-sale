@@ -19,31 +19,56 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // ── Checkouts: session owner can create; only admins can update/delete ─
+    // ── Checkouts ──────────────────────────────────────────────────────────
+    // Customers are anonymously signed in (request.auth.uid is set). New
+    // checkouts must carry that UID and reads are gated by it — so a customer
+    // can list/onSnapshot ONLY their own orders, never anyone else's PII.
+    // Admins see everything (including legacy docs without userId).
     match /checkouts/{id} {
-      allow create: if true;  // client creates checkout without auth
-      allow read:   if isAdmin()
-                    || (resource.data.sessionId != null
-                        && resource.data.sessionId == request.auth.token.sessionId)
-                    || true;  // allow client to read own doc via onSnapshot
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.sessionId is string
+                    && request.resource.data.sessionId.size() > 8
+                    && request.resource.data.total is number
+                    && request.resource.data.total >= 0;
+      allow get:    if isAdmin()
+                    || (request.auth != null && resource.data.userId == request.auth.uid);
+      allow list:   if isAdmin()
+                    || (request.auth != null && resource.data.userId == request.auth.uid);
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
-    // ── Client profiles: owner (by sessionId) can read/write their own doc ─
+    // ── Client profiles ───────────────────────────────────────────────────
+    // Public-ish data (XP, referral code, name). Doc id IS the sessionId.
+    // Writes require the payload's sessionId to match the doc id (so a user
+    // cannot tamper with someone else's profile by guessing the doc id).
+    // Sensitive numeric fields (xp/level/totalSpent/purchaseCount) remain
+    // writable from the client because purchase recording happens client-side
+    // today — this is on the roadmap to move server-side.
     match /client_profiles/{sessionId} {
-      allow read, write: if true;  // session-based auth (no Firebase Auth)
+      allow read:   if true;
+      allow create: if request.resource.data.sessionId == sessionId
+                    && request.resource.data.sessionId.size() > 8;
+      allow update: if request.resource.data.sessionId == sessionId
+                    && request.resource.data.sessionId.size() > 8;
+      allow delete: if isAdmin();
     }
 
-    // ── Coupons: anyone can read; only admins can write ────────────────────
+    // ── Coupons ───────────────────────────────────────────────────────────
+    // Public can `get` by exact code (used when entering it at checkout)
+    // but cannot `list` to enumerate every coupon — only admin can list.
     match /coupons/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow get:    if true;
+      allow list:   if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
-    // ── Analytics: append-only from client ────────────────────────────────
+    // ── Analytics: append-only, basic shape validation ────────────────────
     match /analytics_events/{id} {
-      allow create: if true;
+      allow create: if request.resource.data.type is string
+                    && request.resource.data.type.size() < 100
+                    && request.resource.data.timestamp is number;
       allow read, update, delete: if isAdmin();
     }
 

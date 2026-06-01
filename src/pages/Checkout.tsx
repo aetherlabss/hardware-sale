@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore';
 import { Button } from '../components/ui/button';
 import { Trash2, ArrowRight, ShieldCheck, Smartphone, Sparkles, ShoppingCart, Loader2, X, MapPin, User, Mailbox } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { db } from '../lib/firebase';
+import { db, getUidWhenReady } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useCoupons } from '../hooks/useCoupons';
 import { useClientProfile } from '../hooks/useClientProfile';
@@ -37,7 +37,7 @@ export function Checkout() {
     if (!couponCode.trim()) return;
     setCouponLoading(true);
     setCouponError(null);
-    const result = validateCoupon(couponCode.trim(), sessionId, subtotal);
+    const result = await validateCoupon(couponCode.trim(), sessionId, subtotal);
     if (result.valid && result.coupon) {
       setAppliedCoupon({ id: result.coupon.id, code: result.coupon.code, discountPercent: result.coupon.discountPercent });
     } else {
@@ -364,7 +364,12 @@ export function Checkout() {
     try {
       if (appliedCoupon) await applyCoupon(appliedCoupon.id, sessionId);
 
+      // Anonymous Firebase Auth must be ready so the new doc carries the UID
+      // that the Firestore rule keys reads against.
+      const uid = await getUidWhenReady();
+
       const docRef = await addDoc(collection(db, 'checkouts'), {
+        userId: uid,
         sessionId,
         customerName: fullName,
         customerPhone: phone,

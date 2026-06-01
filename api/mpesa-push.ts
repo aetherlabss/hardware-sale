@@ -3,6 +3,7 @@
 // Required env vars: MPESA_API_HOST, MPESA_API_KEY, MPESA_PUBLIC_KEY, MPESA_SERVICE_PROVIDER_CODE
 
 import crypto from 'crypto';
+import { gateBrowserRequest } from './_security';
 
 async function getMpesaSessionKey(): Promise<string> {
   const apiKey = process.env.MPESA_API_KEY!;
@@ -39,10 +40,24 @@ async function getMpesaSessionKey(): Promise<string> {
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  // Block off-origin browser callers and apply per-IP rate limit (10/min)
+  if (!gateBrowserRequest(req, res, { rateLimit: 10, windowMs: 60_000 })) return;
 
   const { phone, amount, reference, orderId } = req.body;
   if (!phone || !amount || !orderId) {
     return res.status(400).json({ error: 'phone, amount and orderId are required' });
+  }
+
+  // Defensive validation of amount and phone
+  const numAmount = Number(amount);
+  if (!Number.isFinite(numAmount) || numAmount <= 0 || numAmount > 5_000_000) {
+    return res.status(400).json({ error: 'Invalid amount.' });
+  }
+  if (!/^\d{9,15}$/.test(String(phone).replace(/\D/g, ''))) {
+    return res.status(400).json({ error: 'Invalid phone number.' });
+  }
+  if (!/^[A-Za-z0-9_-]{10,40}$/.test(String(orderId))) {
+    return res.status(400).json({ error: 'Invalid orderId.' });
   }
 
   const host = process.env.MPESA_API_HOST;

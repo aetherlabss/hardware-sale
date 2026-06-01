@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, increment } from 'firebase/firestore';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
@@ -549,26 +549,14 @@ Retorne um JSON válido com esta exata estrutura:
     e.preventDefault();
     setIsLoggingIn(true);
     setLoginError('');
-    
-    if (!ALLOWED_ADMINS.includes(email.toLowerCase().trim())) {
-      setLoginError('Acesso Negado: Email não autorizado nas diretivas de segurança.');
-      setIsLoggingIn(false);
-      return;
-    }
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (e: any) {
-      if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
-        try {
-          // If the email is allowed, we can lazily create the account with the password they provided
-          await createUserWithEmailAndPassword(auth, email, password);
-        } catch (createError: any) {
-          setLoginError('Acesso Negado: Falha na criação do acesso Master.');
-        }
-      } else {
-        setLoginError('Acesso Negado: Credenciais inválidas.');
-      }
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      // Note: post-login the component re-renders and the email check at line ~784
+      // gates the dashboard. Non-admin emails authenticate but see "Acesso Restrito".
+    } catch {
+      // Generic error — never reveal whether email exists, is in allowlist, or password is wrong
+      setLoginError('Credenciais inválidas.');
     } finally {
       setIsLoggingIn(false);
     }
@@ -804,29 +792,31 @@ Retorne um JSON válido com esta exata estrutura:
                 </div>
               )}
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Email Security Level</label>
-                <Input 
-                  required 
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Email</label>
+                <Input
+                  required
                   type="email"
-                  value={email} 
-                  onChange={e => setEmail(e.target.value)} 
-                  className="bg-white/5 border-white/10 h-12" 
-                  placeholder="admin@hardwaresales.co.mz" 
+                  autoComplete="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="bg-white/5 border-white/10 h-12"
+                  placeholder="email@empresa.com"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Override Passcode</label>
-                <Input 
-                  required 
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Password</label>
+                <Input
+                  required
                   type="password"
-                  value={password} 
-                  onChange={e => setPassword(e.target.value)} 
-                  className="bg-white/5 border-white/10 h-12" 
-                  placeholder="******" 
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="bg-white/5 border-white/10 h-12"
+                  placeholder="••••••••"
                 />
               </div>
               <Button disabled={isLoggingIn} type="submit" className="w-full bg-white text-black hover:bg-gray-200 h-12 rounded-xl font-bold transition-transform hover:scale-[1.02]">
-                {isLoggingIn ? 'Autenticando...' : 'Iniciar Protocolo'}
+                {isLoggingIn ? 'A autenticar...' : 'Entrar'}
               </Button>
             </form>
           </CardContent>
@@ -2477,8 +2467,16 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                       <Button disabled={savingCoupon || !couponForm.code.trim()} onClick={async () => {
                         setSavingCoupon(true);
                         try {
-                          const data = {
-                            code: couponForm.code.toUpperCase().trim(),
+                          const normalisedCode = couponForm.code.toUpperCase().trim().replace(/[^A-Z0-9_-]/g, '');
+                          if (!normalisedCode) {
+                            showFeedback('error', 'Código inválido. Usa só letras, números, _ ou -.');
+                            setSavingCoupon(false);
+                            return;
+                          }
+                          // Doc ID is the code itself (enables public lookup-by-code without enumerating the collection)
+                          const targetId = editingCouponId || normalisedCode;
+                          const data: any = {
+                            code: normalisedCode,
                             discountPercent: couponForm.discountPercent,
                             maxUses: couponForm.maxUses,
                             maxPerUser: couponForm.maxPerUser,
@@ -2486,16 +2484,14 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                             active: couponForm.active,
                             validFrom: couponForm.validFrom ? new Date(couponForm.validFrom).getTime() : null,
                             validUntil: couponForm.validUntil ? new Date(couponForm.validUntil).getTime() : null,
-                            usedCount: editingCouponId ? undefined : 0,
-                            usedBy: editingCouponId ? undefined : [],
-                            createdAt: editingCouponId ? undefined : serverTimestamp(),
                             updatedAt: serverTimestamp(),
                           };
-                          if (editingCouponId) {
-                            await setDoc(doc(db, 'coupons', editingCouponId), data, { merge: true });
-                          } else {
-                            await addDoc(collection(db, 'coupons'), data);
+                          if (!editingCouponId) {
+                            data.usedCount = 0;
+                            data.usedBy = [];
+                            data.createdAt = serverTimestamp();
                           }
+                          await setDoc(doc(db, 'coupons', targetId), data, { merge: !!editingCouponId });
                           setIsAddingCoupon(false); setEditingCouponId(null);
                           showFeedback('success', editingCouponId ? 'Cupão actualizado!' : 'Cupão criado com sucesso!');
                         } catch(err) { showFeedback('error', 'Falha ao guardar cupão.'); }
