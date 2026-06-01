@@ -195,9 +195,9 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
                 <Hexagon className="w-6 h-6 text-brand-neon" strokeWidth={1.5} />
               </div>
               <div>
-                <h3 className="font-extrabold text-white text-lg tracking-tight leading-tight">Amani 3</h3>
+                <h3 className="font-extrabold text-white text-lg tracking-tight leading-tight">Amani</h3>
                 <p className="text-[9px] uppercase tracking-widest text-gray-400 font-bold mt-0.5 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online • Powered by Hardware Sale
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online · Assistente Hardware Sale
                 </p>
               </div>
             </div>
@@ -267,7 +267,7 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
               </button>
             </form>
             <div className="text-center mt-3">
-              <span className="text-[9px] font-bold text-gray-600 tracking-widest uppercase">Processamento Neural via Vertex AI</span>
+              <span className="text-[9px] font-bold text-gray-600 tracking-widest uppercase">Amani AI · Vertex</span>
             </div>
           </div>
         </div>

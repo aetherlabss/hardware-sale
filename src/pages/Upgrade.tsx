@@ -153,7 +153,7 @@ Retorne APENAS um objeto JSON válido estritamente com este formato:
 
     } catch (err) {
       console.error(err);
-      setError("Falha na avaliação neural. Verifique os dados inseridos ou tente novamente mais tarde.");
+      setError("Não foi possível processar a avaliação agora. Confirma os dados e tenta novamente.");
     } finally {
       setLoading(false);
     }
@@ -286,9 +286,9 @@ Retorne APENAS um objeto JSON válido estritamente com este formato:
                 className="mt-4 h-16 rounded-full bg-gradient-to-r from-brand-neon to-brand-magenta text-white border-0 font-extrabold text-lg transition-all hover:scale-[1.02] shadow-[0_0_30px_rgba(168,85,247,0.4)] flex items-center justify-center gap-3 disabled:opacity-50 disabled:grayscale"
               >
                 {loading ? (
-                  <><Loader2 className="w-6 h-6 animate-spin" /> A Analisar Telemetria & Visão...</>
+                  <><Loader2 className="w-6 h-6 animate-spin" /> A analisar foto e dados...</>
                 ) : (
-                  <><Cpu className="w-6 h-6" /> Obter Avaliação Neural Amani 3</>
+                  <><Cpu className="w-6 h-6" /> Receber Avaliação Amani</>
                 )}
               </Button>
             </form>

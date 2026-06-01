@@ -36,7 +36,7 @@ export function SmartBuilder() {
 
   const handleVoiceCommand = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert("O seu navegador não suporta reconhecimento de voz neural."); return; }
+    if (!SpeechRecognition) { alert("O teu browser não suporta reconhecimento de voz."); return; }
     const recognition = new SpeechRecognition();
     recognition.lang = 'pt-PT';
     recognition.interimResults = false;
@@ -119,8 +119,8 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
         el.setAttribute('content', content);
       };
       
-      updateMeta('og:title', `🚀 Minha Matrix Build - ${totalPrice.toLocaleString()} MT`);
-      updateMeta('og:description', `Montei este setup insano no Smart Builder da Hardware Sale: ${partsList || 'Componentes de Elite'}. Clique para ver!`);
+      updateMeta('og:title', `🚀 A minha build - ${totalPrice.toLocaleString()} MT`);
+      updateMeta('og:description', `Montei este setup no Smart Builder da Hardware Sale: ${partsList || 'Componentes top'}. Vê aqui!`);
       updateMeta('og:image', selections.selectedGPU?.image || selections.selectedCase?.image || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c');
     } else {
       document.title = "Smart Builder | Monte seu PC Supremo | Hardware Sale";
@@ -355,7 +355,7 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
     <section className="px-6 max-w-7xl mx-auto relative z-10" id="smart-builder">
       <div className="text-center mb-16 relative">
         <h2 className="text-5xl md:text-7xl font-extrabold text-white mb-6 tracking-tighter drop-shadow-2xl"><span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">Smart</span> Builder</h2>
-        <p className="text-gray-400 max-w-2xl mx-auto text-lg font-medium tracking-wide leading-relaxed">Monte o sistema de sonho manualmente ou use a Amani Voice. O nosso algoritmo neural previne gargalos físicos e térmicos em tempo real.</p>
+        <p className="text-gray-400 max-w-2xl mx-auto text-lg font-medium tracking-wide leading-relaxed">Monta o teu setup peça a peça — manualmente ou por voz com a Amani. Avisamos-te se houver gargalo de performance ou térmico antes de comprares.</p>
         
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2 animate-in fade-in zoom-in-95 duration-500">
            {['Todos', 'Em Stock', 'Por Encomenda'].map((f, i) => {
@@ -514,11 +514,11 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                   </div>
                   <div className="text-gray-300 text-sm font-medium leading-relaxed relative z-10 min-h-[40px] prose prose-invert max-w-none prose-p:my-1 prose-strong:text-white">
                     {isAiThinking ? (
-                      <span className="text-brand-neon/70 animate-pulse">Neural Engine a validar as especificações cruzadas...</span>
+                      <span className="text-brand-neon/70 animate-pulse">A validar compatibilidade e equilíbrio das peças...</span>
                     ) : aiFeedback ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiFeedback}</ReactMarkdown>
                     ) : (
-                      <p>Adicione componentes (CPU, Board, RAM) e a Matriz fará a triagem de gargalos e compatibilidade em tempo real de forma indetetável.</p>
+                      <p>Adiciona pelo menos CPU, motherboard e RAM. Verificamos compatibilidade, gargalos e térmica em tempo real.</p>
                     )}
                   </div>
                 </div>
@@ -563,7 +563,7 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                   onClick={() => setIsBuildCardOpen(true)}
                   className="w-full h-12 mt-3 rounded-[1.5rem] border border-brand-neon/30 bg-transparent text-brand-neon hover:bg-brand-neon/10 font-bold text-xs uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                 >
-                  <Sparkles className="w-4 h-4 animate-pulse" /> Gerar Ficha da Matrix (Build Card)
+                  <Sparkles className="w-4 h-4 animate-pulse" /> Gerar Ficha de Build (Partilhável)
                 </button>
               )}
             </CardContent>
@@ -582,8 +582,8 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
             {/* Header */}
             <div className="flex justify-between items-start relative z-10">
               <div>
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-brand-neon">Ficha Militar de Telemetria</span>
-                <h3 className="text-2xl font-black text-white tracking-tight uppercase mt-1">Matrix Build Card</h3>
+                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-brand-neon">Ficha resumo da build</span>
+                <h3 className="text-2xl font-black text-white tracking-tight uppercase mt-1">Hardware Sale Build</h3>
               </div>
               <button 
                 onClick={() => setIsBuildCardOpen(false)}
@@ -596,8 +596,8 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
             {/* Spec RPG Sheet */}
             <div className="border border-white/5 bg-black/60 rounded-[2rem] p-5 sm:p-6 relative z-10 flex flex-col gap-4 shadow-inner">
               <div className="text-center pb-4 border-b border-white/5">
-                <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-500">Designação do Setup</span>
-                <h4 className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta tracking-wide mt-0.5">HARDWARE SALE ARCHON PROTOCOL</h4>
+                <span className="text-[9px] font-extrabold uppercase tracking-widest text-gray-500">Nome da Build</span>
+                <h4 className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta tracking-wide mt-0.5">HARDWARE SALE — CUSTOM BUILD</h4>
               </div>
 
               {/* Tiers Grid */}
@@ -689,7 +689,7 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
                   ].filter(Boolean).join(',');
                   const link = `${window.location.origin}/builder?preset=${parts}`;
                   navigator.clipboard.writeText(link);
-                  alert("Link da Matrix Build copiado para a área de transferência!");
+                  alert("Link da build copiado!");
                 }}
                 className="flex-1 py-4 bg-gradient-to-r from-brand-neon to-brand-magenta text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:scale-[1.02] transition-transform flex items-center justify-center gap-2 cursor-pointer shadow-lg"
               >

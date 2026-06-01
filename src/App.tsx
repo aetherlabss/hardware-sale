@@ -36,7 +36,7 @@ function MatrixLoader() {
           <div className="absolute inset-0 border-2 border-brand-neon/20 rounded-full animate-ping duration-1000" />
           <div className="w-12 h-12 border-2 border-t-brand-neon border-r-brand-magenta border-b-transparent border-l-transparent rounded-full animate-spin" />
         </div>
-        <span className="text-xs font-bold text-gray-400 uppercase tracking-[0.3em] animate-pulse">Sincronizando Matrix...</span>
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-[0.3em] animate-pulse">A carregar...</span>
       </div>
     </div>
   );

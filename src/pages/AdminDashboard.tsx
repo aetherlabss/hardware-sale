@@ -5,7 +5,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } f
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip, Ticket, ToggleLeft, ToggleRight, CalendarDays, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip, Ticket, ToggleLeft, ToggleRight, CalendarDays, BarChart3, Award, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { GoogleGenAI } from '@google/genai';
 import { logAetherLabsUsage } from '../lib/aiTracking';
@@ -186,6 +186,38 @@ export function AdminDashboard() {
   });
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Build of the Month settings
+  const [bomSettings, setBomSettings] = useState({
+    enabled: true,
+    codename: 'ARCHON',
+    badge: 'A Máquina do Mês',
+    description: 'Uma máquina pensada para quem quer tudo: 4K com folga, ray tracing sem compromissos e renderização em tempo real sem gargalos.',
+    heroImage: 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=1200&q=80',
+    heroLabel: 'Conceito Hardware Sale',
+    heroTitle: 'Iluminação RGB & Refrigeração Líquida',
+    heroDesc: 'Caixa Lian Li com painéis temperados e watercooling integrado de ponta a ponta.',
+    statusLabel: 'Sistema Completo',
+    startingPrice: 295000,
+    whatsappNumber: '258840000000',
+    specs: {
+      cpu: 'Intel Core i9-14900KS',
+      gpu: 'ASUS ROG Strix RTX 4090 24GB',
+      motherboard: 'ASUS ROG Maximus Z790 Dark Hero',
+      ram: 'Corsair Vengeance RGB 64GB DDR5 6000MHz',
+      cooler: 'NZXT Kraken Elite 360 RGB LCD',
+      case: 'Lian Li O11 Dynamic EVO RGB',
+      psu: 'Seasonic Prime PX-1600W Platinum',
+      storage: 'Samsung 990 Pro 2TB NVMe M.2',
+    },
+    benchmarks: [
+      { id: 'cyberpunk', name: 'Cyberpunk 2077', fps: 135, details: '4K • DLSS Frame Generation • Ray Tracing Overdrive', color: 'from-amber-500 to-red-500',   barPercent: 90 },
+      { id: 'valorant',  name: 'Valorant',       fps: 690, details: '1080p • Configurações Competitivas',                color: 'from-rose-500 to-red-600',    barPercent: 100 },
+      { id: 'gta',       name: 'GTA V / FiveM',  fps: 195, details: '4K • Texturas Muito Altas • MSAA 4x',                color: 'from-green-400 to-emerald-600', barPercent: 82 },
+      { id: 'warzone',   name: 'COD Warzone 3',  fps: 245, details: '1440p • Foco em Performance • DLSS Off',             color: 'from-cyan-400 to-blue-600',   barPercent: 88 },
+    ] as { id: string; name: string; fps: number; details: string; color: string; barPercent: number }[],
+  });
+  const [savingBom, setSavingBom] = useState(false);
+
   const handleAutocomplete = async () => {
     if (!name) return;
     setIsAutoCompleting(true);
@@ -351,7 +383,18 @@ Retorne um JSON válido com esta exata estrutura:
            setAiCosts(docSnap.data() as any);
         }
      });
-     return () => { unsubMain(); unsubShipping(); unsubAiStudio(); };
+     const unsubBom = onSnapshot(doc(db, 'admin_settings', 'build_of_the_month'), (docSnap) => {
+        if(docSnap.exists()) {
+           const data = docSnap.data() as any;
+           setBomSettings(prev => ({
+              ...prev,
+              ...data,
+              specs: { ...prev.specs, ...(data.specs || {}) },
+              benchmarks: Array.isArray(data.benchmarks) && data.benchmarks.length > 0 ? data.benchmarks : prev.benchmarks,
+           }));
+        }
+     });
+     return () => { unsubMain(); unsubShipping(); unsubAiStudio(); unsubBom(); };
   }, [user]);
 
   const handleSaveSettings = async () => {
@@ -359,12 +402,24 @@ Retorne um JSON válido com esta exata estrutura:
      try {
        await setDoc(doc(db, 'admin_settings', 'main'), storeSettings, { merge: true });
        await setDoc(doc(db, 'admin_settings', 'shipping'), shippingSettings, { merge: true });
-       alert("Configurações salvas na Matrix!");
+       showFeedback('success', 'Configurações salvas com sucesso.');
      } catch(err) {
        console.error(err);
-       alert("Erro ao salvar.");
+       showFeedback('error', 'Erro ao salvar configurações.');
      }
      setSavingSettings(false);
+  };
+
+  const handleSaveBom = async () => {
+    setSavingBom(true);
+    try {
+      await setDoc(doc(db, 'admin_settings', 'build_of_the_month'), bomSettings, { merge: false });
+      showFeedback('success', 'Build do Mês actualizada.');
+    } catch (err) {
+      console.error(err);
+      showFeedback('error', 'Erro ao guardar Build do Mês.');
+    }
+    setSavingBom(false);
   };
 
   const [events, setEvents] = useState<any[]>([]);
@@ -789,6 +844,7 @@ Retorne um JSON válido com esta exata estrutura:
     { id: 'coupons', icon: Ticket, label: 'Cupões' },
     { id: 'affiliates', icon: BarChart3, label: 'Afiliados' },
     { id: 'shipping', icon: MapPin, label: 'Logística & GPS' },
+    { id: 'bom', icon: Award, label: 'Build of the Month' },
     { id: 'settings', icon: Settings, label: 'Configurações' },
     { id: 'ai-hub', icon: Sparkles, label: 'AI Hub Metrics' },
     { id: 'ai-studio', icon: Bot, label: 'AI Studio' },
@@ -2068,6 +2124,219 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                        Raio Gratuito Visível: {shippingSettings.freeRadiusKm} KM
                      </div>
                    </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB: BUILD OF THE MONTH --- */}
+            {activeTab === 'bom' && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-[#0a0a14] border border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden gap-4">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-brand-magenta/10 blur-[100px] rounded-full pointer-events-none"></div>
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-bold text-white mb-2 tracking-tight flex items-center gap-3"><Award size={28} className="text-brand-neon" /> Build of the Month</h2>
+                    <p className="text-gray-400 font-medium">Gere a máquina destacada da página <strong className="text-brand-neon">/build-of-the-month</strong> — specs, FPS e CTA.</p>
+                  </div>
+                  <Button disabled={savingBom} onClick={handleSaveBom} className="relative z-10 bg-brand-neon text-black font-bold px-8 py-6 rounded-xl hover:scale-105 transition-transform shadow-[0_0_20px_rgba(20,241,149,0.3)] flex items-center gap-2">
+                    {savingBom ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                    {savingBom ? 'A guardar...' : 'Guardar Alterações'}
+                  </Button>
+                </div>
+
+                {/* Toggle enabled + identity */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 lg:col-span-1">
+                    <h3 className="text-white font-bold text-lg mb-5 flex items-center gap-2"><ToggleRight size={18} className="text-brand-neon" /> Visibilidade</h3>
+                    <button
+                      onClick={() => setBomSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${bomSettings.enabled ? 'bg-brand-neon/10 border-brand-neon/30 text-brand-neon' : 'bg-white/5 border-white/10 text-gray-400'}`}
+                    >
+                      <span className="text-sm font-bold">{bomSettings.enabled ? 'Página activa' : 'Página oculta'}</span>
+                      {bomSettings.enabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                    </button>
+                    <p className="text-[10px] text-gray-500 mt-3 leading-relaxed">Quando desactivado, a página mostra apenas uma mensagem de "em preparação".</p>
+                  </div>
+
+                  <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 lg:col-span-2">
+                    <h3 className="text-white font-bold text-lg mb-5 flex items-center gap-2"><Sparkles size={18} className="text-brand-magenta" /> Identidade</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Codinome (Ex: ARCHON)</label>
+                        <Input value={bomSettings.codename} onChange={e => setBomSettings(prev => ({...prev, codename: e.target.value}))} className="bg-white/5 border-white/10 h-12 text-white font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Badge (acima do título)</label>
+                        <Input value={bomSettings.badge} onChange={e => setBomSettings(prev => ({...prev, badge: e.target.value}))} className="bg-white/5 border-white/10 h-12 text-white" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Descrição principal</label>
+                        <textarea value={bomSettings.description} onChange={e => setBomSettings(prev => ({...prev, description: e.target.value}))} rows={3} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-brand-neon/50" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hero & status */}
+                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6">
+                  <h3 className="text-white font-bold text-lg mb-5 flex items-center gap-2"><ImageIcon size={18} className="text-brand-neon" /> Imagem & Apresentação</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">URL da imagem hero</label>
+                        <Input value={bomSettings.heroImage} onChange={e => setBomSettings(prev => ({...prev, heroImage: e.target.value}))} className="bg-white/5 border-white/10 h-12 text-white font-mono text-xs" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Etiqueta (acima do título da imagem)</label>
+                        <Input value={bomSettings.heroLabel} onChange={e => setBomSettings(prev => ({...prev, heroLabel: e.target.value}))} className="bg-white/5 border-white/10 h-12 text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Título da imagem</label>
+                        <Input value={bomSettings.heroTitle} onChange={e => setBomSettings(prev => ({...prev, heroTitle: e.target.value}))} className="bg-white/5 border-white/10 h-12 text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Descrição da imagem</label>
+                        <Input value={bomSettings.heroDesc} onChange={e => setBomSettings(prev => ({...prev, heroDesc: e.target.value}))} className="bg-white/5 border-white/10 h-12 text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Status (Ex: Sistema Completo)</label>
+                        <Input value={bomSettings.statusLabel} onChange={e => setBomSettings(prev => ({...prev, statusLabel: e.target.value}))} className="bg-white/5 border-white/10 h-12 text-white" />
+                      </div>
+                    </div>
+                    <div className="bg-black/50 border border-white/10 rounded-2xl overflow-hidden relative aspect-[16/9] flex items-center justify-center">
+                      <img src={bomSettings.heroImage} alt="Preview" className="w-full h-full object-cover opacity-80" onError={(e) => { (e.target as HTMLImageElement).style.opacity = '0.2'; }} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                      <div className="absolute bottom-4 left-4 right-4 z-10">
+                        <div className="text-[10px] font-bold tracking-widest text-brand-neon uppercase mb-1">{bomSettings.heroLabel}</div>
+                        <h3 className="text-lg font-black text-white">{bomSettings.heroTitle}</h3>
+                        <p className="text-xs text-gray-300 mt-0.5 line-clamp-1">{bomSettings.heroDesc}</p>
+                      </div>
+                      <span className="absolute top-3 right-3 bg-black/60 border border-white/10 px-2.5 py-1 rounded-full text-[10px] font-bold text-white backdrop-blur-md flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" /> {bomSettings.statusLabel}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Specs editor */}
+                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6">
+                  <h3 className="text-white font-bold text-lg mb-5 flex items-center gap-2"><HardDrive size={18} className="text-brand-magenta" /> Ficha técnica</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {([
+                      { key: 'cpu',         label: 'Processador' },
+                      { key: 'gpu',         label: 'Placa Gráfica' },
+                      { key: 'motherboard', label: 'Motherboard' },
+                      { key: 'ram',         label: 'Memória RAM' },
+                      { key: 'cooler',      label: 'Refrigeração' },
+                      { key: 'case',        label: 'Caixa' },
+                      { key: 'psu',         label: 'Fonte' },
+                      { key: 'storage',     label: 'Armazenamento' },
+                    ] as const).map(({ key, label }) => (
+                      <div key={key}>
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">{label}</label>
+                        <Input
+                          value={(bomSettings.specs as any)[key]}
+                          onChange={e => setBomSettings(prev => ({ ...prev, specs: { ...prev.specs, [key]: e.target.value } }))}
+                          className="bg-white/5 border-white/10 h-11 text-white text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Benchmarks editor */}
+                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6">
+                  <div className="flex items-center justify-between mb-5">
+                    <h3 className="text-white font-bold text-lg flex items-center gap-2"><Zap size={18} className="text-brand-neon" /> Benchmarks (FPS)</h3>
+                    <Button
+                      onClick={() => setBomSettings(prev => ({
+                        ...prev,
+                        benchmarks: [...prev.benchmarks, { id: `game_${Date.now()}`, name: 'Novo Jogo', fps: 120, details: 'Configurações Altas', color: 'from-brand-neon to-brand-magenta', barPercent: 80 }]
+                      }))}
+                      className="bg-brand-neon/10 text-brand-neon border border-brand-neon/30 hover:bg-brand-neon hover:text-black h-9 px-3 text-xs rounded-lg flex items-center gap-1.5"
+                    >
+                      <Plus size={14} /> Adicionar Jogo
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {bomSettings.benchmarks.map((bench, idx) => (
+                      <div key={bench.id} className="bg-black/40 border border-white/10 rounded-2xl p-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                          <div className="sm:col-span-3">
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Nome do Jogo</label>
+                            <Input value={bench.name} onChange={e => {
+                              const arr = [...bomSettings.benchmarks];
+                              arr[idx] = { ...arr[idx], name: e.target.value };
+                              setBomSettings(prev => ({ ...prev, benchmarks: arr }));
+                            }} className="bg-white/5 border-white/10 h-10 text-white text-sm" />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">FPS</label>
+                            <Input type="number" value={bench.fps} onChange={e => {
+                              const arr = [...bomSettings.benchmarks];
+                              arr[idx] = { ...arr[idx], fps: parseInt(e.target.value) || 0 };
+                              setBomSettings(prev => ({ ...prev, benchmarks: arr }));
+                            }} className="bg-white/5 border-white/10 h-10 text-brand-neon font-bold text-sm" />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Barra %</label>
+                            <Input type="number" min={0} max={100} value={bench.barPercent} onChange={e => {
+                              const arr = [...bomSettings.benchmarks];
+                              arr[idx] = { ...arr[idx], barPercent: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) };
+                              setBomSettings(prev => ({ ...prev, benchmarks: arr }));
+                            }} className="bg-white/5 border-white/10 h-10 text-white text-sm" />
+                          </div>
+                          <div className="sm:col-span-4">
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Configurações</label>
+                            <Input value={bench.details} onChange={e => {
+                              const arr = [...bomSettings.benchmarks];
+                              arr[idx] = { ...arr[idx], details: e.target.value };
+                              setBomSettings(prev => ({ ...prev, benchmarks: arr }));
+                            }} className="bg-white/5 border-white/10 h-10 text-white text-sm" />
+                          </div>
+                          <div className="sm:col-span-1 flex justify-end">
+                            <button onClick={() => setBomSettings(prev => ({ ...prev, benchmarks: prev.benchmarks.filter((_, i) => i !== idx) }))} className="w-10 h-10 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors" title="Remover">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                          <div>
+                            <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Classes do gradiente (Tailwind)</label>
+                            <Input value={bench.color} onChange={e => {
+                              const arr = [...bomSettings.benchmarks];
+                              arr[idx] = { ...arr[idx], color: e.target.value };
+                              setBomSettings(prev => ({ ...prev, benchmarks: arr }));
+                            }} placeholder="from-amber-500 to-red-500" className="bg-white/5 border-white/10 h-10 text-white text-xs font-mono" />
+                          </div>
+                          <div className="h-10 rounded-lg overflow-hidden border border-white/10 bg-black/60 flex items-center px-3">
+                            <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+                              <div className={`h-full bg-gradient-to-r ${bench.color} transition-all duration-500`} style={{ width: `${bench.barPercent}%` }} />
+                            </div>
+                            <span className="ml-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Preview</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {bomSettings.benchmarks.length === 0 && (
+                      <p className="text-center text-gray-500 text-sm py-6">Sem benchmarks. Adiciona pelo menos um jogo.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Pricing & CTA */}
+                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6">
+                  <h3 className="text-white font-bold text-lg mb-5 flex items-center gap-2"><MessageSquare size={18} className="text-brand-magenta" /> Preço & Contacto</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Preço inicial (MT)</label>
+                      <Input type="number" value={bomSettings.startingPrice} onChange={e => setBomSettings(prev => ({ ...prev, startingPrice: parseInt(e.target.value) || 0 }))} className="bg-white/5 border-white/10 h-12 text-brand-neon font-bold text-lg" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Número WhatsApp (com indicativo)</label>
+                      <Input value={bomSettings.whatsappNumber} onChange={e => setBomSettings(prev => ({ ...prev, whatsappNumber: e.target.value }))} placeholder="258840000000" className="bg-white/5 border-white/10 h-12 text-white font-mono" />
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

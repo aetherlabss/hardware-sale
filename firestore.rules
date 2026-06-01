@@ -6,7 +6,10 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null && request.auth.token.email in [
         'admin@hardwaresale.co.mz',
-        'gabriel.vieira.jamal@gmail.com'
+        'admin@hardwaresales.co.mz',
+        'gabriel.vieira.jamal@gmail.com',
+        'abdul@admin.hardwaresale.co.mz',
+        'gabriel@admin.hardwaresale.co.mz'
       ];
     }
 

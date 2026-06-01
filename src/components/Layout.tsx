@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Cpu, Package, Home as HomeIcon, ChevronRight, MessageCircle, Mail, UserCircle2 } from 'lucide-react';
+import { ShoppingCart, Cpu, Package, Home as HomeIcon, ChevronRight, MessageCircle, Mail } from 'lucide-react';
 
 const SOCIAL = {
   whatsapp: 'https://wa.me/258840000000',
@@ -60,17 +60,6 @@ export function Layout() {
           </div>
 
           <div className="flex items-center gap-3 relative z-10 w-1/4 justify-end">
-            <Link
-              to="/hub"
-              aria-label="Minha Conta"
-              className={`p-2.5 rounded-full border transition-all ${
-                location.pathname === '/hub'
-                  ? 'bg-brand-neon/15 border-brand-neon/40 text-brand-neon shadow-[0_0_14px_rgba(168,85,247,0.25)]'
-                  : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:border-white/15 hover:bg-white/10'
-              }`}
-            >
-              <UserCircle2 className="w-[1.125rem] h-[1.125rem]" />
-            </Link>
             <Link to="/checkout" className="relative group p-1">
               <div className="p-2.5 bg-white/5 rounded-full border border-white/5 group-hover:border-white/10 group-hover:bg-white/10 transition-all shadow-sm">
                 <ShoppingCart className="w-[1.125rem] h-[1.125rem] text-gray-300 group-hover:text-white transition-colors" />
@@ -145,7 +134,7 @@ export function Layout() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
                     </span>
-                    <span className="font-semibold text-[11px] text-gray-200 tracking-widest uppercase group-hover:text-white transition-colors">Operações Normais</span>
+                    <span className="font-semibold text-[11px] text-gray-200 tracking-widest uppercase group-hover:text-white transition-colors">A funcionar normalmente</span>
                   </div>
                 </li>
               </ul>

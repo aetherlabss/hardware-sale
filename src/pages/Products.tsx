@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { useCart } from '../store/useCart';
@@ -455,7 +455,7 @@ function ProductModal({
                     <span className="w-1 h-3 bg-brand-neon animate-[pulse_1s_ease-in-out_infinite_200ms]"></span>
                  </div>
               </div>
-              <p className="text-[11px] text-gray-400 leading-relaxed font-medium mt-1">Estes FPS são calculados e previstos baseados no Matrix Neural Engine, representando médias esperadas em cenários de stress ultra competitivos.</p>
+              <p className="text-[11px] text-gray-400 leading-relaxed font-medium mt-1">FPS estimados com base em benchmarks de hardware equivalente. Valores médios em definições competitivas — os resultados reais variam com drivers e jogo.</p>
             </div>
           </div>
         </div>
@@ -539,7 +539,7 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
       setCompareResult(text);
     } catch(err) {
       console.error(err);
-      setCompareResult("Falha na Matriz Neural ao analisar os componentes.");
+      setCompareResult("Não foi possível comparar os componentes agora. Tenta novamente em segundos.");
     } finally {
       setIsComparing(false);
     }
@@ -558,59 +558,26 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Header + category bubbles — run once on mount, fast
   useGSAP(() => {
     const tl = gsap.timeline();
-    tl.fromTo('.products-header', 
-      { y: -30, opacity: 0 }, 
-      { y: 0, opacity: 1, duration: 1, ease: 'power3.out' }
+    tl.fromTo('.products-header',
+      { y: -18, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.45, ease: 'power3.out' }
     )
     .fromTo('.products-category-bubble',
-      { y: 20, opacity: 0, scale: 0.9 },
-      { y: 0, opacity: 1, scale: 1, duration: 0.8, stagger: 0.1, ease: 'back.out(1.5)' },
-      "-=0.6"
-    )
-    .fromTo('.product-card-anim',
-      { y: 50, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.8, stagger: 0.1, ease: 'power2.out' },
-      "-=0.4"
+      { y: 12, opacity: 0, scale: 0.93 },
+      { y: 0, opacity: 1, scale: 1, duration: 0.32, stagger: { amount: 0.25, from: 'start' }, ease: 'back.out(1.4)' },
+      '-=0.2'
     );
   }, { scope: containerRef });
 
-  const [fomoNotification, setFomoNotification] = useState<{name: string, product: string, time: number} | null>(null);
+
   const [addedItemIds, setAddedItemIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     initProducts();
   }, [initProducts]);
-
-  useEffect(() => {
-    // FOMO Simulator
-    const names = ["Nelson M.", "Thiago R.", "Rui P.", "Afonso S.", "Neymar J.", "Edson M.", "Gabriel V.", "Leonel M.", "Cristiano R.", "Cândido D."];
-    const fomoItems = ["Workstation Zenith 9", "NVIDIA RTX 4090", "Monitor QD-OLED", "Kit Watercooling Custom", "Intel Core i9-14900K", "Setup Custom Watercooled", "Alienware 34 QD-OLED"];
-    let hideTimeout: ReturnType<typeof setTimeout> | null = null;
-    let intervalId: ReturnType<typeof setInterval> | null = null;
-
-    const triggerFomo = () => {
-      const randomName = names[Math.floor(Math.random() * names.length)];
-      const randomItem = fomoItems[Math.floor(Math.random() * fomoItems.length)];
-      const randomTime = Math.floor(Math.random() * 5) + 1;
-      setFomoNotification({ name: randomName, product: randomItem, time: randomTime });
-      if (hideTimeout) clearTimeout(hideTimeout);
-      hideTimeout = setTimeout(() => setFomoNotification(null), 5000);
-    };
-
-    // First trigger after 15s, then every 30s — with proper cleanup
-    const firstTimeout = setTimeout(() => {
-      triggerFomo();
-      intervalId = setInterval(triggerFomo, 30000);
-    }, 15000);
-
-    return () => {
-      clearTimeout(firstTimeout);
-      if (intervalId) clearInterval(intervalId);
-      if (hideTimeout) clearTimeout(hideTimeout);
-    };
-  }, []);
 
 
 
@@ -711,6 +678,25 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
     filteredProducts.sort((a, b) => b.price - a.price);
   }
 
+  // Hide cards before paint so they don't flash at full opacity
+  useLayoutEffect(() => {
+    const cards = containerRef.current?.querySelectorAll<HTMLElement>('.product-card-anim');
+    if (cards?.length) gsap.set(cards, { opacity: 0, scale: 0.9, y: 14 });
+  }, [filteredProducts.length, activeCategory, subCategory]);
+
+  // Animate cards in — snappy, total stagger capped at 0.45 s regardless of count
+  useEffect(() => {
+    const cards = containerRef.current?.querySelectorAll<HTMLElement>('.product-card-anim');
+    if (!cards?.length) return;
+    gsap.to(cards, {
+      opacity: 1, scale: 1, y: 0,
+      duration: 0.28,
+      stagger: { amount: 0.45, from: 'start' },
+      ease: 'back.out(1.15)',
+      clearProps: 'transform,opacity',
+    });
+  }, [filteredProducts.length, activeCategory, subCategory]);
+
   const handleNext = () => {
     if (selectedIndex === null) return;
     setSelectedIndex((selectedIndex + 1) % filteredProducts.length);
@@ -732,7 +718,7 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
           <h1 className="text-6xl md:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-500 tracking-tighter mb-4 drop-shadow-2xl">
             A MONTRA
           </h1>
-          <p className="text-gray-400 text-lg md:text-xl font-medium max-w-2xl mx-auto">Onde a perfeição técnica encontra o luxo. Selecione a sua próxima arma de computação.</p>
+          <p className="text-gray-400 text-lg md:text-xl font-medium max-w-2xl mx-auto">Escolhe a tua próxima máquina. Hardware seleccionado peça a peça, sem enrolação.</p>
         </div>
 
         {/* Epic Main Categories */}
@@ -1068,9 +1054,9 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
             
             <div className="p-10 text-center border-b border-white/5 bg-gradient-to-b from-brand-magenta/5 to-transparent relative">
                <h2 className="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta tracking-tighter drop-shadow-lg mb-2">
-                 Duelo Matrix
+                 Comparador Amani
                </h2>
-               <p className="text-gray-400 font-medium">Amani 3 Neural Comparator</p>
+               <p className="text-gray-400 font-medium">Análise lado a lado, em segundos</p>
             </div>
 
             <div className="flex flex-col md:flex-row p-8 gap-8">
@@ -1140,22 +1126,6 @@ Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em q
         />
       )}
 
-      {/* FOMO Notification Widget */}
-      {fomoNotification && (
-        <div className="fixed top-24 right-6 z-[100] animate-in slide-in-from-top-10 fade-in duration-500">
-           <div className="bg-[#050510]/95 backdrop-blur-3xl border border-white/10 p-4 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex items-center gap-4 max-w-sm relative overflow-hidden group">
-             <div className="absolute inset-0 bg-gradient-to-r from-brand-neon/20 via-transparent to-transparent opacity-50 pointer-events-none"></div>
-             <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-brand-neon to-brand-magenta flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(168,85,247,0.4)] border-2 border-[#050510]">
-               <span className="text-white font-extrabold text-lg">{fomoNotification.name.charAt(0)}</span>
-             </div>
-             <div className="relative z-10 pr-4">
-               <p className="text-[11px] text-gray-300 tracking-wide uppercase"><span className="text-white font-extrabold">{fomoNotification.name}</span> comprou</p>
-               <p className="text-sm font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-white truncate w-56">{fomoNotification.product}</p>
-               <p className="text-[9px] text-gray-500 font-bold mt-1 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-brand-neon animate-pulse"></span> Verificado há {fomoNotification.time} min</p>
-             </div>
-           </div>
-        </div>
-      )}
     </div>
   );
 }

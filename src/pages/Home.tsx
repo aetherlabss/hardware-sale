@@ -189,7 +189,7 @@ export function Home() {
           </h1>
           
           <p className="hero-subtitle text-lg md:text-2xl text-gray-400 max-w-2xl font-medium mb-12 flex-col leading-relaxed tracking-wide">
-            Máquinas de guerra, forjadas à perfeição.<br/>O hardware mais poderoso do mundo, agora em <span className="text-white font-bold">Moçambique</span>.
+            Máquinas montadas com peças seleccionadas, prontas para qualquer carga de trabalho.<br/>O hardware certo, ao preço certo, entregue em <span className="text-white font-bold">Moçambique</span>.
           </p>
           
           <div className="hero-actions flex flex-col sm:flex-row gap-6">
@@ -285,8 +285,8 @@ export function Home() {
       {/* Bento Grid Features - Reordered to be right after logos */}
       <section className="pt-32 pb-16 relative z-10 max-w-7xl mx-auto px-4 sm:px-6 fade-in-section">
         <div className="text-center mb-16 px-4 max-w-4xl mx-auto">
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 tracking-tight text-white">A Diferença <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">Matrix</span></h2>
-          <p className="text-gray-400 text-xl font-medium">O que diferencia um computador genérico de um instrumento de precisão de alta potência computacional.</p>
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 tracking-tight text-white">A <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">Nossa Diferença</span></h2>
+          <p className="text-gray-400 text-xl font-medium">O que separa um computador qualquer de uma máquina escolhida peça a peça para durar e performar.</p>
         </div>
         
         <BentoGrid />
@@ -297,9 +297,9 @@ export function Home() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] max-w-[100vw] h-[800px] bg-brand-magenta/5 blur-[120px] rounded-full pointer-events-none"></div>
         <div className="text-center mb-20 px-4 max-w-5xl mx-auto flex flex-col items-center relative z-10">
           <span className="text-brand-neon font-bold tracking-widest uppercase text-xs mb-6 px-5 py-2 rounded-full border border-brand-neon/30 bg-brand-neon/10 inline-block shadow-[0_0_20px_rgba(20,241,149,0.2)]">Alta Performance</span>
-          <h2 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight mb-8 text-white">O Ponto de Partida dos<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">Entusiastas.</span></h2>
+          <h2 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight mb-8 text-white">Para quem leva<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">a sério.</span></h2>
           <p className="text-gray-400 text-lg md:text-xl font-medium leading-relaxed max-w-3xl">
-            Esqueça o mercado tradicional de informática. A Hardware Sale dedica-se exclusivamente aos componentes de elite. Trazemos o que há de mais poderoso no mundo direto para o coração de Moçambique.
+            Vendemos componentes que escolheríamos para nós próprios. Sem genéricos, sem caixas duvidosas — só hardware actual com garantia e suporte real em Moçambique.
           </p>
         </div>
 
@@ -387,9 +387,9 @@ export function Home() {
             </div>
             
             <div className="w-full lg:w-1/2 text-left">
-              <h2 className="text-5xl md:text-6xl font-bold mb-6 text-white tracking-tight leading-[1.1]">Logística de Elite,<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">Impecável</span></h2>
+              <h2 className="text-5xl md:text-6xl font-bold mb-6 text-white tracking-tight leading-[1.1]">Entregue com<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">cuidado</span></h2>
               <p className="text-gray-400 text-xl mb-10 leading-relaxed font-medium">
-                Cada máquina encomendada no nosso portal entra num processo meticuloso de manufatura. Desde a seleção milimétrica da pasta térmica até o roteamento simétrico invisível no painel traseiro.
+                Cada máquina é montada à mão por nós. Pasta térmica certa, cabos arrumados por trás do painel, testes de stress antes de sair — para te chegar pronta a usar.
               </p>
               
               <ul className="space-y-4 mb-12">
@@ -419,9 +419,9 @@ export function Home() {
       {/* Testimonials — Drag to Scroll */}
       <section className="py-24 relative z-10 bg-[#020204] border-y border-white/5 fade-in-section">
         <div className="text-center mb-16 px-4 max-w-4xl mx-auto relative z-20">
-          <span className="text-brand-magenta font-bold tracking-widest uppercase text-xs mb-6 px-5 py-2 rounded-full border border-brand-magenta/30 bg-brand-magenta/10 inline-block shadow-[0_0_20px_rgba(236,72,153,0.2)]">Comunidade de Elite</span>
-          <h2 className="text-4xl md:text-6xl font-bold tracking-tight text-white mb-4">Testemunhos da <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-magenta to-brand-neon">Matrix</span></h2>
-          <p className="text-gray-500 text-sm font-medium">↔ Arraste para explorar</p>
+          <span className="text-brand-magenta font-bold tracking-widest uppercase text-xs mb-6 px-5 py-2 rounded-full border border-brand-magenta/30 bg-brand-magenta/10 inline-block shadow-[0_0_20px_rgba(236,72,153,0.2)]">A nossa comunidade</span>
+          <h2 className="text-4xl md:text-6xl font-bold tracking-tight text-white mb-4">O que dizem os <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-magenta to-brand-neon">nossos clientes</span></h2>
+          <p className="text-gray-500 text-sm font-medium">↔ Arraste para ver mais</p>
         </div>
 
         <div className="relative">
