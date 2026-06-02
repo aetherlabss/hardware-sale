@@ -3,10 +3,9 @@ import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { RefreshCcw, Cpu, Loader2, Award, ArrowRight, AlertOctagon, UploadCloud, Trash2 } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
+import { askAIJson } from '../lib/ai';
 import { useCart } from '../store/useCart';
 import { useStore } from '../store/useStore';
-import { logAetherLabsUsage } from '../lib/aiTracking';
 import { useNavigate } from 'react-router-dom';
 
 export function Upgrade() {
@@ -90,60 +89,31 @@ export function Upgrade() {
     setError(null);
 
     try {
-      const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-      if (!apiKey) throw new Error("API Key missing");
-
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any
-      });
-
-      let promptText = `
-Analise rigorosamente este hardware submetido para Trade-in (retoma) no mercado de Moçambique:
+      let promptText = `Analisa rigorosamente este hardware submetido para retoma (Trade-in) no mercado de Moçambique:
 Processador: ${formData.processor}
 Placa Gráfica: ${formData.gpu}
 Memória RAM: ${formData.ram}
 Placa-Mãe: ${formData.motherboard || 'Não especificada'}
 Cooler: ${formData.coolerType} - ${formData.coolerModel || 'Genérico'}
-Estado de Conservação: ${formData.condition}
-`;
+Estado de Conservação: ${formData.condition}`;
 
       if (formData.condition === 'Usado') {
-        promptText += `\nTempo de Uso Estimado: ${formData.usageTime || 'Desconhecido'}
-Problemas ou Defeitos Reportados: ${formData.problems || 'Nenhum reportado'}`;
+        promptText += `\nTempo de Uso Estimado: ${formData.usageTime || 'Desconhecido'}\nProblemas ou Defeitos Reportados: ${formData.problems || 'Nenhum reportado'}`;
       }
 
-      promptText += `\n\nConsidere uma desvalorização realista de mercado (30% a 50% dependendo do tempo de uso e defeitos) para garantir margem de lucro à loja na revenda. Use como base a moeda Metical (MT) considerando câmbio atual.
-Se as fotos anexadas revelarem danos estruturais, pó extremo ou oxidação, desvalorize fortemente.
-Retorne APENAS um objeto JSON válido estritamente com este formato:
+      promptText += `\n\nConsidera desvalorização realista (30%–50% dependendo do tempo de uso e defeitos) para a loja ter margem na revenda. Usa Metical (MT) com câmbio actual.
+Se as fotos mostrarem danos, pó extremo ou oxidação, desvaloriza mais.
+Retorna APENAS este JSON:
 {
-  "estimatedValue": número_inteiro_representando_meticais,
-  "explanation": "Explicação técnica super concisa de 10-15 palavras justificando a desvalorização ou valorização."
+  "estimatedValue": numero_inteiro_em_meticais,
+  "explanation": "Explicação técnica em 10-15 palavras."
 }`;
 
-      // Add images if present
-      const contentsParts: any[] = [{ text: promptText }];
-      
-      images.forEach(img => {
-         const mimeType = img.file.type;
-         const data = img.base64.split(',')[1];
-         contentsParts.push({ inlineData: { mimeType, data } });
+      const parsed = await askAIJson<{ estimatedValue: number; explanation: string }>({
+        prompt: promptText,
+        temperature: 0.1,
+        images: images.map(img => ({ mimeType: img.file.type, data: img.base64.split(',')[1] })),
       });
-
-      const startTime = performance.now();
-      const res = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: contentsParts,
-        config: { temperature: 0.1 } // Factual
-      });
-      const endTime = performance.now();
-
-      const text = res.text || "{}";
-      const totalTokens = res.usageMetadata?.totalTokenCount || Math.ceil(text.length / 4);
-      logAetherLabsUsage(endTime - startTime, promptText, text, totalTokens);
-      
-      const jsonStr = text.replace(/```json\n/g, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(jsonStr);
 
       if (parsed.estimatedValue !== undefined && parsed.explanation) {
         setVoucher({ value: Number(parsed.estimatedValue), explanation: parsed.explanation });

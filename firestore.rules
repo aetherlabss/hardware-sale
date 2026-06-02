@@ -3,14 +3,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── Helpers ────────────────────────────────────────────────────────────
+    // Admin status is granted via Firebase Auth custom claims, set with
+    // `scripts/grant-admin.mjs grant <email>`. Avoids hardcoding emails in
+    // either the client bundle or these rules.
     function isAdmin() {
-      return request.auth != null && request.auth.token.email in [
-        'admin@hardwaresale.co.mz',
-        'admin@hardwaresales.co.mz',
-        'gabriel.vieira.jamal@gmail.com',
-        'abdul@admin.hardwaresale.co.mz',
-        'gabriel@admin.hardwaresale.co.mz'
-      ];
+      return request.auth != null && request.auth.token.admin == true;
     }
 
     // ── Products: anyone can read; only admins can write ───────────────────
@@ -43,15 +40,28 @@ service cloud.firestore {
     // Public-ish data (XP, referral code, name). Doc id IS the sessionId.
     // Writes require the payload's sessionId to match the doc id (so a user
     // cannot tamper with someone else's profile by guessing the doc id).
-    // Sensitive numeric fields (xp/level/totalSpent/purchaseCount) remain
-    // writable from the client because purchase recording happens client-side
-    // today — this is on the roadmap to move server-side.
+    //
+    // Sensitive numeric fields — totalSpent, purchaseCount — are LOCKED on
+    // update from the client. Increments come server-side from the payment
+    // callback (api/payment-callback.ts) which uses the privileged Firebase
+    // API key. `xp` and `checkInStreak`/`lastCheckIn` remain client-writable
+    // because daily check-in runs from the client; xp gain per check-in is
+    // capped in the runTransaction logic.
     match /client_profiles/{sessionId} {
       allow read:   if true;
       allow create: if request.resource.data.sessionId == sessionId
                     && request.resource.data.sessionId.size() > 8;
       allow update: if request.resource.data.sessionId == sessionId
-                    && request.resource.data.sessionId.size() > 8;
+                    && request.resource.data.sessionId.size() > 8
+                    && (
+                      // First time these fields appear, allow them at 0
+                      (!('totalSpent' in resource.data) && request.resource.data.totalSpent == 0)
+                      || (request.resource.data.totalSpent == resource.data.totalSpent)
+                    )
+                    && (
+                      (!('purchaseCount' in resource.data) && request.resource.data.purchaseCount == 0)
+                      || (request.resource.data.purchaseCount == resource.data.purchaseCount)
+                    );
       allow delete: if isAdmin();
     }
 
@@ -76,6 +86,15 @@ service cloud.firestore {
     match /admin_settings/{id} {
       allow read: if true;        // shipping/promo settings read by client
       allow write: if isAdmin();
+    }
+
+    // ── Admin audit log: admin write-only, append-only ────────────────────
+    // Forensic trail of admin actions. Admins can read; nobody can update or
+    // delete (append-only). Entries are written by src/lib/audit.ts.
+    match /admin_audit/{id} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
     }
 
     // ── Deny everything else ───────────────────────────────────────────────

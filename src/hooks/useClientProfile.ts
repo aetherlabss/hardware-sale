@@ -137,18 +137,15 @@ export function useClientProfile() {
     }
   };
 
-  const recordPurchase = async (total: number) => {
-    if (!profile) return;
-    try {
-      const ref = doc(db, 'client_profiles', sessionId);
-      await updateDoc(ref, {
-        xp: increment(XP_REWARDS.purchase.amount),
-        totalSpent: increment(total),
-        purchaseCount: increment(1),
-      });
-    } catch (err) {
-      console.error('Failed to record purchase:', err);
-    }
+  /**
+   * @deprecated Purchase recording now happens server-side via
+   * /api/payment-callback once the payment provider confirms. Calling this
+   * from the client opens an XP-inflation vector — the Firestore rule
+   * actively blocks it. Kept exported for any legacy callers, but it is a
+   * no-op and will be removed in a future cleanup.
+   */
+  const recordPurchase = async (_total: number) => {
+    return;
   };
 
   const updateProfile = async (name: string, phone: string) => {

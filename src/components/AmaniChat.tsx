@@ -1,31 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowUp, X, Loader2, Terminal, Hexagon } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { logAetherLabsUsage } from '../lib/aiTracking';
+import { askAI } from '../lib/ai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { usePCBuilder } from '../hooks/usePCBuilder';
-
-// Lazy initialization to prevent crash on startup if API key is missing
-let aiClient: GoogleGenAI | null = null;
-function getAiClient() {
-  if (!aiClient) {
-    const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-    if (!apiKey) {
-      throw new Error("VITE_VERTEX_API_KEY is not defined.");
-    }
-    // Specifying vertexai forces the SDK to use the Vertex AI endpoint instead of AI Studio.
-    aiClient = new GoogleGenAI({ 
-      apiKey,
-      vertexai: {
-        project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware',
-        location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
-      } as any
-    });
-  }
-  return aiClient;
-}
 
 interface Message {
   role: 'user' | 'assistant';
@@ -82,83 +61,69 @@ export function AmaniChat() {
     setIsLoading(true);
 
     try {
-      const ai = getAiClient();
       // Assemble conversation history for context
       const contents = messages.map(m => `${m.role === 'user' ? 'Cliente' : 'Amani'}: ${m.content}`).join("\n");
       const pageContext = `O usuário está atualmente na página com rota: ${location.pathname}. Adapte suas sugestões focando no contexto dessa página se necessário.`;
       const currentPrompt = pageContext + "\n" + contents + "\nCliente: " + userMessage;
-      
-      const startTime = performance.now();
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: currentPrompt,
-        config: {
-          systemInstruction: `Você é Amani 3, uma IA corporativa de luxo focada em e-commerce de hardware da Hardware Sale (Moçambique). Estilo Apple/iOS: responde de forma concisa, inteligente, formal mas entusiasmada, direta. Evita formatação desnecessária. Foca-te em specs, preços e sinergias de produtos.
-Tens a ferramenta 'navigate_to_page' se o cliente pedir para ir ao carrinho ou montra.
-MUITO IMPORTANTE: Se o cliente quiser ajuda a montar um PC ou pedir uma recomendação de build (com base num orçamento ou objetivo), DEVES fazer perguntas estratégicas primeiro (orçamento, uso principal, resolução de monitor). QUANDO tiveres essas informações, usa OBRIGATORIAMENTE a tool 'build_custom_pc' passando um array com os IDs dos componentes para criar a build perfeita para ele.
-Lista de componentes em stock (use apenas estes IDs na tool build_custom_pc):
-${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).join(", ")}`,
-          temperature: 0.7,
-          tools: [{
-            functionDeclarations: [
-              {
-                name: "navigate_to_page",
-                description: "Navega o usuário para uma página específica do site. Use isso quando o usuário disser que quer ver produtos, ir para a loja, ou ir para o checkout.",
-                parameters: {
-                  type: "OBJECT",
-                  properties: {
-                    page: {
-                      type: "STRING",
-                      description: "A rota para navegar. Valores válidos: '/products' (montra, loja, ver placas, monitores), '/checkout' (carrinho, pagar)."
-                    }
-                  },
-                  required: ["page"]
-                }
+
+      const systemInstruction = `Você é Amani, a assistente de hardware da Hardware Sale (Moçambique). Responde de forma concisa, clara e directa, sem formatação desnecessária. Foca em specs, preços e combinações de produtos.
+Tens a ferramenta 'navigate_to_page' se o cliente pedir para ir ao carrinho ou à montra.
+MUITO IMPORTANTE: Se o cliente quiser ajuda a montar um PC ou pedir uma recomendação de build, faz primeiro perguntas estratégicas (orçamento, uso principal, resolução de monitor). Quando tiveres essas informações, usa OBRIGATORIAMENTE a tool 'build_custom_pc' passando os IDs dos componentes.
+Lista de componentes em stock (usa apenas estes IDs na tool build_custom_pc):
+${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).join(", ")}`;
+
+      const tools = [{
+        functionDeclarations: [
+          {
+            name: "navigate_to_page",
+            description: "Navega o usuário para uma página específica do site. Use isso quando o usuário disser que quer ver produtos, ir para a loja, ou ir para o checkout.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                page: { type: "STRING", description: "A rota para navegar. Valores válidos: '/products', '/checkout'." }
               },
-              {
-                name: "build_custom_pc",
-                description: "Cria e redireciona o utilizador para o Builder com os componentes pre-selecionados perfeitamente. Use isto APÓS entender o orçamento e objetivo do cliente.",
-                parameters: {
-                  type: "OBJECT",
-                  properties: {
-                    componentIds: {
-                      type: "ARRAY",
-                      items: { type: "STRING" },
-                      description: "Array de IDs dos componentes a selecionar (ex: ['c1', 'm1', 'g1', 'r1', 's1', 'p1', 'ca1', 'co1'])."
-                    },
-                    reasoning: {
-                      type: "STRING",
-                      description: "Uma frase curta explicando porque escolheu esta combinação."
-                    }
-                  },
-                  required: ["componentIds", "reasoning"]
-                }
-              }
-            ]
-          }] as any
-        }
+              required: ["page"]
+            }
+          },
+          {
+            name: "build_custom_pc",
+            description: "Cria e redireciona o utilizador para o Builder com os componentes pre-selecionados. Use APÓS entender o orçamento e objetivo do cliente.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                componentIds: { type: "ARRAY", items: { type: "STRING" }, description: "Array de IDs dos componentes." },
+                reasoning: { type: "STRING", description: "Uma frase curta explicando porque escolheu esta combinação." }
+              },
+              required: ["componentIds", "reasoning"]
+            }
+          }
+        ]
+      }];
+
+      const response = await askAI({
+        prompt: currentPrompt,
+        systemInstruction,
+        temperature: 0.7,
+        tools,
+        silent: true, // we log manually below with the correct payload
       });
-      const endTime = performance.now();
-      const totalTokens = response.usageMetadata?.totalTokenCount || Math.ceil((currentPrompt.length + (response.text?.length || 0)) / 4);
-      
-      if (response.functionCalls && response.functionCalls.length > 0) {
-         const call = response.functionCalls[0];
+
+      const calls = response.functionCalls;
+      if (calls && calls.length > 0) {
+         const call = calls[0];
          if (call.name === 'navigate_to_page') {
-            const page = (call.args as any).page;
+            const page = call.args.page;
             navigate(page);
             setMessages(prev => [...prev, { role: 'assistant', content: `A redirecionar para ${page}...` }]);
-            logAetherLabsUsage(endTime - startTime, currentPrompt, "Function Call: navigate_to_page", totalTokens);
          } else if (call.name === 'build_custom_pc') {
-            const ids = (call.args as any).componentIds;
-            const reasoning = (call.args as any).reasoning;
+            const ids: string[] = call.args.componentIds || [];
+            const reasoning: string = call.args.reasoning || '';
             navigate(`/builder?preset=${ids.join(',')}`);
-            setMessages(prev => [...prev, { role: 'assistant', content: `Build configurada com sucesso: ${reasoning}. A redirecionar para o Smart Builder...` }]);
-            logAetherLabsUsage(endTime - startTime, currentPrompt, `Function Call: build_custom_pc - ${reasoning}`, totalTokens);
+            setMessages(prev => [...prev, { role: 'assistant', content: `Build configurada: ${reasoning}. A redirecionar para o Smart Builder...` }]);
          }
       } else {
-         const text = response.text || "Serviço indisponível. Tente novamente.";
+         const text = response.text || "Serviço indisponível. Tenta novamente.";
          setMessages(prev => [...prev, { role: 'assistant', content: text }]);
-         logAetherLabsUsage(endTime - startTime, currentPrompt, text, totalTokens);
       }
     } catch (error: any) {
       console.error("AmaniChat Error:", error instanceof Error ? error.message : "Unknown error");

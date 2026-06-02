@@ -7,13 +7,14 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip, Ticket, ToggleLeft, ToggleRight, CalendarDays, BarChart3, Award, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { GoogleGenAI } from '@google/genai';
-import { logAetherLabsUsage } from '../lib/aiTracking';
+import { askAI, askAIJson } from '../lib/ai';
+import { logAuditEvent } from '../lib/audit';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 export function AdminDashboard() {
   const [user, setUser] = useState(auth.currentUser);
+  const [isAdminUser, setIsAdminUser] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [checkouts, setCheckouts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +78,9 @@ export function AdminDashboard() {
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  const ALLOWED_ADMINS = ['admin@hardwaresales.co.mz', 'gabriel.vieira.jamal@gmail.com', 'abdul@admin.hardwaresale.co.mz', 'gabriel@admin.hardwaresale.co.mz'];
+  // Admins are now identified by a Firebase Auth custom claim (`admin: true`),
+  // set via scripts/grant-admin.mjs. No more hardcoded email allowlist in the
+  // client bundle. isAdminUser is populated from the ID token below.
   const [authChecked, setAuthChecked] = useState(false);
 
   // Coupon Management State
@@ -119,17 +122,9 @@ export function AdminDashboard() {
 
     try {
       if (studioActiveModel === 'text') {
-        const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any
-        });
         const prompt = studioMessages.map(m => m.role + ': ' + m.content).join('\n') + '\nuser: ' + userMessage;
-        const response = await ai.models.generateContent({
-          model: "gemini-3.1-pro-preview",
-          contents: prompt,
-        });
-        setStudioMessages(prev => [...prev, { role: 'assistant', content: response.text || 'Erro na rede neural.' }]);
+        const { text } = await askAI({ prompt });
+        setStudioMessages(prev => [...prev, { role: 'assistant', content: text || 'Sem resposta no momento.' }]);
       } else {
         // Image or Video (nano banana 2 pro / veo 3.1)
         const res = await fetch('/api/generate-media', {
@@ -161,7 +156,7 @@ export function AdminDashboard() {
       }
     } catch(err) {
       console.error(err);
-      setStudioMessages(prev => [...prev, { role: 'assistant', content: 'Falha na comunicação com a API Vertex.' }]);
+      setStudioMessages(prev => [...prev, { role: 'assistant', content: 'Falha na comunicação com o serviço de IA.' }]);
     }
     setStudioLoading(false);
   };
@@ -222,41 +217,20 @@ export function AdminDashboard() {
     if (!name) return;
     setIsAutoCompleting(true);
     try {
-      const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-      if (!apiKey) throw new Error("VITE_VERTEX_API_KEY missing");
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        vertexai: {
-          project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware',
-          location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
-        } as any
-      });
-
-      const prompt = `Gere dados de marketing e especificações para este produto de hardware tech: "${name}". 
-Extraia especificações reais. Para as imagens, SE E SÓ SE encontrar URLs PÚBLICOS diretos (.jpg, .png, .webp) que sejam limpos (não use data:image, não use gstatic, não use base64, nem links genéricos de pesquisa), coloque-os no array 'images'. Caso contrário, retorne o array 'images' VAZIO [].
-Retorne um JSON válido com esta exata estrutura:
+      const prompt = `Gera dados de marketing e especificações para este produto de hardware tech: "${name}".
+Extrai especificações reais. Para imagens, se e SÓ se encontrares URLs PÚBLICOS directos (.jpg, .png, .webp) limpos (não data:image, gstatic, base64 ou links genéricos), inclui-os em 'images'. Caso contrário, retorna 'images' VAZIO [].
+Retorna APENAS este JSON:
 {
-  "desc": "Uma descrição premium, comercial e detalhada de até 3 frases sobre as qualidades do produto.",
-  "specs": "Especificações chave no formato Chave: Valor, uma por linha. Para Desktops, respeite ESTRITAMENTE a ordem: Motherboard, CPU, RAM, Nvme/Disk, Cooling/Wc, GPU/Gráfica, Fonte, Case, Fans. (Ex:\\nMotherboard: MSI B650M\\nCPU: Ryzen 7...)",
-  "tags": "3 a 5 tags separadas por vírgula (Ex: premium, rgb, overclock)",
-  "category": "Uma destas: Desktop's, Displays, Components, Consolas, Laptops, Gadgets",
-  "subCategory": "Uma destas se aplicável: GPU, CPU, RAM, Armazenamento, Air Cooler, Liquid Cooling, Fans, Motherboard, Fonte, Case, Teclado, Rato, Headsets, Webcam, Chairs / Cadeiras, Audio & Som, Routers & Redes, Android, iOS. (Ou null se não aplicável)",
+  "desc": "Descrição comercial e detalhada de até 3 frases.",
+  "specs": "Specs chave no formato Chave: Valor, uma por linha. Para Desktops respeita ESTRITAMENTE: Motherboard, CPU, RAM, Nvme/Disk, Cooling/Wc, GPU/Gráfica, Fonte, Case, Fans.",
+  "tags": "3 a 5 tags separadas por vírgula",
+  "category": "Uma de: Desktop's, Displays, Components, Consolas, Laptops, Gadgets",
+  "subCategory": "Uma de: GPU, CPU, RAM, Armazenamento, Air Cooler, Liquid Cooling, Fans, Motherboard, Fonte, Case, Teclado, Rato, Headsets, Webcam, Chairs / Cadeiras, Audio & Som, Routers & Redes, Android, iOS, ou null",
   "images": []
 }`;
 
-      const response = await ai.models.generateContent({
-          model: "gemini-3.1-pro-preview",
-          contents: prompt,
-          config: {
-            temperature: 0.1,
-            tools: [{ googleSearch: {} }] 
-          }
-      });
-      
-      let text = response.text || "";
-      text = text.replace(/```json\n/g, '').replace(/```/g, '').trim();
-      
-      const parsed = JSON.parse(text);
+      // Grounding (Google Search) helps with up-to-date specs and image URLs
+      const parsed = await askAIJson<any>({ prompt, temperature: 0.1, tools: { googleSearch: true } });
       if (parsed.desc) setDesc(parsed.desc);
       if (parsed.specs) {
         const lines = parsed.specs.split('\n');
@@ -297,40 +271,17 @@ Retorne um JSON válido com esta exata estrutura:
     if (!bName) return;
     setIsAutoCompleting(true);
     try {
-      const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-      if (!apiKey) throw new Error("VITE_VERTEX_API_KEY missing");
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        vertexai: {
-          project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware',
-          location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
-        } as any
-      });
-
-      const prompt = `Gere dados de compatibilidade técnica para o Smart Builder sobre este componente de hardware: "${bName}". 
-Extraia especificações. SE E SÓ SE encontrar URLs PÚBLICOS diretos de imagens (.jpg, .png, .webp) limpos (não use data:image, gstatic, base64, ou links quebrados), coloque-os no array 'images'. Caso contrário, retorne o array 'images' VAZIO [].
-Retorne um JSON válido com esta exata estrutura:
+      const prompt = `Gera dados de compatibilidade para o Smart Builder sobre este componente: "${bName}".
+Para imagens, se e SÓ se encontrares URLs PÚBLICOS directos (.jpg, .png, .webp) limpos (não data:image, gstatic, base64), inclui em 'images'. Caso contrário, retorna 'images' VAZIO [].
+Retorna APENAS este JSON:
 {
-  "bType": "Um destes: cpu, gpu, motherboard, ram, psu, case, storage, cooler, fans, peripheral",
-  "bWattage": "Apenas número (ex: se o TDP for 125W, retorne 125). Em caso de PSU, devolva os Watts totais.",
-  "bSocket": "O Socket ou chipset (LGA1700, AM5, ATX, PCIe 4.0, etc.)",
-  "bSpecs": "3 especificações chave separadas por vírgula (ex: 24 Cores, 6.2GHz, 125W TDP)",
+  "bType": "Um de: cpu, gpu, motherboard, ram, psu, case, storage, cooler, fans, peripheral",
+  "bWattage": "Apenas número (ex: 125)",
+  "bSocket": "Socket ou chipset (LGA1700, AM5, ATX, PCIe 4.0, etc.)",
+  "bSpecs": "3 specs chave separadas por vírgula",
   "images": []
 }`;
-
-      const response = await ai.models.generateContent({
-          model: "gemini-3.1-pro-preview",
-          contents: prompt,
-          config: {
-            temperature: 0.1,
-            tools: [{ googleSearch: {} }]
-          }
-      });
-      
-      let text = response.text || "";
-      text = text.replace(/```json\n/g, '').replace(/```/g, '').trim();
-      
-      const parsed = JSON.parse(text);
+      const parsed = await askAIJson<any>({ prompt, temperature: 0.1, tools: { googleSearch: true } });
       if (parsed.bType) setBType(parsed.bType);
       if (parsed.bWattage !== undefined) setBWattage(String(parsed.bWattage));
       if (parsed.bSocket) setBSocket(parsed.bSocket);
@@ -359,8 +310,20 @@ Retorne um JSON válido com esta exata estrutura:
   };
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged((u) => {
+    const unsub = auth.onAuthStateChanged(async (u) => {
       setUser(u);
+      if (u) {
+        // Force-refresh the ID token so a freshly-granted admin claim is visible
+        // without requiring a sign-out/sign-in cycle.
+        try {
+          const tok = await u.getIdTokenResult(true);
+          setIsAdminUser(tok.claims?.admin === true);
+        } catch {
+          setIsAdminUser(false);
+        }
+      } else {
+        setIsAdminUser(false);
+      }
       setAuthChecked(true);
     });
     return () => unsub();
@@ -402,6 +365,8 @@ Retorne um JSON válido com esta exata estrutura:
      try {
        await setDoc(doc(db, 'admin_settings', 'main'), storeSettings, { merge: true });
        await setDoc(doc(db, 'admin_settings', 'shipping'), shippingSettings, { merge: true });
+       await logAuditEvent({ action: 'shipping.update', data: { ...shippingSettings } });
+       await logAuditEvent({ action: 'settings.update', data: { keys: Object.keys(storeSettings) } });
        showFeedback('success', 'Configurações salvas com sucesso.');
      } catch(err) {
        console.error(err);
@@ -414,6 +379,7 @@ Retorne um JSON válido com esta exata estrutura:
     setSavingBom(true);
     try {
       await setDoc(doc(db, 'admin_settings', 'build_of_the_month'), bomSettings, { merge: false });
+      await logAuditEvent({ action: 'bom.update', data: { codename: bomSettings.codename, enabled: bomSettings.enabled, startingPrice: bomSettings.startingPrice } });
       showFeedback('success', 'Build do Mês actualizada.');
     } catch (err) {
       console.error(err);
@@ -503,7 +469,7 @@ Retorne um JSON válido com esta exata estrutura:
   };
 
   useEffect(() => {
-    if (!user || !ALLOWED_ADMINS.includes(user.email || '')) {
+    if (!user || !isAdminUser) {
       setLoading(false);
       return;
     }
@@ -604,18 +570,20 @@ Retorne um JSON válido com esta exata estrutura:
 
       if (bEditingId) {
         await setDoc(doc(db, 'products', bEditingId), productData, { merge: true });
-        showFeedback('success', "Componente Matrix atualizado com sucesso.");
+        await logAuditEvent({ action: 'builder.update', targetId: bEditingId, data: { name: bName, type: productData.builderType } });
+        showFeedback('success', "Componente actualizado com sucesso.");
       } else {
         productData.createdAt = serverTimestamp();
-        await addDoc(collection(db, 'products'), productData);
-        showFeedback('success', "Novo componente vital adicionado ao Smart Builder.");
+        const ref = await addDoc(collection(db, 'products'), productData);
+        await logAuditEvent({ action: 'builder.create', targetId: ref.id, data: { name: bName, type: productData.builderType } });
+        showFeedback('success', "Novo componente adicionado ao Smart Builder.");
       }
-      
+
       setBName(''); setBPrice(''); setBDiscount(''); setBType('gpu'); setBWattage(''); setBSocket(''); setBSpecs(''); setBImages(''); setBStatus('stock'); setBEditingId(null);
       setIsAddingBuilder(false);
     } catch(err) {
       console.error(err);
-      showFeedback('error', "Erro de rede ao anexar componente na Matrix.");
+      showFeedback('error', "Erro ao guardar o componente.");
     }
   };
 
@@ -674,10 +642,12 @@ Retorne um JSON válido com esta exata estrutura:
       if (editingId) {
         // When merging, we explicitly overwrite the fields so deleted specs or changes take effect fully
         await setDoc(doc(db, 'products', editingId), productData, { merge: false });
+        await logAuditEvent({ action: 'product.update', targetId: editingId, data: { name, price: productData.price, category, status } });
       } else {
         productData.createdAt = serverTimestamp();
         const customId = Array.from({length: 20}, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'.charAt(Math.floor(Math.random() * 62))).join('');
         await setDoc(doc(db, 'products', customId), productData);
+        await logAuditEvent({ action: 'product.create', targetId: customId, data: { name, price: productData.price, category, status } });
       }
       
       setName('');
@@ -755,7 +725,13 @@ Retorne um JSON válido com esta exata estrutura:
   const handleDelete = async (id: string) => {
     if(!window.confirm("Remover este produto permanentemente?")) return;
     try {
+      const product = products.find(p => p.id === id);
       await deleteDoc(doc(db, 'products', id));
+      await logAuditEvent({
+        action: product?.isBuilderExclusive ? 'builder.delete' : 'product.delete',
+        targetId: id,
+        data: { name: product?.name, price: product?.price },
+      });
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `products/${id}`);
     }
@@ -769,7 +745,7 @@ Retorne um JSON válido com esta exata estrutura:
     );
   }
 
-  if (!user || !ALLOWED_ADMINS.includes(user.email || '')) {
+  if (!user || !isAdminUser) {
     return (
       <div className="min-h-screen bg-[#050510] relative flex items-center justify-center p-6 overflow-hidden">
         {/* Background blobs */}
@@ -1041,30 +1017,16 @@ Retorne um JSON válido com esta exata estrutura:
                        setAdminChatMessages(prev => [...prev, {role: 'user', content: userMsg}]);
                        setIsAdminChatLoading(true);
                        try {
-                          const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-                          if (!apiKey) throw new Error("API Key missing");
-                          const ai = new GoogleGenAI({ 
-                            apiKey,
-                            vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any
-                          });
                           const ctx = `Estás no painel de administração da loja. Stock: ${products.length} produtos. Total Checkouts: ${events.filter(e => e.type === 'checkout').length}.`;
                           const prompt = ctx + "\n" + adminChatMessages.map(m => `${m.role}: ${m.content}`).join("\n") + "\nuser: " + userMsg;
-                          
-                          const startTime = performance.now();
-                          const res = await ai.models.generateContent({
-                              model: "gemini-2.0-flash",
-                              contents: prompt,
-                              config: { systemInstruction: "Você é Amani 3, assistente IA exclusiva do Administrador da Hardware Sale. Responda de forma curta, técnica e focada em gestão de e-commerce, análise de dados e performance corporativa." }
+                          const { text } = await askAI({
+                            prompt,
+                            systemInstruction: "És Amani, assistente do Administrador da Hardware Sale. Responde de forma curta, técnica e focada em gestão de e-commerce, análise de dados e performance da loja.",
+                            model: 'gemini-2.5-flash',
                           });
-                          const endTime = performance.now();
-                          
-                          const text = res.text || "Sem resposta da rede neural.";
-                          const totalTokens = res.usageMetadata?.totalTokenCount || Math.ceil((prompt.length + text.length) / 4);
-                          
-                          setAdminChatMessages(prev => [...prev, {role: 'assistant', content: text}]);
-                          logAetherLabsUsage(endTime - startTime, prompt, text, totalTokens, 'gemini-2.0-flash');
+                          setAdminChatMessages(prev => [...prev, {role: 'assistant', content: text || "Sem resposta no momento."}]);
                        } catch(err) {
-                          setAdminChatMessages(prev => [...prev, {role: 'assistant', content: "Erro na Matrix: Verifique suas variáveis de ambiente ou a conexão AI."}]);
+                          setAdminChatMessages(prev => [...prev, {role: 'assistant', content: "Erro ao contactar o serviço de IA. Verifica a ligação."}]);
                        }
                        setIsAdminChatLoading(false);
                     }} className="relative flex items-center bg-black/40 backdrop-blur-xl border border-white/10 rounded-[2rem] p-1.5 transition-all focus-within:border-brand-neon/50 focus-within:bg-black/60 shadow-inner group">
@@ -1171,12 +1133,18 @@ Retorne um JSON válido com esta exata estrutura:
 
                               <div className="flex flex-col gap-2 mt-6">
                                 {order.status === 'pendente' && (
-                                  <Button onClick={() => setDoc(doc(db, 'checkouts', order.id), { status: 'pago' }, { merge: true })} className="w-full bg-brand-neon text-black font-bold h-9 text-xs rounded-lg hover:bg-brand-magenta hover:text-white transition-colors">
+                                  <Button onClick={async () => {
+                                    await setDoc(doc(db, 'checkouts', order.id), { status: 'pago' }, { merge: true });
+                                    await logAuditEvent({ action: 'order.update', targetId: order.id, data: { status: 'pago' } });
+                                  }} className="w-full bg-brand-neon text-black font-bold h-9 text-xs rounded-lg hover:bg-brand-magenta hover:text-white transition-colors">
                                      Marcar como Pago
                                   </Button>
                                 )}
                                 {order.status === 'pago' && (
-                                  <Button onClick={() => setDoc(doc(db, 'checkouts', order.id), { status: 'entregue' }, { merge: true })} className="w-full bg-green-500 text-white font-bold h-9 text-xs rounded-lg hover:bg-green-600 transition-colors">
+                                  <Button onClick={async () => {
+                                    await setDoc(doc(db, 'checkouts', order.id), { status: 'entregue' }, { merge: true });
+                                    await logAuditEvent({ action: 'order.update', targetId: order.id, data: { status: 'entregue' } });
+                                  }} className="w-full bg-green-500 text-white font-bold h-9 text-xs rounded-lg hover:bg-green-600 transition-colors">
                                      Confirmar Entrega
                                   </Button>
                                 )}
@@ -1361,57 +1329,39 @@ Retorne um JSON válido com esta exata estrutura:
                         </div>
                       </div>
                       <p className="text-sm text-gray-400 mb-6 relative z-10 flex-1 overflow-y-auto custom-scrollbar min-h-[100px]">
-                        {aiInsights || "A inteligência Matrix está pronta para analisar os dados reais do site, cruzar com o inventário e entregar estratégias de conversão de alto impacto e análise de crescimento."}
+                        {aiInsights || "A Amani está pronta para analisar os dados reais do site, cruzar com o inventário e sugerir estratégias de conversão e crescimento."}
                       </p>
-                      <Button 
+                      <Button
                         disabled={generatingInsights}
                         onClick={async () => {
                           setGeneratingInsights(true);
                           try {
-                            const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-                            if (!apiKey) throw new Error("VITE_VERTEX_API_KEY missing");
-                            
-                            const ai = new GoogleGenAI({ 
-                              apiKey,
-                              vertexai: {
-                                project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware',
-                                location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1'
-                              } as any
-                            });
                             const now = new Date();
                             const timeFrameMs = analyticsFilter === '30D' ? 30*24*60*60*1000 : analyticsFilter === '90D' ? 90*24*60*60*1000 : 365*24*60*60*1000;
                             const filteredEvents = events.filter(e => {
                               const eventTime = e.timestamp ? (e.timestamp.toMillis ? e.timestamp.toMillis() : e.timestamp) : now.getTime();
                               return (now.getTime() - eventTime) < timeFrameMs;
                             });
-    
+
                             const cartEvents = filteredEvents.filter(e => e.type === 'add_to_cart');
                             const checkoutEvents = filteredEvents.filter(e => e.type === 'checkout');
                             const pageviews = filteredEvents.filter(e => e.type === 'pageview');
                             const uniqueUsers = new Set(pageviews.map(e => e.sessionId)).size;
-                            
-                            const prompt = `Atue como um analista de dados especialista e estrategista cibernético para a Hardware Sale (e-commerce real em Moçambique).
-Dados Locais do Projeto:
+
+                            const prompt = `Actua como analista de dados e estratega para a Hardware Sale (e-commerce em Moçambique).
+Dados do projecto:
 - Produtos em Stock: ${products.filter(p => p.status === 'stock').length}
 - Valor em Stock: ${products.reduce((acc, p) => acc + (p.status === 'stock' || p.status === 'na_box' ? Number(p.price) : 0), 0)} MT
-Site Analysis (${analyticsFilter}):
-- Visitantes Ativos Únicos: ${uniqueUsers}
-- Adições ao Carrinho: ${cartEvents.length}
-- Checkouts Iniciados: ${checkoutEvents.length}
-- Taxa de Crescimento (Simulada): +10% 
+Analytics (${analyticsFilter}):
+- Visitantes únicos: ${uniqueUsers}
+- Adições ao carrinho: ${cartEvents.length}
+- Checkouts iniciados: ${checkoutEvents.length}
 
-Forneça uma análise global rápida do contexto, recomende estratégias precisas para converter mais visitantes em leads/compradores e sugira como alavancar a audiência atual. Seja incisivo, tom corporativo agressivo. Mantenha em 4 frases diretas.`;
-
-                            const startTime = performance.now();
-                            const response = await ai.models.generateContent({
-                                model: "gemini-3.1-pro-preview",
-                                contents: prompt,
-                            });
-                            const endTime = performance.now();
-                            setAiInsights(response.text || null);
-                            logAetherLabsUsage(endTime - startTime, prompt, response.text || "");
+Dá uma análise rápida do contexto, recomenda estratégias precisas para converter mais visitantes em compradores e sugere como aproveitar a audiência actual. Tom directo, prático. 4 frases.`;
+                            const { text } = await askAI({ prompt });
+                            setAiInsights(text || null);
                           } catch (err: any) {
-                            setAiInsights("Erro ao conectar à Vertex AI. Verifique as variáveis de ambiente.");
+                            setAiInsights("Erro ao contactar o serviço de IA. Verifica a ligação.");
                             console.error(err);
                           } finally {
                             setGeneratingInsights(false);
@@ -2492,6 +2442,11 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                             data.createdAt = serverTimestamp();
                           }
                           await setDoc(doc(db, 'coupons', targetId), data, { merge: !!editingCouponId });
+                          await logAuditEvent({
+                            action: editingCouponId ? 'coupon.update' : 'coupon.create',
+                            targetId,
+                            data: { code: normalisedCode, discountPercent: data.discountPercent, active: data.active },
+                          });
                           setIsAddingCoupon(false); setEditingCouponId(null);
                           showFeedback('success', editingCouponId ? 'Cupão actualizado!' : 'Cupão criado com sucesso!');
                         } catch(err) { showFeedback('error', 'Falha ao guardar cupão.'); }
@@ -2543,7 +2498,11 @@ Forneça uma análise global rápida do contexto, recomende estratégias precisa
                             {c.active ? 'Desativar' : 'Ativar'}
                           </button>
                           <button onClick={() => { setEditingCouponId(c.id); setCouponForm({ code: c.code, discountPercent: c.discountPercent, maxUses: c.maxUses, maxPerUser: c.maxPerUser, minOrderValue: c.minOrderValue, validFrom: c.validFrom ? new Date(c.validFrom).toISOString().slice(0,16) : '', validUntil: c.validUntil ? new Date(c.validUntil).toISOString().slice(0,16) : '', active: c.active }); setIsAddingCoupon(true); window.scrollTo(0,0); }} className="h-8 px-3 rounded-lg text-xs font-bold border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition-all">Editar</button>
-                          <button onClick={async () => { if(window.confirm('Eliminar este cupão?')) await deleteDoc(doc(db, 'coupons', c.id)); }} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
+                          <button onClick={async () => {
+                            if (!window.confirm('Eliminar este cupão?')) return;
+                            await deleteDoc(doc(db, 'coupons', c.id));
+                            await logAuditEvent({ action: 'coupon.delete', targetId: c.id, data: { code: c.code } });
+                          }} className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center">
                             <Trash2 size={14} />
                           </button>
                         </div>

@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router-dom';
 import { db, getUidWhenReady } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useCoupons } from '../hooks/useCoupons';
-import { useClientProfile } from '../hooks/useClientProfile';
 
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -18,7 +17,6 @@ export function Checkout() {
   const { items, addItem, removeItem, updateQuantity, total, voucher, clearCart } = useCart();
   const { validateCoupon, applyCoupon } = useCoupons();
   const { products } = useStore();
-  const { recordPurchase } = useClientProfile();
   const navigate = useNavigate();
 
   // Coupon state
@@ -446,7 +444,9 @@ export function Checkout() {
         if (data.paymentStatus === 'confirmed') {
           if (paymentTimerRef.current) clearInterval(paymentTimerRef.current);
           if (paymentListenerRef.current) paymentListenerRef.current();
-          recordPurchase(finalTotal);
+          // Profile XP/totalSpent/purchaseCount is now incremented server-side
+          // by /api/payment-callback once the provider confirms — the client
+          // no longer self-reports purchases (prevents XP inflation).
           setPaymentStatus('success');
           setTimeout(() => proceedToWhatsApp(finalTotal), 2500);
         } else if (data.paymentStatus === 'failed') {

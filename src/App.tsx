@@ -83,6 +83,10 @@ export default function App() {
               <Route path="hub" element={<ClientHub />} />
             </Route>
             {/* Admin routes outside Layout so they take over the entire screen natively */}
+            {/* New canonical path: /console. /admin kept temporarily as an alias
+                 so existing bookmarks don't 404 — remove this alias once everyone
+                 has migrated. */}
+            <Route path="/console" element={<AdminDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </Suspense>

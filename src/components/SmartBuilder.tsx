@@ -6,8 +6,7 @@ import { ShoppingCart, AlertTriangle, Lightbulb, CheckCircle2, Settings, Cpu, Lo
 import { useCart } from '../store/useCart';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
-import { GoogleGenAI } from '@google/genai';
-import { logAetherLabsUsage } from '../lib/aiTracking';
+import { askAI } from '../lib/ai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -47,20 +46,13 @@ export function SmartBuilder() {
       setIsListening(false);
       setIsAiThinking(true);
       try {
-        const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-        if (!apiKey) throw new Error("Missing API Key");
-        const ai = new GoogleGenAI({ apiKey, vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any });
         const prompt = `O utilizador usou o comando de voz no Smart Builder: "${transcript}".
-Analise o catálogo disponível e monte a melhor máquina para este pedido.
+Analisa o catálogo disponível e monta a melhor máquina para este pedido.
 Catálogo: ${allComponents.map(c => `${c.id}: ${c.name} (${c.priceMT} MT)`).join(', ')}
-Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
+Retorna APENAS um objeto JSON válido com os IDs ideais:
 { "motherboard": "id", "cpu": "id", "ram": "id", "storage": "id", "cooler": "id", "gpu": "id", "psu": "id", "case": "id", "fans": "id" }`;
-        const startTime = performance.now();
-        const res = await ai.models.generateContent({ model: "gemini-3.1-pro-preview", contents: prompt, config: { temperature: 0.1 } });
-        const endTime = performance.now();
-        const text = res.text || "{}";
-        logAetherLabsUsage(endTime - startTime, prompt, text, res.usageMetadata?.totalTokenCount || Math.ceil(text.length / 4));
-        const jsonStr = text.replace(/```json\n/g, '').replace(/```/g, '').trim();
+        const { text } = await askAI({ prompt, temperature: 0.1, mode: 'json' });
+        const jsonStr = (text || '{}').replace(/```json\n?/g, '').replace(/```/g, '').trim();
         const parsed = JSON.parse(jsonStr);
         if (parsed.motherboard) setters.setSelectedMotherboard(allComponents.find(c => c.id === parsed.motherboard) || null);
         if (parsed.cpu) setters.setSelectedCPU(allComponents.find(c => c.id === parsed.cpu) || null);
@@ -205,17 +197,10 @@ Retorne APENAS um objeto JSON válido (sem \`\`\`json) com os IDs ideais:
     const timer = setTimeout(async () => {
       setIsAiThinking(true);
       try {
-        const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-        if (!apiKey) throw new Error("Missing API Key");
-        const ai = new GoogleGenAI({ apiKey, vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any });
-        const prompt = `Atue como Amani, a IA consultora de hardware de luxo da Hardware Sale. O utilizador está montando um PC com: ${parts.join(', ')}. Faça uma análise técnica concisa (máx 3 frases) do gargalo, compatibilidade ou excelente combinação destas peças. Fale diretamente com o utilizador com entusiasmo e tom premium.`;
-        const startTime = performance.now();
-        const res = await ai.models.generateContent({ model: "gemini-3.1-pro-preview", contents: prompt, config: { temperature: 0.6 } });
-        const endTime = performance.now();
-        const text = res.text || null;
-        setAiFeedback(text);
+        const prompt = `Actua como Amani, a assistente de hardware da Hardware Sale. O utilizador está a montar um PC com: ${parts.join(', ')}. Faz uma análise técnica concisa (máx 3 frases) sobre gargalos, compatibilidade ou se é uma boa combinação. Fala directamente com o utilizador, com clareza.`;
+        const { text } = await askAI({ prompt, temperature: 0.6 });
+        setAiFeedback(text || null);
         if (text) localStorage.setItem(cacheKey, text);
-        logAetherLabsUsage(endTime - startTime, prompt, text || "");
       } catch (err) { console.error(err); } finally { setIsAiThinking(false); }
     }, 1500);
     return () => clearTimeout(timer);

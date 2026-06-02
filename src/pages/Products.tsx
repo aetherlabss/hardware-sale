@@ -7,13 +7,12 @@ import { ShoppingCart, CheckCircle2, X, ChevronLeft, ChevronRight, Zap, Settings
 import { getAssetUrl } from '../lib/assets';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { logAetherLabsUsage } from '../lib/aiTracking';
+import { askAI } from '../lib/ai';
 
 gsap.registerPlugin(useGSAP);
 
 import '@google/model-viewer';
 
-import { GoogleGenAI } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createPortal } from 'react-dom';
@@ -65,26 +64,12 @@ function ProductModal({
     const getTip = async () => {
        setIsAiLoading(true);
        try {
-          const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-          if (!apiKey) return;
-          const ai = new GoogleGenAI({ 
-            apiKey,
-            vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any
-          });
-          const prompt = `Atue como Amani, a assistente IA da loja Hardware Sale. O utilizador está a visualizar o produto "${product.name}" (Categoria: ${product.category}). Faça uma recomendação "God Level" extremamente concisa (1 ou 2 frases curtas) sobre que outro acessório ou peça ele deveria comprar junto, ou elogie a escolha de forma premium.`;
-          
-          const startTime = performance.now();
-          const res = await ai.models.generateContent({
-              model: "gemini-3.1-pro-preview",
-              contents: prompt,
-              config: { temperature: 0.7 }
-          });
-          const endTime = performance.now();
-          setAiTip(res.text || "Uma escolha sólida.");
-          logAetherLabsUsage(endTime - startTime, prompt, res.text || "");
+          const prompt = `Actua como Amani, a assistente da Hardware Sale. O utilizador está a ver o produto "${product.name}" (Categoria: ${product.category}). Faz uma recomendação curta (1-2 frases) sobre que peça ou acessório combina bem, ou comenta a escolha de forma genuína.`;
+          const { text } = await askAI({ prompt, temperature: 0.7 });
+          setAiTip(text || "Uma escolha sólida.");
        } catch (err) {
           console.error(err);
-          setAiTip("Recomendamos emparelhar este item com os nossos cabos premium para a melhor performance.");
+          setAiTip("Sugerimos emparelhar este item com cabos de qualidade para o melhor desempenho.");
        } finally {
           setIsAiLoading(false);
        }
@@ -511,31 +496,12 @@ export function Products() {
     setCompareResult(null);
 
     try {
-      const apiKey = import.meta.env.VITE_VERTEX_API_KEY;
-      if (!apiKey) throw new Error("Missing API Key");
-      
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        vertexai: { project: import.meta.env.VITE_VERTEX_PROJECT_ID || 'matrix-hardware', location: import.meta.env.VITE_VERTEX_LOCATION || 'us-central1' } as any
-      });
-
       const p1 = compareItems[0];
       const p2 = compareItems[1];
 
-      const prompt = `Atue como Amani 3, Consultora Técnica de Luxo. O cliente está em dúvida entre comprar "${p1.name}" (${p1.price} MT) e "${p2.name}" (${p2.price} MT).
-Faça um duelo e dê um veredito final em 3 frases curtas e poderosas. Diga em que situação o Produto 1 ganha e em que situação o Produto 2 ganha.`;
-
-      const startTime = performance.now();
-      const res = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
-        contents: prompt,
-        config: { temperature: 0.6 }
-      });
-      const endTime = performance.now();
-      const text = res.text || "{}";
-      const totalTokens = res.usageMetadata?.totalTokenCount || Math.ceil((prompt.length + text.length) / 4);
-      logAetherLabsUsage(endTime - startTime, prompt, text, totalTokens);
-
+      const prompt = `Actua como Amani, consultora técnica. O cliente está em dúvida entre "${p1.name}" (${p1.price} MT) e "${p2.name}" (${p2.price} MT).
+Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto 1 é melhor escolha e em que situação o Produto 2 é melhor.`;
+      const { text } = await askAI({ prompt, temperature: 0.6 });
       setCompareResult(text);
     } catch(err) {
       console.error(err);

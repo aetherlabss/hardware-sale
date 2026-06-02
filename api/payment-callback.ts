@@ -19,10 +19,26 @@ function parseOrderId(conversationId: string): string {
   return match?.[1] || '';
 }
 
+async function getCheckout(orderId: string): Promise<{ total?: number; sessionId?: string; userId?: string; rewardedAt?: number } | null> {
+  const apiKey = getFirebaseApiKey();
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/${FIREBASE_DATABASE}/documents/checkouts/${orderId}?key=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = await res.json();
+  const f = data.fields || {};
+  return {
+    total: f.total?.doubleValue ?? f.total?.integerValue ? Number(f.total.doubleValue ?? f.total.integerValue) : undefined,
+    sessionId: f.sessionId?.stringValue,
+    userId: f.userId?.stringValue,
+    rewardedAt: f.rewardedAt?.integerValue ? Number(f.rewardedAt.integerValue) : undefined,
+  };
+}
+
 async function updateCheckoutPayment(orderId: string, status: 'confirmed' | 'failed', transactionId?: string) {
   const apiKey = getFirebaseApiKey();
   const maskParts = ['paymentStatus', 'status'];
   if (transactionId) maskParts.push('transactionId');
+  if (status === 'confirmed') maskParts.push('rewardedAt');
   const mask = maskParts.map(f => `updateMask.fieldPaths=${f}`).join('&');
 
   const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/${FIREBASE_DATABASE}/documents/checkouts/${orderId}?key=${apiKey}&${mask}`;
@@ -32,6 +48,7 @@ async function updateCheckoutPayment(orderId: string, status: 'confirmed' | 'fai
     status:        { stringValue: status === 'confirmed' ? 'pago' : 'pendente' },
   };
   if (transactionId) fields.transactionId = { stringValue: transactionId };
+  if (status === 'confirmed') fields.rewardedAt = { integerValue: String(Date.now()) };
 
   const res = await fetch(url, {
     method: 'PATCH',
@@ -42,6 +59,43 @@ async function updateCheckoutPayment(orderId: string, status: 'confirmed' | 'fai
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Firestore update failed: ${res.status} ${text}`);
+  }
+}
+
+const PURCHASE_XP = 500;
+
+// Server-authoritative purchase recording: increments xp/totalSpent/purchaseCount
+// on the customer's client_profile after a payment is confirmed. The Firestore
+// rule blocks the client from doing this directly, eliminating the previous
+// XP-inflation vector.
+async function rewardProfileForPurchase(sessionId: string, total: number): Promise<void> {
+  if (!sessionId || !Number.isFinite(total) || total <= 0) return;
+  const apiKey = getFirebaseApiKey();
+  const docPath = `projects/${FIREBASE_PROJECT}/databases/${FIREBASE_DATABASE}/documents/client_profiles/${encodeURIComponent(sessionId)}`;
+  const commitUrl = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/${FIREBASE_DATABASE}/documents:commit?key=${apiKey}`;
+  // Firestore documentTransform with FieldTransform integer increments
+  const body = {
+    writes: [{
+      transform: {
+        document: docPath,
+        fieldTransforms: [
+          { fieldPath: 'xp',            increment: { integerValue: String(PURCHASE_XP) } },
+          { fieldPath: 'totalSpent',    increment: { integerValue: String(Math.round(total)) } },
+          { fieldPath: 'purchaseCount', increment: { integerValue: '1' } },
+        ],
+      },
+    }],
+  };
+  const res = await fetch(commitUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    // Profile may not exist yet — increment-on-missing returns NOT_FOUND.
+    // That's fine: the customer hasn't browsed the hub. We just skip rewards.
+    console.warn(`profile reward skipped (status ${res.status}): ${text}`);
   }
 }
 
@@ -77,7 +131,12 @@ export default async function handler(req: any, res: any) {
       const transactionId = body.output_TransactionID;
 
       if (orderId) {
+        // Idempotency: read existing checkout first; if already rewarded, skip
+        const checkout = await getCheckout(orderId);
         await updateCheckoutPayment(orderId, success ? 'confirmed' : 'failed', transactionId);
+        if (success && checkout?.sessionId && checkout?.total && !checkout?.rewardedAt) {
+          await rewardProfileForPurchase(checkout.sessionId, checkout.total);
+        }
       } else {
         console.warn('payment-callback MPesa: could not parse orderId from', conversationId);
       }
@@ -89,13 +148,16 @@ export default async function handler(req: any, res: any) {
     // ---- e-Mola callback ----
     // e-Mola sends: status, transaction_id, reference (orderId)
     if (body.transaction_id !== undefined || body.reference !== undefined) {
-      // reference is the plain orderId we passed; fall back to parsing transaction_id
       const orderId: string = body.reference || parseOrderId(body.transaction_id || '');
       const success = body.status === 'success' || body.status === 'completed' || body.code === '200';
       const transactionId = body.transaction_id;
 
       if (orderId) {
+        const checkout = await getCheckout(orderId);
         await updateCheckoutPayment(orderId, success ? 'confirmed' : 'failed', transactionId);
+        if (success && checkout?.sessionId && checkout?.total && !checkout?.rewardedAt) {
+          await rewardProfileForPurchase(checkout.sessionId, checkout.total);
+        }
       } else {
         console.warn('payment-callback e-Mola: could not parse orderId from payload', JSON.stringify(body));
       }
