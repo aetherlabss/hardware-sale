@@ -1,7 +1,7 @@
 import { gateBrowserRequest } from './_security';
 
 export default async function handler(req: any, res: any) {
-  if (!gateBrowserRequest(req, res, { rateLimit: 60, windowMs: 60_000 })) return;
+  if (!(await gateBrowserRequest(req, res, { rateLimit: 60, windowMs: 60_000 }))) return;
 
   const { place_id } = req.query;
   if (!place_id || typeof place_id !== 'string' || !/^[A-Za-z0-9_-]+$/.test(place_id)) {

@@ -6,7 +6,7 @@ import { gateBrowserRequest } from './_security';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  if (!gateBrowserRequest(req, res, { rateLimit: 10, windowMs: 60_000 })) return;
+  if (!(await gateBrowserRequest(req, res, { rateLimit: 10, windowMs: 60_000 }))) return;
 
   const { phone, amount, reference, orderId } = req.body;
   if (!phone || !amount || !orderId) {

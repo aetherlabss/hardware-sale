@@ -330,3 +330,11 @@ html, body {
   animation: orbit 8s linear infinite;
   box-shadow: 0 0 10px var(--color-brand-neon);
 }
+/* ─── SCROLLBAR HIDE UTILITY ───────────────────── */
+.scrollbar-hide::-webkit-scrollbar,
+.hide-scroll::-webkit-scrollbar { display: none; }
+.scrollbar-hide,
+.hide-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

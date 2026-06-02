@@ -6,7 +6,7 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   // Admin-only feature, but still restrict to known origins and rate limit
-  if (!gateBrowserRequest(req, res, { rateLimit: 5, windowMs: 60_000 })) return;
+  if (!(await gateBrowserRequest(req, res, { rateLimit: 5, windowMs: 60_000 }))) return;
 
   // Prefer server-only env var (not exposed by Vite). Falls back to the
   // legacy VITE_-prefixed var for compatibility — TODO: rotate the key and

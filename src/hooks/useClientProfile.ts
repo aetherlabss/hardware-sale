@@ -137,17 +137,6 @@ export function useClientProfile() {
     }
   };
 
-  /**
-   * @deprecated Purchase recording now happens server-side via
-   * /api/payment-callback once the payment provider confirms. Calling this
-   * from the client opens an XP-inflation vector — the Firestore rule
-   * actively blocks it. Kept exported for any legacy callers, but it is a
-   * no-op and will be removed in a future cleanup.
-   */
-  const recordPurchase = async (_total: number) => {
-    return;
-  };
-
   const updateProfile = async (name: string, phone: string) => {
     if (!profile) return;
     try {
@@ -232,10 +221,9 @@ export function useClientProfile() {
     loading,
     sessionId,
     addXP,
-    recordPurchase,
     updateProfile,
     dailyCheckIn,
     getAffiliateStats,
-    reload: loadProfile
+    reload: loadProfile,
   };
 }

@@ -89,6 +89,7 @@ export function AdminDashboard() {
   const [isAddingCoupon, setIsAddingCoupon] = useState(false);
   const [savingCoupon, setSavingCoupon] = useState(false);
   const [editingCouponId, setEditingCouponId] = useState<string | null>(null);
+  const [migratingCoupons, setMigratingCoupons] = useState(false);
 
   // Command Center State
   const [isCommandCenterOpen, setIsCommandCenterOpen] = useState(false);
@@ -2010,54 +2011,18 @@ Dá uma análise rápida do contexto, recomenda estratégias precisas para conve
                 <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-8 shadow-xl mt-6">
                    <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2"><MapPin size={20} className="text-brand-neon" /> Visualização do Centro Operacional</h3>
                    <div className="w-full h-[500px] rounded-2xl overflow-hidden border border-white/10 relative bg-black">
-                     {/* Interactive Map loading OpenStreetMap visually with native Leaflet logic inside a pure iframe or robust JS to prevent extra library requirements */}
-                     <iframe 
-                       width="100%" 
-                       height="100%" 
-                       frameBorder="0" 
-                       srcDoc={`
-                         <!DOCTYPE html>
-                         <html>
-                           <head>
-                             <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                             <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-                             <style>
-                               body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #fff; }
-                               #map { height: 100%; width: 100%; }
-                             </style>
-                           </head>
-                           <body>
-                             <div id="map"></div>
-                             <script>
-                               var map = L.map('map', {zoomControl: true}).setView([${shippingSettings.baseLat}, ${shippingSettings.baseLng}], 12);
-                               L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                                 maxZoom: 19,
-                                 attribution: '© OpenStreetMap'
-                               }).addTo(map);
-                               
-                               // Add marker for HQ
-                               var circleIcon = L.divIcon({
-                                 className: 'custom-div-icon',
-                                 html: "<div style='background-color:#14f195;width:12px;height:12px;border-radius:50%;border:2px solid #000;box-shadow:0 0 10px #14f195;'></div>",
-                                 iconSize: [12, 12],
-                                 iconAnchor: [6, 6]
-                               });
-                               L.marker([${shippingSettings.baseLat}, ${shippingSettings.baseLng}], {icon: circleIcon}).addTo(map);
-
-                               // Add Radius Circle
-                               L.circle([${shippingSettings.baseLat}, ${shippingSettings.baseLng}], {
-                                 color: '#14f195',
-                                 fillColor: '#14f195',
-                                 fillOpacity: 0.1,
-                                 weight: 2,
-                                 radius: ${shippingSettings.freeRadiusKm} * 1000
-                               }).addTo(map);
-                             </script>
-                           </body>
-                         </html>
-                       `}
+                     {/* Map served from /admin-map.html (static, same-origin) so the page
+                          stays under a strict Content-Security-Policy. Coordinates pass
+                          through URL params. */}
+                     <iframe
+                       title="Mapa de cobertura"
+                       width="100%"
+                       height="100%"
+                       frameBorder="0"
+                       src={`/admin-map.html?lat=${shippingSettings.baseLat}&lng=${shippingSettings.baseLng}&r=${shippingSettings.freeRadiusKm}`}
+                       sandbox="allow-scripts allow-same-origin"
                        className="absolute inset-0"
-                     ></iframe>
+                     />
 
                      <div className="absolute top-4 left-4 bg-black/80 backdrop-blur-md border border-brand-neon/30 text-white text-xs font-bold px-4 py-2 rounded-xl flex flex-col shadow-[0_0_20px_rgba(20,241,149,0.3)] z-20 pointer-events-none">
                        <span className="text-brand-neon uppercase tracking-widest text-[9px] mb-1">Zona de Cobertura Principal</span>
@@ -2369,9 +2334,47 @@ Dá uma análise rápida do contexto, recomenda estratégias precisas para conve
                     <h2 className="text-3xl font-bold text-white mb-2 tracking-tight flex items-center gap-3"><Ticket className="text-brand-neon" size={28} /> Gestor de Cupões</h2>
                     <p className="text-gray-400 font-medium">Crie e gerencie cupões de desconto com regras avançadas de validade e uso.</p>
                   </div>
-                  <button onClick={() => { setIsAddingCoupon(!isAddingCoupon); setEditingCouponId(null); setCouponForm({ code: '', discountPercent: 10, maxUses: 0, maxPerUser: 1, minOrderValue: 0, validFrom: '', validUntil: '', active: true }); }} className="relative z-10 bg-brand-neon hover:bg-brand-magenta text-black font-bold px-6 h-12 rounded-xl transition-all shadow-[0_0_20px_rgba(20,241,149,0.3)] flex items-center gap-2">
-                    {isAddingCoupon ? <><X size={16} /> Cancelar</> : <><Plus size={16} /> Criar Cupão</>}
-                  </button>
+                  <div className="relative z-10 flex flex-col sm:flex-row gap-2">
+                    {(() => {
+                      const legacy = coupons.filter(c => c.code && c.id !== c.code);
+                      if (legacy.length === 0) return null;
+                      return (
+                        <Button
+                          disabled={migratingCoupons}
+                          onClick={async () => {
+                            if (!window.confirm(`Re-chave ${legacy.length} cupões antigos para usarem o código como ID? Cupões existentes são preservados.`)) return;
+                            setMigratingCoupons(true);
+                            let migrated = 0, skipped = 0;
+                            try {
+                              for (const c of legacy) {
+                                const normalised = c.code.toUpperCase().trim().replace(/[^A-Z0-9_-]/g, '');
+                                if (!normalised) { skipped++; continue; }
+                                // Skip if a doc with the normalised code already exists (avoid clobbering)
+                                if (coupons.some(other => other.id === normalised)) { skipped++; continue; }
+                                const { id: _drop, ...payload } = c;
+                                await setDoc(doc(db, 'coupons', normalised), { ...payload, code: normalised });
+                                await deleteDoc(doc(db, 'coupons', c.id));
+                                await logAuditEvent({ action: 'coupon.update', targetId: normalised, data: { migratedFrom: c.id, code: normalised } });
+                                migrated++;
+                              }
+                              showFeedback('success', `Migrados ${migrated} cupões (${skipped} ignorados).`);
+                            } catch (err) {
+                              console.error(err);
+                              showFeedback('error', `Falha na migração após ${migrated}. Verifica a consola.`);
+                            }
+                            setMigratingCoupons(false);
+                          }}
+                          className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500 hover:text-black font-bold px-5 h-12 rounded-xl flex items-center gap-2"
+                        >
+                          {migratingCoupons ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+                          Migrar {legacy.length} cupão{legacy.length === 1 ? '' : 'ões'} antigos
+                        </Button>
+                      );
+                    })()}
+                    <button onClick={() => { setIsAddingCoupon(!isAddingCoupon); setEditingCouponId(null); setCouponForm({ code: '', discountPercent: 10, maxUses: 0, maxPerUser: 1, minOrderValue: 0, validFrom: '', validUntil: '', active: true }); }} className="bg-brand-neon hover:bg-brand-magenta text-black font-bold px-6 h-12 rounded-xl transition-all shadow-[0_0_20px_rgba(20,241,149,0.3)] flex items-center gap-2">
+                      {isAddingCoupon ? <><X size={16} /> Cancelar</> : <><Plus size={16} /> Criar Cupão</>}
+                    </button>
+                  </div>
                 </div>
 
                 {isAddingCoupon && (

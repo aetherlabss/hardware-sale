@@ -240,10 +240,6 @@ function ProductModal({
           onTouchMove={(e) => e.stopPropagation()}
           style={{scrollbarWidth: 'none', msOverflowStyle: 'none'}}
         >
-          <style dangerouslySetInnerHTML={{__html: `
-            .scrollbar-hide::-webkit-scrollbar { display: none; }
-          `}} />
-
           <div className="mb-3">
              <span className="px-3 py-1 inline-flex items-center justify-center rounded-full bg-brand-neon/10 border border-brand-neon/30 text-[10px] font-bold tracking-widest text-brand-neon uppercase shadow-[0_0_15px_rgba(168,85,247,0.15)]">
                {product.category}
@@ -350,7 +346,8 @@ function ProductModal({
           {aiTip && (
             <div className="bg-brand-neon/10 border border-brand-neon/20 rounded-2xl p-4 mb-6 flex gap-3 text-brand-neon text-sm leading-snug">
                <Sparkles className="w-5 h-5 shrink-0" />
-               <span dangerouslySetInnerHTML={{__html: aiTip}} />
+               {/* AI-sourced text — render as plain text to avoid any HTML injection. */}
+               <span>{aiTip}</span>
             </div>
           )}
 
@@ -689,10 +686,6 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
 
         {/* Epic Main Categories */}
         <div className="w-full max-w-full overflow-hidden relative px-4">
-          <style dangerouslySetInnerHTML={{__html: `
-            .hide-scroll::-webkit-scrollbar { display: none; }
-            .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
-          `}} />
           <div className="flex flex-nowrap items-center justify-start lg:justify-center gap-3 bg-black/60 p-3 rounded-[2rem] border border-white/10 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,0,0,0.8)] overflow-x-auto hide-scroll">
             {categories.map(cat => (
               <button 
