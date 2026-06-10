@@ -78,7 +78,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      {!location.pathname.startsWith('/admin') && <AmaniChat />}
+      {!location.pathname.startsWith('/console') && <AmaniChat />}
 
       <footer className="bg-[#02020a] pt-20 pb-10 border-t border-white/5 mt-16 relative z-10">
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { logEvent } from './lib/analytics';
 import { useEffect, lazy, Suspense } from 'react';
@@ -82,12 +82,13 @@ export default function App() {
               <Route path="build-of-the-month" element={<BuildOfTheMonth />} />
               <Route path="hub" element={<ClientHub />} />
             </Route>
-            {/* Admin routes outside Layout so they take over the entire screen natively */}
-            {/* New canonical path: /console. /admin kept temporarily as an alias
-                 so existing bookmarks don't 404 — remove this alias once everyone
-                 has migrated. */}
+            {/* Admin lives at the camouflaged /console path only, outside Layout
+                so it takes over the screen. The obvious /admin path — and any
+                unknown route — redirect to home so the panel isn't discoverable
+                by guessing the URL. (The real gate is still Firebase Auth + the
+                admin custom claim; this is defence-in-depth, not the lock.) */}
             <Route path="/console" element={<AdminDashboard />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </AnalyticsTracker>
