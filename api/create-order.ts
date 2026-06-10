@@ -76,10 +76,19 @@ export default async function handler(req: any, res: any) {
     }
     const normItems = ids.map((id) => ({ id, qty: wantQty.get(id)! }));
 
-    // ---- Shipping (recomputed server-side, cannot be tampered) ----
+    // ---- Shipping ----
+    // With coords we recompute authoritatively (same haversine the client used,
+    // so displayed == charged). Without coords (the client's text-zone estimate)
+    // we accept the client value but CLAMP it, bounding any tampering to a small,
+    // capped delivery fee — the financially material number (the item subtotal)
+    // is always server-derived.
+    const MAX_SHIPPING = 2500;
     const shipSnap = await db.collection('admin_settings').doc('shipping').get();
     const shipSettings = (shipSnap.exists ? shipSnap.data() : {}) as ShippingSettings;
-    const shipping = computeShippingCost(lat, lng, shipSettings);
+    const clientShipping = Number(body.shippingCost);
+    const shipping = (lat != null && lng != null)
+      ? computeShippingCost(lat, lng, shipSettings)
+      : Math.min(MAX_SHIPPING, Math.max(0, Math.round(Number.isFinite(clientShipping) ? clientShipping : 0)));
 
     const orderId = genOrderId();
     const checkoutRef = db.collection('checkouts').doc(orderId);

@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Trash2, ArrowRight, ShieldCheck, Smartphone, Sparkles, ShoppingCart, Loader2, X, MapPin, User, Mailbox } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db, getUidWhenReady } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { useCoupons } from '../hooks/useCoupons';
 
 import gsap from 'gsap';
@@ -15,7 +15,7 @@ gsap.registerPlugin(useGSAP);
 
 export function Checkout() {
   const { items, addItem, removeItem, updateQuantity, total, voucher, clearCart } = useCart();
-  const { validateCoupon, applyCoupon } = useCoupons();
+  const { validateCoupon } = useCoupons();
   const { products } = useStore();
   const navigate = useNavigate();
 
@@ -172,8 +172,7 @@ export function Checkout() {
   const subtotal = total;
   const discount = voucher ? voucher.value : 0;
   const couponDiscount = appliedCoupon ? Math.round(subtotal * (appliedCoupon.discountPercent / 100)) : 0;
-  const totalDiscount = discount + couponDiscount;
-  
+
   // Stable haversine function — memoised so effects can list it as a dependency safely
   const calculateCostFromDistance = useCallback((latitude: number, longitude: number): number => {
     const baseLat = Number(shippingSettings.baseLat) || -25.9692;
@@ -288,7 +287,9 @@ export function Checkout() {
        if (addr.includes('gaza') || addr.includes('inhambane') || addr.includes('xai') || addr.includes('beira') || addr.includes('sofala') || addr.includes('nampula') || addr.includes('tete') || addr.includes('zambezia') || addr.includes('niassa') || addr.includes('cabo delgado') || addr.includes('pemba') || addr.includes('quelimane') || addr.includes('chimoio')) {
           const estimatedKm = 350; // Conservative interprovincial estimate
           const cost = Math.round((estimatedKm - freeRad) * costPerKm);
-          setShippingCost(Math.max(cost, 1500));
+          // Cap at the same 2500 ceiling the coord-based path and the server use,
+          // so the displayed fee matches what is charged (and isn't absurd).
+          setShippingCost(Math.min(2500, Math.max(cost, 1500)));
           setCalculatingShipping(false); return;
        }
        // Arredores longínquos ~40-60km (Boane, Manhiça)
@@ -357,67 +358,86 @@ export function Checkout() {
     setPaymentError(null);
     setPaymentCountdown(120);
 
-    const finalTotal = Math.max(0, subtotal - totalDiscount + (shippingCost || 0));
-
     try {
-      if (appliedCoupon) await applyCoupon(appliedCoupon.id, sessionId);
-
-      // Anonymous Firebase Auth must be ready so the new doc carries the UID
-      // that the Firestore rule keys reads against.
+      // Anonymous Firebase Auth must be ready so the order carries the UID that
+      // gates the customer's own reads (rules key get/list on userId==auth.uid).
       const uid = await getUidWhenReady();
+      if (!uid) {
+        setPaymentError('Sessão não pronta. Recarrega a página e tenta de novo.');
+        setPaymentStatus('idle');
+        return;
+      }
 
-      const docRef = await addDoc(collection(db, 'checkouts'), {
-        userId: uid,
-        sessionId,
-        customerName: fullName,
-        customerPhone: phone,
-        address,
-        zipCode: zipCode || 'N/A',
-        paymentMethod,
-        subtotal,
-        discount,
-        couponCode: appliedCoupon?.code || null,
-        couponDiscount,
-        shippingCost: shippingCost || 0,
-        total: finalTotal,
-        items,
-        status: 'pendente',
-        paymentStatus: 'awaiting_push',
-        createdAt: serverTimestamp(),
+      const coords = gpsCoordsRef.current;
+
+      // Server-authoritative order creation: real prices, coupon, shipping and
+      // total are all recomputed on the backend. The client cannot influence
+      // what is charged (see api/create-order.ts).
+      const orderRes = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map(i => ({ id: i.id, qty: i.quantity })),
+          couponCode: appliedCoupon?.code || null,
+          customer: { name: fullName, phone, address, zipCode: zipCode || 'N/A' },
+          paymentMethod,
+          sessionId,
+          userId: uid,
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
+          shippingCost: shippingCost || 0,
+        }),
       });
+      const order = await orderRes.json().catch(() => ({}));
+      if (!orderRes.ok || !order?.orderId) {
+        setPaymentError(order?.error || 'Não foi possível criar a encomenda. Tenta novamente.');
+        setPaymentStatus('idle');
+        return;
+      }
 
-      // Try real payment push
+      const orderId: string = order.orderId;
+      const finalTotal: number = Number(order.total) || 0;
+
+      // The server may have rejected a coupon that just lapsed — reflect it.
+      if (order.couponApplied === false && appliedCoupon) {
+        setCouponError(order.couponError || 'O cupão deixou de ser válido e não foi aplicado.');
+        setAppliedCoupon(null);
+      }
+
+      const docRef = doc(db, 'checkouts', orderId);
+
+      // Payment push — the amount is read server-side from the stored order.
       const pushEndpoint = paymentMethod === 'mpesa' ? '/api/mpesa-push' : '/api/emola-push';
       let pushOk = false;
       try {
         const pushRes = await fetch(pushEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, amount: finalTotal, reference: `HWS-${docRef.id}`, orderId: docRef.id }),
+          body: JSON.stringify({ orderId }),
         });
-        const pushData = await pushRes.json();
+        const pushData = await pushRes.json().catch(() => ({}));
         pushOk = pushData.success === true;
         if (!pushOk && pushData.error?.includes('not configured')) {
           if (import.meta.env.DEV) {
-            // Dev/demo mode only: simulate confirmation without real payment
-            pushOk = true;
-            await updateDoc(docRef, { paymentStatus: 'confirmed', status: 'pago' });
-          } else {
-            setPaymentError('Sistema de pagamento não configurado. Contacta o suporte.');
-            setPaymentStatus('idle');
+            // Local/demo only: optimistic success (no service account locally to
+            // run the real callback). Production relies on the provider webhook.
+            setPaymentStatus('success');
+            setTimeout(() => proceedToWhatsApp(finalTotal), 2000);
             return;
           }
-        }
-      } catch {
-        if (import.meta.env.DEV) {
-          // Dev/demo mode only: simulate on network error
-          pushOk = true;
-          await updateDoc(docRef, { paymentStatus: 'confirmed', status: 'pago' });
-        } else {
-          setPaymentError('Erro de ligação ao sistema de pagamento. Tenta novamente.');
+          setPaymentError('Sistema de pagamento não configurado. Contacta o suporte.');
           setPaymentStatus('idle');
           return;
         }
+      } catch {
+        if (import.meta.env.DEV) {
+          setPaymentStatus('success');
+          setTimeout(() => proceedToWhatsApp(finalTotal), 2000);
+          return;
+        }
+        setPaymentError('Erro de ligação ao sistema de pagamento. Tenta novamente.');
+        setPaymentStatus('idle');
+        return;
       }
 
       if (!pushOk) {
@@ -437,16 +457,15 @@ export function Checkout() {
         }
       }, 1000);
 
-      // Listen for paymentStatus update from webhook
+      // Listen for paymentStatus update from the webhook (api/payment-callback).
       paymentListenerRef.current = onSnapshot(docRef, (snap) => {
         const data = snap.data();
         if (!data) return;
         if (data.paymentStatus === 'confirmed') {
           if (paymentTimerRef.current) clearInterval(paymentTimerRef.current);
           if (paymentListenerRef.current) paymentListenerRef.current();
-          // Profile XP/totalSpent/purchaseCount is now incremented server-side
-          // by /api/payment-callback once the provider confirms — the client
-          // no longer self-reports purchases (prevents XP inflation).
+          // XP/totalSpent/purchaseCount are incremented server-side by the
+          // payment callback once the provider confirms.
           setPaymentStatus('success');
           setTimeout(() => proceedToWhatsApp(finalTotal), 2500);
         } else if (data.paymentStatus === 'failed') {

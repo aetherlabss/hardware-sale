@@ -510,7 +510,11 @@ Retorna APENAS este JSON:
       unsubCheckouts();
       unsubCoupons();
     };
-  }, [user]);
+    // isAdminUser must be a dependency: the admin claim resolves asynchronously
+    // after login, so without it this effect runs once with isAdminUser=false,
+    // bails out, and never re-subscribes — leaving the dashboard empty until a
+    // manual refresh.
+  }, [user, isAdminUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
