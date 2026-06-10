@@ -11,6 +11,7 @@ import { askAI, askAIJson } from '../lib/ai';
 import { logAuditEvent } from '../lib/audit';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { OrdersPipeline } from './admin/OrdersPipeline';
 
 export function AdminDashboard() {
   const [user, setUser] = useState(auth.currentUser);
@@ -1065,106 +1066,8 @@ Retorna APENAS este JSON:
         {/* Dynamic Content */}
         <div className="flex-1 p-4 lg:p-10 z-10">
           <div className="max-w-7xl mx-auto">
-            {/* --- TAB: ENCOMENDAS --- */}
-            {activeTab === 'orders' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="mb-8">
-                  <h2 className="text-3xl font-bold text-white tracking-tight mb-2">Central de Checkouts</h2>
-                  <p className="text-gray-400">Gerenciamento de encomendas efetuadas pelos clientes.</p>
-                </div>
-
-                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl">
-                  {checkouts.length === 0 ? (
-                    <div className="py-20 flex flex-col items-center justify-center text-center">
-                      <ShoppingBag className="w-16 h-16 text-gray-600 mb-4" />
-                      <h3 className="text-xl font-bold text-white">Sem Encomendas</h3>
-                      <p className="text-gray-400">Nenhum checkout registado até ao momento.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {checkouts.map((order) => (
-                        <div key={order.id} className="bg-black/40 border border-white/10 rounded-2xl p-6 flex flex-col lg:flex-row gap-6 relative overflow-hidden group">
-                           <div className="flex-1">
-                             <div className="flex items-center gap-3 mb-4">
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${order.status === 'pendente' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : order.status === 'entregue' ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-brand-neon/20 text-brand-neon border border-brand-neon/30'}`}>
-                                  {order.status}
-                                </span>
-                                <span className="text-gray-500 text-xs font-mono">ID: {order.id.substring(0, 8)}</span>
-                                <span className="text-gray-500 text-xs ml-auto">
-                                  {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : 'Data Indisponível'}
-                                </span>
-                             </div>
-
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                  <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Cliente</div>
-                                  <div className="text-white font-bold">{order.customerName}</div>
-                                  <div className="text-brand-magenta text-xs font-mono">{order.customerPhone}</div>
-                                </div>
-                                <div>
-                                  <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Localização Exacta</div>
-                                  <div className="text-white text-sm font-medium flex items-start gap-2">
-                                     <MapPin className="w-4 h-4 text-brand-neon shrink-0 mt-0.5" />
-                                     <span>{order.address} {order.zipCode !== 'N/A' && `(CEP: ${order.zipCode})`}</span>
-                                  </div>
-                                </div>
-                             </div>
-
-                             <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Hardware Solicitado ({order.items?.length || 0})</div>
-                               <div className="space-y-2">
-                                  {order.items?.map((item: any, i: number) => (
-                                    <div key={i} className="flex items-center justify-between text-sm">
-                                       <span className="text-gray-300 line-clamp-1 flex-1">{item.name}</span>
-                                       <span className="text-gray-500 font-mono ml-4 shrink-0">{item.price.toLocaleString()} MT</span>
-                                    </div>
-                                  ))}
-                               </div>
-                             </div>
-                           </div>
-
-                           <div className="w-full lg:w-64 shrink-0 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-white/10 pt-4 lg:pt-0 lg:pl-6">
-                              <div>
-                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Resumo Financeiro</div>
-                                <div className="flex justify-between text-sm mb-1"><span className="text-gray-400">Subtotal</span><span className="text-white">{order.subtotal?.toLocaleString()} MT</span></div>
-                                <div className="flex justify-between text-sm mb-1"><span className="text-brand-magenta">Voucher IA</span><span className="text-brand-magenta">-{order.discount?.toLocaleString()} MT</span></div>
-                                <div className="flex justify-between text-sm mb-4"><span className="text-brand-neon">Logística GPS</span><span className="text-brand-neon">{order.shippingCost === 0 ? 'Grátis' : `${order.shippingCost?.toLocaleString()} MT`}</span></div>
-                                
-                                <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta mb-1">
-                                  {order.total?.toLocaleString()} MT
-                                </div>
-                                <div className="text-[10px] text-gray-500 font-bold uppercase">Pago via {order.paymentMethod === 'mpesa' ? 'M-Pesa' : 'e-Mola'}</div>
-                              </div>
-
-                              <div className="flex flex-col gap-2 mt-6">
-                                {order.status === 'pendente' && (
-                                  <Button onClick={async () => {
-                                    await setDoc(doc(db, 'checkouts', order.id), { status: 'pago' }, { merge: true });
-                                    await logAuditEvent({ action: 'order.update', targetId: order.id, data: { status: 'pago' } });
-                                  }} className="w-full bg-brand-neon text-black font-bold h-9 text-xs rounded-lg hover:bg-brand-magenta hover:text-white transition-colors">
-                                     Marcar como Pago
-                                  </Button>
-                                )}
-                                {order.status === 'pago' && (
-                                  <Button onClick={async () => {
-                                    await setDoc(doc(db, 'checkouts', order.id), { status: 'entregue' }, { merge: true });
-                                    await logAuditEvent({ action: 'order.update', targetId: order.id, data: { status: 'entregue' } });
-                                  }} className="w-full bg-green-500 text-white font-bold h-9 text-xs rounded-lg hover:bg-green-600 transition-colors">
-                                     Confirmar Entrega
-                                  </Button>
-                                )}
-                                <Button onClick={() => { if(window.confirm('Eliminar registo de checkout?')) deleteDoc(doc(db, 'checkouts', order.id)) }} variant="ghost" className="w-full text-gray-500 hover:text-red-400 h-9 text-xs rounded-lg transition-colors">
-                                   Eliminar Registo
-                                </Button>
-                              </div>
-                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* --- TAB: ENCOMENDAS (Pipeline Kanban) --- */}
+            {activeTab === 'orders' && <OrdersPipeline checkouts={checkouts} />}
 
             {/* --- TAB: DASHBOARD --- */}
             {activeTab === 'dashboard' && (

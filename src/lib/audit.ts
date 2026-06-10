@@ -10,9 +10,11 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 export type AuditAction =
   | 'product.create' | 'product.update' | 'product.delete'
   | 'builder.create' | 'builder.update' | 'builder.delete' | 'builder.toggle'
-  | 'order.update'   | 'order.delete'
-  | 'coupon.create'  | 'coupon.update' | 'coupon.delete'
+  | 'order.update'   | 'order.delete'   | 'order.status'
+  | 'coupon.create'  | 'coupon.update'  | 'coupon.delete' | 'coupon.target'
+  | 'inventory.bulk' | 'inventory.update'
   | 'settings.update' | 'shipping.update' | 'bom.update'
+  | 'admin.login'    | 'admin.logout'
   | 'ai_studio.usage';
 
 interface AuditPayload {
