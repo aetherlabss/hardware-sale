@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Firebase Storage rules.
+// Product images: public read (shown on the storefront), admin-only write.
+// Everything else is denied. Deploy with: firebase deploy --only storage
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+                   && request.auth.token.admin == true
+                   && request.resource.size < 6 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

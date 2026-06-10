@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType, uploadImageWithFallback } from '../lib/firebase';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Card, CardContent } from '../components/ui/card';
@@ -453,16 +453,18 @@ Retorna APENAS este JSON:
     const files = e.target.files;
     if (!files) return;
     try {
-      const base64Images: string[] = [];
+      const uploaded: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const base64 = await processImage(files[i]);
-        base64Images.push(base64);
+        // Upload to Storage and keep only the URL (falls back to inline base64
+        // if Storage isn't configured) — keeps the product doc under 1 MB.
+        uploaded.push(await uploadImageWithFallback(base64, 'products'));
       }
-      // Combine existing images (split safely) and new images using a dedicated array approach instead of strings
       const currentImgs = images ? images.split('|||').filter(Boolean) : [];
-      setImages([...currentImgs, ...base64Images].join('|||'));
+      setImages([...currentImgs, ...uploaded].join('|||'));
     } catch (err) {
       console.error("Error processing image:", err);
+      showFeedback('error', 'Erro ao processar imagem.');
     }
   };
 
@@ -470,15 +472,16 @@ Retorna APENAS este JSON:
     const files = e.target.files;
     if (!files) return;
     try {
-      const base64Images: string[] = [];
+      const uploaded: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const base64 = await processImage(files[i]);
-        base64Images.push(base64);
+        uploaded.push(await uploadImageWithFallback(base64, 'products'));
       }
       const currentImgs = bImages ? bImages.split('|||').filter(Boolean) : [];
-      setBImages([...currentImgs, ...base64Images].join('|||'));
+      setBImages([...currentImgs, ...uploaded].join('|||'));
     } catch (err) {
       console.error("Error processing image:", err);
+      showFeedback('error', 'Erro ao processar imagem.');
     }
   };
 

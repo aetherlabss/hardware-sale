@@ -1,11 +1,34 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId); // CRITICAL: The app will break without this line
 export const auth = getAuth(app);
+export const storage = getStorage(app);
+
+/**
+ * Uploads a base64 data URL to Firebase Storage and returns the public download
+ * URL. Falls back to the original data URL if Storage is not configured/allowed,
+ * so product image upload never breaks — it just stays inline until Storage is
+ * set up. Storing URLs (instead of base64) keeps product docs well under the
+ * Firestore 1 MB document limit.
+ */
+export async function uploadImageWithFallback(dataUrl: string, folder = 'products'): Promise<string> {
+  if (!dataUrl.startsWith('data:')) return dataUrl; // already a URL
+  try {
+    const blob = await (await fetch(dataUrl)).blob();
+    const path = `${folder}/${Date.now()}_${Math.random().toString(36).slice(2, 10)}.jpg`;
+    const r = storageRef(storage, path);
+    await uploadBytes(r, blob, { contentType: blob.type || 'image/jpeg' });
+    return await getDownloadURL(r);
+  } catch (err) {
+    console.warn('Storage upload failed, keeping inline image:', (err as Error)?.message || err);
+    return dataUrl;
+  }
+}
 
 // Anonymous sign-in for all visitors so every request carries a stable UID.
 // Lets Firestore rules gate per-user data (own checkouts, own profile writes)
