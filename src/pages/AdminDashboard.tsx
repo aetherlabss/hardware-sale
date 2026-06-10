@@ -11,8 +11,10 @@ import { askAI, askAIJson } from '../lib/ai';
 import { logAuditEvent } from '../lib/audit';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Boxes } from 'lucide-react';
 import { OrdersPipeline } from './admin/OrdersPipeline';
 import { BIDashboard } from './admin/BIDashboard';
+import { Inventory } from './admin/Inventory';
 
 export function AdminDashboard() {
   const [user, setUser] = useState(auth.currentUser);
@@ -812,6 +814,7 @@ Retorna APENAS este JSON:
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'orders', icon: ShoppingBag, label: 'Encomendas' },
     { id: 'products', icon: Package, label: 'Produtos' },
+    { id: 'inventory', icon: Boxes, label: 'Inventário' },
     { id: 'builder', icon: Wrench, label: 'Smart Builder' },
     { id: 'customers', icon: Users, label: 'Clientes' },
     { id: 'coupons', icon: Ticket, label: 'Cupões' },
@@ -1072,6 +1075,9 @@ Retorna APENAS este JSON:
 
             {/* --- TAB: DASHBOARD (Live BI) --- */}
             {activeTab === 'dashboard' && <BIDashboard checkouts={checkouts} events={events} products={products} coupons={coupons} />}
+
+            {/* --- TAB: INVENTÁRIO --- */}
+            {activeTab === 'inventory' && <Inventory products={products} />}
 
             {/* --- TAB: PRODUTOS --- */}
             {activeTab === 'products' && (
