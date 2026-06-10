@@ -5,7 +5,7 @@ import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip, Ticket, ToggleLeft, ToggleRight, BarChart3, Award, Save } from 'lucide-react';
+import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Bell, Menu, X, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip, Ticket, ToggleLeft, ToggleRight, BarChart3, Award, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { askAI, askAIJson } from '../lib/ai';
 import { logAuditEvent } from '../lib/audit';
@@ -71,6 +71,16 @@ export function AdminDashboard() {
     setFeedbackMsg({type, text});
     setTimeout(() => setFeedbackMsg(null), 4000);
   };
+
+  // Close the mobile drawer on Escape, and lock body scroll while it's open.
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSidebarOpen(false); };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+  }, [sidebarOpen]);
 
   // Desktop FPS Simulator
   const [fpsValorant, setFpsValorant] = useState('');
@@ -845,17 +855,30 @@ Retorna APENAS este JSON:
         </div>
       )}
 
-      {/* Mobile Sidebar Toggle */}
-      {/* Mobile Sidebar Toggle */}
+      {/* Mobile Top Bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0a0a14] border-b border-white/5 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-3">
           <HardDrive className="text-brand-neon w-6 h-6" />
           <span className="font-bold text-lg tracking-tight">Matrix Admin</span>
         </div>
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 text-white">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
+          aria-expanded={sidebarOpen}
+          className="p-2 text-white"
+        >
           {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
+
+      {/* Mobile sidebar backdrop — dims content and closes the drawer on tap */}
+      {sidebarOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-72 bg-[#0a0a14] border-r border-white/5 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:block flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -920,13 +943,11 @@ Retorna APENAS este JSON:
 
         {/* Top Header */}
         <header className="h-24 px-8 flex items-center justify-between border-b border-white/5 bg-[#0a0a14]/50 backdrop-blur-md z-10 hidden lg:flex">
-          <div className="flex-1 max-w-xl relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-            <input 
-              type="text" 
-              placeholder="Pesquisar em todo o painel..." 
-              className="w-full bg-black/40 border border-white/5 rounded-2xl h-12 pl-12 pr-4 text-sm focus:outline-none focus:border-brand-neon/50 transition-colors text-white"
-            />
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-white tracking-tight truncate">
+              {menuItems.find(mi => mi.id === activeTab)?.label || 'Dashboard'}
+            </h1>
+            <p className="text-[11px] text-gray-500">Hardware Sale · Painel de Administração</p>
           </div>
           <div className="flex items-center gap-4 ml-8">
             <button onClick={() => setIsCommandCenterOpen(true)} className="w-12 h-12 rounded-full border border-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 transition-colors relative group shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]">

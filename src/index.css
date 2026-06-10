@@ -338,3 +338,18 @@ html, body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Accessible keyboard focus — visible ring on keyboard navigation only, so
+   mouse users don't see outlines but keyboard users always can tell where
+   they are. Uses the brand colour for consistency. */
+:focus-visible {
+  outline: 2px solid var(--color-brand-neon);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Don't double-outline elements that already render a focus ring */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline-offset: 0;
+}
