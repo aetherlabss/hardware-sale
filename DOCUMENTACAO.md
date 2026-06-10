@@ -645,5 +645,43 @@ Um aumento de 5% na conversão (típico com AI chat + gamificação + pagamento 
 
 ---
 
+## Atualização God-Level (2026-06-11)
+
+### Correções críticas de segurança e lógica
+- **Pagamentos restaurados.** `api/payment-callback.ts` foi reescrito para usar
+  o **Firebase Admin SDK** (service account) em vez de REST com chave pública,
+  que tinha deixado de funcionar depois das regras serem trancadas. A confirmação
+  de pagamento, recompensas (XP/totalSpent) e decremento de stock acontecem agora
+  numa transação atómica e **idempotente** (sem duplo-reward).
+- **Total à prova de manipulação.** Novo `api/create-order.ts` recalcula o total
+  no servidor a partir dos preços reais; os gateways (`mpesa-push`/`emola-push`)
+  cobram esse total, ignorando qualquer valor enviado pelo cliente. Fecha o buraco
+  de "pagar 1 MT por um build caro".
+- **Regras Firestore reforçadas.** `client_profiles` deixou de ser listável por
+  não-admins (fuga de PII); `xp` limitado a +100/escrita; `analytics_events` exige
+  auth e aceita server-timestamp (corrige escrita silenciosamente negada).
+- **Rota de admin camuflada:** só `/console`; `/admin` e rotas desconhecidas → home.
+- **React Router** atualizado (CVE RCE/DoS).
+
+### 5 Features God-Level no painel
+1. **Pipeline de Encomendas** (Kanban com drag&drop, WhatsApp, KPIs).
+2. **Dashboard BI ao vivo** (receita/conversão reais, top produtos, alertas, IA).
+3. **Inventário & Stock** (stock, alertas, edição em massa, CSV, dead-stock).
+4. **Auditoria & Segurança** (visualizador do `admin_audit` + saúde do backend).
+5. **CRM 360** (LTV, segmentos VIP/em-risco/novo/afiliado, targeting, IA).
+
+### Novos endpoints serverless
+`api/create-order.ts`, `api/affiliate-stats.ts`, `api/security-health.ts`,
+mais o init partilhado `api/_firebaseAdmin.ts` e a lógica testada `api/_orderMath.ts`.
+
+### ⚠️ Passos manuais obrigatórios (sem isto os pagamentos NÃO confirmam)
+1. **Service account:** Firebase Console → Service accounts → gerar chave →
+   `base64 -w0 serviceAccount.json` → colar em `FIREBASE_SERVICE_ACCOUNT` na Vercel.
+2. **Deploy das regras:** `firebase deploy --only firestore:rules,storage`
+   (Storage usa o novo `storage.rules`).
+3. Confirmar `PAYMENT_CALLBACK_SECRET` (e, opcional, Upstash) na Vercel.
+
+---
+
 *Documento preparado por Aether Labs · gabriel.vieira.jamal@gmail.com*
 *Hardware Sale MZ · Maputo, Moçambique · © 2026 Todos os direitos reservados*
