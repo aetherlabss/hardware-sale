@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, increment, runTransaction, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment, runTransaction } from 'firebase/firestore';
 
 export interface ClientProfile {
   id: string;
@@ -197,19 +197,20 @@ export function useClientProfile() {
   const getAffiliateStats = async () => {
     if (!profile) return { totalReferrals: 0, conversions: 0, commission: 0 };
     try {
-      const q = query(collection(db, 'client_profiles'), where('referredBy', '==', profile.referralCode));
-      const snap = await getDocs(q);
-      let totalReferrals = snap.size;
-      let conversions = 0;
-      let commission = 0;
-      snap.forEach(d => {
-        const data = d.data();
-        if (data.purchaseCount > 0) {
-          conversions++;
-          commission += (data.totalSpent || 0) * 0.05; // 5% commission
-        }
+      // Aggregation runs server-side: client_profiles can no longer be listed by
+      // non-admins (PII protection), so the endpoint returns only counts.
+      const res = await fetch('/api/affiliate-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ referralCode: profile.referralCode }),
       });
-      return { totalReferrals, conversions, commission: Math.round(commission) };
+      if (!res.ok) throw new Error(`affiliate-stats ${res.status}`);
+      const data = await res.json();
+      return {
+        totalReferrals: Number(data.totalReferrals) || 0,
+        conversions: Number(data.conversions) || 0,
+        commission: Number(data.commission) || 0,
+      };
     } catch (err) {
       console.error('Failed to get affiliate stats:', err);
       return { totalReferrals: 0, conversions: 0, commission: 0 };

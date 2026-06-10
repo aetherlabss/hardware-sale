@@ -37,31 +37,34 @@ service cloud.firestore {
     }
 
     // ── Client profiles ───────────────────────────────────────────────────
-    // Public-ish data (XP, referral code, name). Doc id IS the sessionId.
-    // Writes require the payload's sessionId to match the doc id (so a user
-    // cannot tamper with someone else's profile by guessing the doc id).
+    // Doc id IS the (unguessable, localStorage) sessionId.
     //
-    // Sensitive numeric fields — totalSpent, purchaseCount — are LOCKED on
-    // update from the client. Increments come server-side from the payment
-    // callback (api/payment-callback.ts) which uses the privileged Firebase
-    // API key. `xp` and `checkInStreak`/`lastCheckIn` remain client-writable
-    // because daily check-in runs from the client; xp gain per check-in is
-    // capped in the runTransaction logic.
+    // get:  allowed by id — the Hub reads its own profile, and referral lookups
+    //       need by-id reads. The id is a high-entropy secret, so a by-id read
+    //       is effectively "you already know the key".
+    // list: ADMIN ONLY — prevents enumerating every customer's name/phone/spend
+    //       (the previous `read: if true` leaked all PII via a collection query).
+    //       Aggregate affiliate stats now come from /api/affiliate-stats.
+    //
+    // Financial fields (totalSpent, purchaseCount) are server-only: incremented
+    // by api/payment-callback.ts via the Admin SDK (which bypasses these rules).
+    // The client may only GROW xp by a small bounded amount per write (daily
+    // check-in ≤ 75) — it can no longer set xp to an arbitrary value.
     match /client_profiles/{sessionId} {
-      allow read:   if true;
+      allow get:    if true;
+      allow list:   if isAdmin();
       allow create: if request.resource.data.sessionId == sessionId
-                    && request.resource.data.sessionId.size() > 8;
+                    && request.resource.data.sessionId.size() > 8
+                    && request.resource.data.xp == 0
+                    && request.resource.data.totalSpent == 0
+                    && request.resource.data.purchaseCount == 0;
       allow update: if request.resource.data.sessionId == sessionId
                     && request.resource.data.sessionId.size() > 8
-                    && (
-                      // First time these fields appear, allow them at 0
-                      (!('totalSpent' in resource.data) && request.resource.data.totalSpent == 0)
-                      || (request.resource.data.totalSpent == resource.data.totalSpent)
-                    )
-                    && (
-                      (!('purchaseCount' in resource.data) && request.resource.data.purchaseCount == 0)
-                      || (request.resource.data.purchaseCount == resource.data.purchaseCount)
-                    );
+                    && request.resource.data.totalSpent == resource.data.totalSpent
+                    && request.resource.data.purchaseCount == resource.data.purchaseCount
+                    && request.resource.data.xp is int
+                    && request.resource.data.xp >= resource.data.xp
+                    && request.resource.data.xp <= resource.data.xp + 100;
       allow delete: if isAdmin();
     }
 
@@ -75,10 +78,15 @@ service cloud.firestore {
     }
 
     // ── Analytics: append-only, basic shape validation ────────────────────
+    // Requires an authenticated caller (every visitor is anonymously signed in)
+    // to stop fully unauthenticated spam. Accepts a server timestamp (the type
+    // the client actually writes via serverTimestamp()) or a numeric epoch.
     match /analytics_events/{id} {
-      allow create: if request.resource.data.type is string
+      allow create: if request.auth != null
+                    && request.resource.data.type is string
                     && request.resource.data.type.size() < 100
-                    && request.resource.data.timestamp is number;
+                    && (request.resource.data.timestamp is timestamp
+                        || request.resource.data.timestamp is number);
       allow read, update, delete: if isAdmin();
     }
 
