@@ -3,25 +3,35 @@
 // Required env vars: EMOLA_API_URL, EMOLA_API_TOKEN, EMOLA_MERCHANT_CODE
 
 import { gateBrowserRequest } from './_security';
+import { adminDb } from './_firebaseAdmin';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!(await gateBrowserRequest(req, res, { rateLimit: 10, windowMs: 60_000 }))) return;
 
-  const { phone, amount, reference, orderId } = req.body;
-  if (!phone || !amount || !orderId) {
-    return res.status(400).json({ error: 'phone, amount and orderId are required' });
+  const orderId = String(req.body?.orderId || '');
+  if (!/^[A-Za-z0-9_-]{10,40}$/.test(orderId)) {
+    return res.status(400).json({ error: 'Invalid orderId.' });
   }
 
-  const numAmount = Number(amount);
+  // Amount + payer phone come from the SERVER-STORED order, never the client.
+  let numAmount: number;
+  let phone: string;
+  try {
+    const snap = await adminDb().collection('checkouts').doc(orderId).get();
+    if (!snap.exists) return res.status(404).json({ error: 'Encomenda não encontrada.' });
+    const order = snap.data() as any;
+    numAmount = Number(order.total);
+    phone = String(order.customerPhone || req.body?.phone || '');
+  } catch (e: any) {
+    console.error('emola-push order read failed:', e?.message);
+    return res.status(500).json({ error: 'Erro ao ler a encomenda.' });
+  }
   if (!Number.isFinite(numAmount) || numAmount <= 0 || numAmount > 5_000_000) {
-    return res.status(400).json({ error: 'Invalid amount.' });
+    return res.status(400).json({ error: 'Invalid order amount.' });
   }
-  if (!/^\d{9,15}$/.test(String(phone).replace(/\D/g, ''))) {
+  if (!/^\d{9,15}$/.test(phone.replace(/\D/g, ''))) {
     return res.status(400).json({ error: 'Invalid phone number.' });
-  }
-  if (!/^[A-Za-z0-9_-]{10,40}$/.test(String(orderId))) {
-    return res.status(400).json({ error: 'Invalid orderId.' });
   }
 
   const apiUrl = process.env.EMOLA_API_URL;
@@ -38,9 +48,9 @@ export default async function handler(req: any, res: any) {
 
     // e-Mola standard payment initiation payload
     const payload = {
-      amount: String(amount),
+      amount: String(numAmount),
       msisdn: msisdn,
-      reference: reference || orderId,
+      reference: orderId,
       merchant: merchantCode,
       transaction_id: `HWS-${orderId}-${Date.now()}`,
       description: 'Hardware Sale — Pagamento de Encomenda',

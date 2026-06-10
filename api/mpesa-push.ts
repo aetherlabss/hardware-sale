@@ -4,6 +4,7 @@
 
 import crypto from 'crypto';
 import { gateBrowserRequest } from './_security';
+import { adminDb } from './_firebaseAdmin';
 
 async function getMpesaSessionKey(): Promise<string> {
   const apiKey = process.env.MPESA_API_KEY!;
@@ -43,21 +44,30 @@ export default async function handler(req: any, res: any) {
   // Block off-origin browser callers and apply per-IP rate limit (10/min)
   if (!(await gateBrowserRequest(req, res, { rateLimit: 10, windowMs: 60_000 }))) return;
 
-  const { phone, amount, reference, orderId } = req.body;
-  if (!phone || !amount || !orderId) {
-    return res.status(400).json({ error: 'phone, amount and orderId are required' });
+  const orderId = String(req.body?.orderId || '');
+  if (!/^[A-Za-z0-9_-]{10,40}$/.test(orderId)) {
+    return res.status(400).json({ error: 'Invalid orderId.' });
   }
 
-  // Defensive validation of amount and phone
-  const numAmount = Number(amount);
+  // Amount + payer phone come from the SERVER-STORED order, never the client —
+  // this is what stops a tampered client from underpaying.
+  let numAmount: number;
+  let phone: string;
+  try {
+    const snap = await adminDb().collection('checkouts').doc(orderId).get();
+    if (!snap.exists) return res.status(404).json({ error: 'Encomenda não encontrada.' });
+    const order = snap.data() as any;
+    numAmount = Number(order.total);
+    phone = String(order.customerPhone || req.body?.phone || '');
+  } catch (e: any) {
+    console.error('mpesa-push order read failed:', e?.message);
+    return res.status(500).json({ error: 'Erro ao ler a encomenda.' });
+  }
   if (!Number.isFinite(numAmount) || numAmount <= 0 || numAmount > 5_000_000) {
-    return res.status(400).json({ error: 'Invalid amount.' });
+    return res.status(400).json({ error: 'Invalid order amount.' });
   }
-  if (!/^\d{9,15}$/.test(String(phone).replace(/\D/g, ''))) {
+  if (!/^\d{9,15}$/.test(phone.replace(/\D/g, ''))) {
     return res.status(400).json({ error: 'Invalid phone number.' });
-  }
-  if (!/^[A-Za-z0-9_-]{10,40}$/.test(String(orderId))) {
-    return res.status(400).json({ error: 'Invalid orderId.' });
   }
 
   const host = process.env.MPESA_API_HOST;
@@ -75,13 +85,13 @@ export default async function handler(req: any, res: any) {
     const msisdn = cleanPhone.startsWith('258') ? cleanPhone : `258${cleanPhone}`;
 
     const payload = {
-      input_Amount: String(amount),
+      input_Amount: String(numAmount),
       input_Country: 'MOZ',
       input_Currency: 'MZN',
       input_CustomerMSISDN: msisdn,
       input_ServiceProviderCode: serviceProviderCode,
       input_ThirdPartyConversationID: `HWS-${orderId}-${Date.now()}`,
-      input_TransactionReference: reference || orderId,
+      input_TransactionReference: orderId,
       input_PurchasedItemsDesc: 'Hardware Sale — Pagamento de Encomenda',
     };
 
