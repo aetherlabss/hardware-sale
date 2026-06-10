@@ -7,3 +7,9 @@ coverage/
 .env*
 !.env.example
 .vercel
+
+# Firebase service-account private keys — NEVER commit these
+serviceAccount*.json
+*serviceaccount*.json
+*-firebase-adminsdk-*.json
+firebase-service-account*.json
