@@ -15,6 +15,7 @@ import { Boxes } from 'lucide-react';
 import { OrdersPipeline } from './admin/OrdersPipeline';
 import { BIDashboard } from './admin/BIDashboard';
 import { Inventory } from './admin/Inventory';
+import { AuditSecurity } from './admin/AuditSecurity';
 
 export function AdminDashboard() {
   const [user, setUser] = useState(auth.currentUser);
@@ -527,8 +528,11 @@ Retorna APENAS este JSON:
 
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
-      // Note: post-login the component re-renders and the email check at line ~784
-      // gates the dashboard. Non-admin emails authenticate but see "Acesso Restrito".
+      // Record the admin sign-in for the audit trail (no-op / denied for
+      // non-admins, which is fine). Fire-and-forget.
+      logAuditEvent({ action: 'admin.login', data: { email: email.trim() } });
+      // Note: post-login the component re-renders and the claim check gates the
+      // dashboard. Non-admin emails authenticate but see "Acesso Restrito".
     } catch {
       // Generic error — never reveal whether email exists, is in allowlist, or password is wrong
       setLoginError('Credenciais inválidas.');
@@ -537,7 +541,9 @@ Retorna APENAS este JSON:
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Log before sign-out so the audit write still carries the admin token.
+    await logAuditEvent({ action: 'admin.logout' });
     signOut(auth);
   };
 
@@ -819,6 +825,7 @@ Retorna APENAS este JSON:
     { id: 'customers', icon: Users, label: 'Clientes' },
     { id: 'coupons', icon: Ticket, label: 'Cupões' },
     { id: 'affiliates', icon: BarChart3, label: 'Afiliados' },
+    { id: 'security', icon: ShieldCheck, label: 'Auditoria & Segurança' },
     { id: 'shipping', icon: MapPin, label: 'Logística & GPS' },
     { id: 'bom', icon: Award, label: 'Build of the Month' },
     { id: 'settings', icon: Settings, label: 'Configurações' },
@@ -1078,6 +1085,9 @@ Retorna APENAS este JSON:
 
             {/* --- TAB: INVENTÁRIO --- */}
             {activeTab === 'inventory' && <Inventory products={products} />}
+
+            {/* --- TAB: AUDITORIA & SEGURANÇA --- */}
+            {activeTab === 'security' && <AuditSecurity />}
 
             {/* --- TAB: PRODUTOS --- */}
             {activeTab === 'products' && (

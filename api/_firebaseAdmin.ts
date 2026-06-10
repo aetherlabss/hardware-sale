@@ -17,6 +17,7 @@
 
 import { initializeApp, getApps, cert, applicationDefault, type App } from 'firebase-admin/app';
 import { getFirestore, FieldValue, Timestamp, type Firestore } from 'firebase-admin/firestore';
+import { getAuth, type Auth } from 'firebase-admin/auth';
 
 let cachedApp: App | null = null;
 
@@ -73,6 +74,29 @@ function adminApp(): App {
 /** Firestore handle backed by the Admin SDK (rules-bypassing). */
 export function adminDb(): Firestore {
   return getFirestore(adminApp());
+}
+
+/** Auth handle backed by the Admin SDK (for verifying ID tokens). */
+export function adminAuth(): Auth {
+  return getAuth(adminApp());
+}
+
+/**
+ * Verifies a Bearer ID token from the Authorization header and returns the
+ * decoded token only if the caller has the `admin` custom claim. Returns null
+ * otherwise. Used to gate admin-only serverless endpoints.
+ */
+export async function requireAdmin(req: any): Promise<{ uid: string; email?: string } | null> {
+  const header = req.headers?.authorization || req.headers?.Authorization || '';
+  const m = /^Bearer (.+)$/.exec(String(header));
+  if (!m) return null;
+  try {
+    const decoded = await adminAuth().verifyIdToken(m[1]);
+    if (decoded.admin !== true) return null;
+    return { uid: decoded.uid, email: decoded.email };
+  } catch {
+    return null;
+  }
 }
 
 export { FieldValue, Timestamp };
