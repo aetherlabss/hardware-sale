@@ -110,6 +110,48 @@ export function validateCouponServer(
   return { valid: true, error: null };
 }
 
+export interface ShippingSettings {
+  baseLat?: number;
+  baseLng?: number;
+  freeRadiusKm?: number;
+  costPerKmExtra?: number;
+  fallbackFlatRate?: number;
+}
+
+// Mirrors src/pages/Checkout.tsx calculateCostFromDistance EXACTLY so the
+// charged delivery fee equals what the customer saw. Recomputed server-side
+// from the coords the client used, so the fee cannot be tampered with.
+export function computeShippingCost(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+  settings: ShippingSettings,
+): number {
+  const baseLat = Number(settings.baseLat) || -25.9692;
+  const baseLng = Number(settings.baseLng) || 32.5732;
+  const freeRad = Number(settings.freeRadiusKm) || 15;
+  const costPerKm = Number(settings.costPerKmExtra) || 60;
+  const fallback = Number(settings.fallbackFlatRate) || 800;
+
+  // Note: Number(null) === 0 (finite!), so guard with a loose null check first.
+  if (lat == null || lng == null || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+    return Math.max(0, Math.round(fallback));
+  }
+
+  const R = 6371;
+  const dLat = ((lat as number) - baseLat) * Math.PI / 180;
+  const dLon = ((lng as number) - baseLng) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(baseLat * Math.PI / 180) * Math.cos((lat as number) * Math.PI / 180) *
+            Math.sin(dLon / 2) ** 2;
+  const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  const FREE_BUFFER = 2;
+  if (distance <= freeRad + FREE_BUFFER) return 0;
+  const chargeableKm = distance - freeRad;
+  const raw = Math.round(chargeableKm * costPerKm);
+  return distance > 100 ? Math.min(raw, 2500) : raw;
+}
+
 export interface OrderTotal {
   lines: OrderLine[];
   subtotal: number;

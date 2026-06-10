@@ -4,6 +4,7 @@ import {
   computeSubtotal,
   validateCouponServer,
   computeOrderTotal,
+  computeShippingCost,
   type ProductRecord,
   type CouponRecord,
 } from './_orderMath';
@@ -107,5 +108,23 @@ describe('computeOrderTotal', () => {
     // Even if a malicious item carries a fake price field, it is ignored.
     const r = computeOrderTotal({ items: [{ id: 'a', qty: 1, price: 1 } as any], products, shipping: 0, now, userKey: 'u1' });
     expect(r.total).toBe(10000);
+  });
+});
+
+describe('computeShippingCost', () => {
+  const settings = { baseLat: -25.9692, baseLng: 32.5732, freeRadiusKm: 15, costPerKmExtra: 60, fallbackFlatRate: 800 };
+
+  it('is free at the base location', () => {
+    expect(computeShippingCost(-25.9692, 32.5732, settings)).toBe(0);
+  });
+  it('uses the fallback flat rate when coords are missing', () => {
+    expect(computeShippingCost(null, null, settings)).toBe(800);
+    expect(computeShippingCost(undefined, undefined, settings)).toBe(800);
+  });
+  it('charges for distance beyond the free radius', () => {
+    // ~1 degree of latitude ≈ 111 km → well outside the 15 km free radius
+    const cost = computeShippingCost(-24.9692, 32.5732, settings);
+    expect(cost).toBeGreaterThan(0);
+    expect(cost).toBeLessThanOrEqual(2500); // interprovincial cap
   });
 });
