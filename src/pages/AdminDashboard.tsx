@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, serverTimestamp, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
-import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Cpu, LineChart, ArrowUpRight, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip, Ticket, ToggleLeft, ToggleRight, CalendarDays, BarChart3, Award, Save } from 'lucide-react';
+import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Search, Bell, Menu, X, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip, Ticket, ToggleLeft, ToggleRight, BarChart3, Award, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { askAI, askAIJson } from '../lib/ai';
 import { logAuditEvent } from '../lib/audit';
@@ -26,8 +26,6 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [aiInsights, setAiInsights] = useState<string | null>(null);
-  const [generatingInsights, setGeneratingInsights] = useState(false);
   const [adminProductFilter, setAdminProductFilter] = useState('Todos');
 
   // Login State
@@ -396,7 +394,6 @@ Retorna APENAS este JSON:
   };
 
   const [events, setEvents] = useState<any[]>([]);
-  const [analyticsFilter, setAnalyticsFilter] = useState('30D');
 
   const aiEvents = events.filter(e => e.type === 'ai_usage').map(e => ({
      model: e.path,
