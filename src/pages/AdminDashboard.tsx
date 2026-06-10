@@ -16,6 +16,7 @@ import { OrdersPipeline } from './admin/OrdersPipeline';
 import { BIDashboard } from './admin/BIDashboard';
 import { Inventory } from './admin/Inventory';
 import { AuditSecurity } from './admin/AuditSecurity';
+import { CRM } from './admin/CRM';
 
 export function AdminDashboard() {
   const [user, setUser] = useState(auth.currentUser);
@@ -2467,86 +2468,8 @@ Retorna APENAS este JSON:
             )}
 
             {/* --- TAB: CLIENTES --- */}
-            {(activeTab === 'customers') && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                <div className="mb-8">
-                  <h2 className="text-3xl font-bold text-white tracking-tight mb-2">Módulo de Clientes</h2>
-                  <p className="text-gray-400">Rastreio de atividade, checkouts e engajamento baseado em telemetria.</p>
-                </div>
-                
-                <div className="bg-[#0a0a14] border border-white/5 rounded-3xl p-6 shadow-xl">
-                  {(() => {
-                    const clientMap = new Map();
-                    events.forEach(e => {
-                       if (!e.sessionId) return;
-                       if (!clientMap.has(e.sessionId)) {
-                          clientMap.set(e.sessionId, { id: e.sessionId, firstSeen: e.timestamp, events: 0, checkouts: 0, totalSpent: 0, cartAdds: 0 });
-                       }
-                       const c = clientMap.get(e.sessionId);
-                       c.events++;
-                       if (e.type === 'checkout') {
-                          c.checkouts++;
-                          c.totalSpent += (e.value || 0);
-                       } else if (e.type === 'add_to_cart') {
-                          c.cartAdds++;
-                       }
-                       // keep earliest timestamp
-                       if (e.timestamp && (!c.firstSeen || e.timestamp < c.firstSeen)) c.firstSeen = e.timestamp;
-                    });
-                    
-                    const clients = Array.from(clientMap.values()).sort((a, b) => b.totalSpent - a.totalSpent || b.events - a.events);
-                    
-                    if (clients.length === 0) {
-                       return (
-                         <div className="flex flex-col items-center justify-center py-20">
-                           <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-4 text-gray-500">
-                             <Users size={32} />
-                           </div>
-                           <p className="text-gray-400 font-medium">Nenhum dado de cliente encontrado ainda.</p>
-                         </div>
-                       )
-                    }
-
-                    return (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[600px]">
-                           <thead>
-                             <tr className="border-b border-white/10 text-[10px] uppercase tracking-widest text-gray-500">
-                               <th className="pb-4 font-bold pl-4">Client ID (Sessão)</th>
-                               <th className="pb-4 font-bold text-center">Interações</th>
-                               <th className="pb-4 font-bold text-center">Add Cart</th>
-                               <th className="pb-4 font-bold text-center">Checkouts</th>
-                               <th className="pb-4 font-bold text-right pr-4">Valor Gasto</th>
-                             </tr>
-                           </thead>
-                           <tbody className="divide-y divide-white/5">
-                             {clients.map(c => (
-                               <tr key={c.id} className="hover:bg-white/5 transition-colors group">
-                                  <td className="py-4 pl-4">
-                                     <div className="font-mono text-sm text-gray-300 bg-white/5 px-2 py-1 rounded inline-block border border-white/10">{c.id.substring(0, 12)}...</div>
-                                  </td>
-                                  <td className="py-4 text-center">
-                                     <span className="text-white font-bold">{c.events}</span>
-                                  </td>
-                                  <td className="py-4 text-center">
-                                     <span className="text-white font-medium">{c.cartAdds}</span>
-                                  </td>
-                                  <td className="py-4 text-center">
-                                     <span className={`font-bold ${c.checkouts > 0 ? 'text-brand-neon' : 'text-gray-600'}`}>{c.checkouts}</span>
-                                  </td>
-                                  <td className="py-4 text-right pr-4">
-                                     <span className="font-bold text-brand-magenta">{c.totalSpent.toLocaleString()} MT</span>
-                                  </td>
-                               </tr>
-                             ))}
-                           </tbody>
-                        </table>
-                      </div>
-                    )
-                  })()}
-                </div>
-              </div>
-            )}
+            {/* --- TAB: CRM 360 --- */}
+            {activeTab === 'customers' && <CRM checkouts={checkouts} />}
           </div>
         </div>
       </main>
