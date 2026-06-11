@@ -5,6 +5,7 @@ import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
+import { SortableImageStrip } from '../components/ui/sortable-image-strip';
 import { Plus, Trash2, LogOut, Package, HardDrive, ShieldCheck, LayoutDashboard, Settings, Users, Bell, Menu, X, Zap, Loader2, MessageSquare, Bot, AlertCircle, ArrowRight, Sparkles, Terminal, ArrowUp, Wrench, CheckCircle2, ShoppingBag, MapPin, Image as ImageIcon, Video, Paperclip, Ticket, ToggleLeft, ToggleRight, BarChart3, Award, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { askAI, askAIJson } from '../lib/ai';
@@ -1327,26 +1328,13 @@ Retorna APENAS este JSON:
                              </div>
                              <Input value={images} onChange={e => setImages(e.target.value)} className="bg-white/5 border-white/10 h-8 text-[10px] rounded-lg mb-2" placeholder="URLs online (separadas por |||)" />
                              
-                             {images && (
-                               <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[80px] custom-scrollbar" style={{scrollbarWidth: 'thin'}}>
-                                 {images.split('|||').map((img, i) => img.trim() && (
-                                   <div key={i} className="relative w-12 h-12 rounded-md border border-white/10 bg-black/50 overflow-hidden group shrink-0 cursor-zoom-in" onClick={() => setPreviewImage(img.trim())}>
-                                     <button type="button" onClick={(e) => { e.stopPropagation(); setImages(images.split('|||').filter((_, idx) => idx !== i).join('|||')); }} className="absolute top-0.5 right-0.5 bg-red-500 rounded text-white z-10 opacity-0 group-hover:opacity-100"><X size={10} /></button>
-                                     <img src={img.trim()} alt="" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=50&q=80' }} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                   </div>
-                                 ))}
-                               </div>
-                             )}
+                             <SortableImageStrip value={images} onChange={setImages} onPreview={setPreviewImage} />
                            </div>
                            
                            {category === "Desktop's" && (
                              <div className="bg-[#0a0a14] border border-brand-neon/30 rounded-xl p-4 shadow-[0_0_20px_rgba(20,241,149,0.1)] flex-1 flex flex-col">
                                <label className="block text-[10px] font-bold text-brand-neon uppercase mb-2 flex items-center gap-1"><Zap size={12}/> Simulação FPS (1080p/1440p)</label>
                                <div className="grid grid-cols-2 gap-2">
-                                 <div>
-                                    <span className="text-[9px] text-gray-400 uppercase font-bold mb-1 block">Fortnite</span>
-                                    <Input value={fpsFortnite} onChange={e => setFpsFortnite(e.target.value)} placeholder="Ex: 500" className="h-8 text-xs bg-black/40 border-white/10" />
-                                 </div>
                                  <div>
                                     <span className="text-[9px] text-gray-400 uppercase font-bold mb-1 block">Fortnite</span>
                                     <Input value={fpsFortnite} onChange={e => setFpsFortnite(e.target.value)} placeholder="Ex: 500" className="h-8 text-xs bg-black/40 border-white/10" />
@@ -1547,16 +1535,7 @@ Retorna APENAS este JSON:
                              </div>
                              <Input value={bImages} onChange={e => setBImages(e.target.value)} className="bg-white/5 border-white/10 h-8 text-[10px] rounded-lg mb-2" placeholder="URLs online (separadas por |||)" />
 
-                             {bImages && (
-                               <div className="flex flex-wrap gap-2 overflow-y-auto max-h-[80px] custom-scrollbar">
-                                 {bImages.split('|||').map((img, i) => img.trim() && (
-                                   <div key={i} className="relative w-12 h-12 rounded-md border border-white/10 bg-black/50 overflow-hidden group shrink-0 cursor-zoom-in" onClick={() => setPreviewImage(img.trim())}>
-                                     <button type="button" onClick={(e) => { e.stopPropagation(); setBImages(bImages.split('|||').filter((_, idx) => idx !== i).join('|||')); }} className="absolute top-0.5 right-0.5 bg-red-500 rounded text-white z-10 opacity-0 group-hover:opacity-100"><X size={10} /></button>
-                                     <img src={img.trim()} alt="" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=50&q=80' }} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                                   </div>
-                                 ))}
-                               </div>
-                             )}
+                             <SortableImageStrip value={bImages} onChange={setBImages} onPreview={setPreviewImage} />
                            </div>
                            
                            {/* Actions */}

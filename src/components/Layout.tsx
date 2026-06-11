@@ -38,9 +38,13 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-[#050510] text-[#f8f8fc] font-sans flex flex-col selection:bg-brand-neon/30 selection:text-white pb-24 md:pb-0">
+      {/* 3-zone grid: [logo | pill | cart]. Real grid tracks instead of an
+          absolutely-positioned pill — the old layout let the (later-in-DOM)
+          side containers overlap the centre links, which made some of them
+          unclickable, and the pill's 50%-width clamp broke true centering. */}
       <nav className="sticky top-0 w-full z-50 bg-black/50 backdrop-blur-[40px] saturate-[1.8] border-b border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between relative">
-          <Link to="/" className="flex items-center gap-3 md:gap-4 group h-full relative z-10 w-auto md:w-1/4">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 md:h-20 grid grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-2 md:gap-4">
+          <Link to="/" className="flex items-center gap-3 group min-w-0 justify-self-start">
             <div className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center overflow-hidden border border-white/10 group-hover:scale-105 transition-transform duration-300 shrink-0">
               <img
                 src="/hardwaresaleogo.jpeg"
@@ -49,12 +53,14 @@ export function Layout() {
                 referrerPolicy="no-referrer"
               />
             </div>
-            <span className="text-lg md:text-xl font-bold tracking-tight text-white group-hover:text-brand-neon transition-colors inline-block leading-tight shrink-0 whitespace-nowrap">Hardware Sale</span>
+            {/* Name shows on phones (pill hidden there) and from lg: up; hidden
+                only on the tight md–lg band so it never collides with the pill */}
+            <span className="text-lg md:text-xl font-bold tracking-tight text-white group-hover:text-brand-neon transition-colors inline-block md:hidden lg:inline-block leading-tight whitespace-nowrap truncate">Hardware Sale</span>
           </Link>
 
           {/* Desktop centre pill — on phones the bottom dock takes over */}
           <div
-            className="liquid-glass absolute left-1/2 -translate-x-1/2 hidden md:flex gap-1 items-center px-2 py-1.5 rounded-[1.2rem] my-auto overflow-x-auto custom-scrollbar z-10"
+            className="liquid-glass hidden md:flex gap-1 items-center px-2 py-1.5 rounded-[1.2rem] max-w-full overflow-x-auto custom-scrollbar justify-self-center"
             onWheel={(e) => {
               if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
                 e.currentTarget.scrollLeft += e.deltaY;
@@ -68,7 +74,7 @@ export function Layout() {
             <Link to="/build-of-the-month" className={`shrink-0 px-4 py-2 ${location.pathname === '/build-of-the-month' ? 'bg-white text-black rounded-xl font-extrabold shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'text-yellow-400 hover:text-white font-bold'} text-sm transition-all flex items-center gap-2 relative`}><span className="absolute -top-1 -right-1 flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span></span><span className="tracking-widest uppercase text-[10px]">BOM</span></Link>
           </div>
 
-          <div className="flex items-center gap-3 relative z-10 w-auto md:w-1/4 justify-end">
+          <div className="flex items-center gap-3 justify-self-end">
             <Link to="/checkout" className="relative group p-1" aria-label={`Carrinho (${cartItemCount} itens)`}>
               <div className="p-2.5 bg-white/5 rounded-full border border-white/5 group-hover:border-white/10 group-hover:bg-white/10 transition-all shadow-sm">
                 <ShoppingCart className="w-[1.125rem] h-[1.125rem] text-gray-300 group-hover:text-white transition-colors" />
