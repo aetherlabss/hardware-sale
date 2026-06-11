@@ -6,6 +6,7 @@ import { ShoppingCart, AlertTriangle, Lightbulb, CheckCircle2, Settings, Loader2
 import { useCart } from '../store/useCart';
 import { useNavigate } from 'react-router-dom';
 import { askAI } from '../lib/ai';
+import { LiquidGlass } from './ui/liquid-glass';
 import {
   GAMES, estimateFps, detectBottleneck, gamingTier, workstationTier, aiTier,
   scoreGpu, type Resolution,
@@ -496,7 +497,7 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
                 </div>
               </div>
 
-              <div className="liquid-glass rounded-[1.5rem] p-5">
+              <LiquidGlass interactive className="rounded-[1.5rem] p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
                     <Gauge className="w-3 h-3 text-brand-neon" /> Simulador de FPS
@@ -534,7 +535,7 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
                     <span>{bottleneck.message}</span>
                   </div>
                 )}
-              </div>
+              </LiquidGlass>
 
               <div className="space-y-4">
                 {psuWarning && (
