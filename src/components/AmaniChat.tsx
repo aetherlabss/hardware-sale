@@ -52,10 +52,17 @@ export function AmaniChat() {
 
   const navigate = useNavigate();
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  const SUGGESTIONS = [
+    'Ajuda-me a montar um PC gaming',
+    'Quais as promoções de hoje?',
+    'Preciso de uma GPU boa e barata',
+    'Ver a montra de produtos',
+  ];
 
-    const userMessage = input.trim();
+  const handleSend = async (textOverride?: string) => {
+    const userMessage = (textOverride ?? input).trim();
+    if (!userMessage || isLoading) return;
+
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
@@ -209,6 +216,21 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
             )}
             <div ref={messagesEndRef} />
           </div>
+
+          {/* Quick-reply suggestion chips (only before the user has engaged) */}
+          {!isLoading && messages.filter(m => m.role === 'user').length === 0 && initialMessageTyped && (
+            <div className="px-5 pb-2 flex flex-wrap gap-2">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleSend(s)}
+                  className="text-[11px] font-medium text-gray-300 bg-white/5 hover:bg-brand-neon/10 hover:text-brand-neon border border-white/10 hover:border-brand-neon/30 rounded-full px-3 py-1.5 transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Command Palette Input */}
           <div className="p-5 pt-2 bg-transparent">

@@ -274,7 +274,9 @@ export function usePCBuilder() {
         if (isMbDDR5 && (isRamDDR4 || !isRamDDR5)) setSelectedRAM(null);
         if (isMbDDR4 && (isRamDDR5 || !isRamDDR4)) setSelectedRAM(null);
      }
-  }, [selectedMotherboard, selectedCPU]);
+     // selectedRAM is read above; include it so RAM incompatibility is caught
+     // whenever any of the three selections change (guards prevent any loop).
+  }, [selectedMotherboard, selectedCPU, selectedRAM]);
 
   const totalWattage = useMemo(() => {
     return (selectedCPU?.wattage || 0) +

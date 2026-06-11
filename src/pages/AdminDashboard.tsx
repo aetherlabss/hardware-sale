@@ -485,6 +485,20 @@ Retorna APENAS este JSON:
     }
   };
 
+  const handleBomHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const base64 = await processImage(file);
+      const url = await uploadImageWithFallback(base64, 'bom');
+      setBomSettings(prev => ({ ...prev, heroImage: url }));
+      showFeedback('success', 'Imagem carregada. Não esqueças de guardar a Build do Mês.');
+    } catch (err) {
+      console.error('BOM image upload failed:', err);
+      showFeedback('error', 'Erro ao carregar a imagem.');
+    }
+  };
+
   useEffect(() => {
     if (!user || !isAdminUser) {
       setLoading(false);
@@ -1819,8 +1833,12 @@ Retorna APENAS este JSON:
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">URL da imagem hero</label>
-                        <Input value={bomSettings.heroImage} onChange={e => setBomSettings(prev => ({...prev, heroImage: e.target.value}))} className="bg-white/5 border-white/10 h-12 text-white font-mono text-xs" />
+                        <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Imagem hero (URL ou upload direto)</label>
+                        <Input value={bomSettings.heroImage} onChange={e => setBomSettings(prev => ({...prev, heroImage: e.target.value}))} className="bg-white/5 border-white/10 h-12 text-white font-mono text-xs" placeholder="https://… ou carrega abaixo" />
+                        <label className="mt-2 inline-flex items-center gap-2 cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl h-10 px-4 text-xs font-bold text-white transition-colors">
+                          <ImageIcon size={14} className="text-brand-neon" /> Carregar foto do dispositivo
+                          <input type="file" accept="image/*" className="hidden" onChange={handleBomHeroUpload} />
+                        </label>
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Etiqueta (acima do título da imagem)</label>
