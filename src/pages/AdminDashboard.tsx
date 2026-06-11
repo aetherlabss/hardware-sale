@@ -771,6 +771,36 @@ Retorna APENAS este JSON:
     );
   }
 
+  // Authenticated with a real (non-anonymous) account but WITHOUT the admin
+  // claim: show a clear "no permissions" screen instead of silently re-showing
+  // the login form (which looked like the login was frozen / doing nothing).
+  const authedNonAdmin = !!user && !user.isAnonymous && !isAdminUser;
+  if (authedNonAdmin) {
+    return (
+      <div className="min-h-screen bg-[#050510] relative flex items-center justify-center p-6 overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-500/10 blur-[120px] rounded-full pointer-events-none"></div>
+        <Card className="w-full max-w-md bg-black/60 backdrop-blur-2xl border border-white/5 shadow-2xl relative z-50 text-center">
+          <CardContent className="p-8">
+            <div className="w-16 h-16 rounded-2xl bg-red-500/15 border border-red-500/30 mx-auto mb-6 flex items-center justify-center">
+              <ShieldCheck className="w-8 h-8 text-red-400" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-white mb-2">Sem permissões de admin</h1>
+            <p className="text-sm text-gray-400 mb-1">
+              A conta <span className="text-white font-medium">{user?.email}</span> está autenticada,
+              mas não tem o acesso de administrador.
+            </p>
+            <p className="text-xs text-gray-500 mb-6">
+              Pede a um admin para conceder acesso, ou entra com outra conta.
+            </p>
+            <Button onClick={handleLogout} className="w-full bg-white text-black hover:bg-gray-200 h-12 rounded-xl font-bold">
+              Sair e tentar outra conta
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!user || !isAdminUser) {
     return (
       <div className="min-h-screen bg-[#050510] relative flex items-center justify-center p-6 overflow-hidden">
