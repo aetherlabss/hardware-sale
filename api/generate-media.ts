@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { gateBrowserRequest } from './_security';
+import { gateBrowserRequest } from './_security.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {

@@ -6,9 +6,9 @@
 // writes the checkout with a total the client cannot influence. The payment
 // gateways then charge THIS stored total — see mpesa-push.ts / emola-push.ts.
 
-import { adminDb, FieldValue } from './_firebaseAdmin';
-import { computeOrderTotal, computeShippingCost, type ProductRecord, type CouponRecord, type ShippingSettings } from './_orderMath';
-import { gateBrowserRequest } from './_security';
+import { adminDb, FieldValue } from './_firebaseAdmin.js';
+import { computeOrderTotal, computeShippingCost, type ProductRecord, type CouponRecord, type ShippingSettings } from './_orderMath.js';
+import { gateBrowserRequest } from './_security.js';
 
 function genOrderId(): string {
   // 20 alphanumeric chars — matches parseOrderId() in payment-callback.ts

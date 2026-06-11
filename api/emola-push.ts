@@ -2,8 +2,8 @@
 // Register at: https://emola.co.mz/business
 // Required env vars: EMOLA_API_URL, EMOLA_API_TOKEN, EMOLA_MERCHANT_CODE
 
-import { gateBrowserRequest } from './_security';
-import { adminDb } from './_firebaseAdmin';
+import { gateBrowserRequest } from './_security.js';
+import { adminDb } from './_firebaseAdmin.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

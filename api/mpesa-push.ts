@@ -3,8 +3,8 @@
 // Required env vars: MPESA_API_HOST, MPESA_API_KEY, MPESA_PUBLIC_KEY, MPESA_SERVICE_PROVIDER_CODE
 
 import crypto from 'crypto';
-import { gateBrowserRequest } from './_security';
-import { adminDb } from './_firebaseAdmin';
+import { gateBrowserRequest } from './_security.js';
+import { adminDb } from './_firebaseAdmin.js';
 
 async function getMpesaSessionKey(): Promise<string> {
   const apiKey = process.env.MPESA_API_KEY!;

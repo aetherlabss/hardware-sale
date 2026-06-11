@@ -26,7 +26,7 @@
 //     usage?: { totalTokens: number }, latencyMs: number }
 
 import { GoogleGenAI } from '@google/genai';
-import { gateBrowserRequest } from './_security';
+import { gateBrowserRequest } from './_security.js';
 
 // Hard caps so an abused request can't burn unlimited budget
 const MAX_PROMPT_LEN = 24_000;

@@ -5,8 +5,8 @@
 // "payments don't confirm" being a missing service account). Gated by a verified
 // Firebase ID token with the admin custom claim.
 
-import { requireAdmin } from './_firebaseAdmin';
-import { gateBrowserRequest } from './_security';
+import { requireAdmin } from './_firebaseAdmin.js';
+import { gateBrowserRequest } from './_security.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

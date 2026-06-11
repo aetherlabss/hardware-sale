@@ -1,4 +1,4 @@
-import { gateBrowserRequest } from './_security';
+import { gateBrowserRequest } from './_security.js';
 
 export default async function handler(req: any, res: any) {
   if (!(await gateBrowserRequest(req, res, { rateLimit: 60, windowMs: 60_000 }))) return;

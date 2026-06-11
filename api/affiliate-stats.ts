@@ -5,8 +5,8 @@
 // SDK and returns ONLY counts/commission — never names, phones, or per-customer
 // data — so the Hub's affiliate panel keeps working without exposing anyone.
 
-import { adminDb } from './_firebaseAdmin';
-import { gateBrowserRequest } from './_security';
+import { adminDb } from './_firebaseAdmin.js';
+import { gateBrowserRequest } from './_security.js';
 
 const COMMISSION_RATE = 0.05; // 5%
 

@@ -8,7 +8,7 @@
 // The previous REST-with-public-key approach silently failed after the rules
 // were locked down: orders never moved to "pago" and rewards never applied.
 
-import { adminDb, FieldValue } from './_firebaseAdmin';
+import { adminDb, FieldValue } from './_firebaseAdmin.js';
 
 const PURCHASE_XP = 500;
 
