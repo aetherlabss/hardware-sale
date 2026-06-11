@@ -36,10 +36,15 @@ export function Inventory({ products }: { products: any[] }) {
   const [applying, setApplying] = useState(false);
 
   const stockStateOf = (p: any): Exclude<StockState, 'all'> => {
-    if (typeof p.stockQty !== 'number') return 'untracked';
-    if (p.stockQty <= 0) return 'out';
-    if (p.stockQty <= LOW_STOCK) return 'low';
-    return 'in';
+    if (typeof p.stockQty === 'number') {
+      if (p.stockQty <= 0) return 'out';
+      if (p.stockQty <= LOW_STOCK) return 'low';
+      return 'in';
+    }
+    // No numeric stock tracked: fall back to the storefront status so the
+    // "Em stock" tab matches what the customer sees. Previously these all fell
+    // into "Sem controlo" and the Em-stock filter looked empty.
+    return p.status === 'stock' ? 'in' : 'untracked';
   };
   const isDead = (p: any) => (Number(p.soldCount) || 0) === 0;
 
