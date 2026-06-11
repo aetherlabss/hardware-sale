@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { useCart } from '../store/useCart';
@@ -557,89 +557,96 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
     setPriceSort('asc');
   }, [activeCategory]);
 
-  const displayList = products.filter((p: any) => !p.isBuilderExclusive);
-  
-  let filteredProducts = activeCategory === 'Todos' 
-    ? displayList 
-    : displayList.filter(p => p.category === activeCategory || (activeCategory === 'Monitores' && (p.category === 'Displays' || p.category === 'Monitores')));
+  // Whole filter+sort pipeline memoised — re-runs only when the catalogue or a
+  // filter actually changes, instead of on every render (e.g. each keypress on
+  // an unrelated state update). Sorting works on a copy so we never mutate the
+  // filtered array in place.
+  const filteredProducts = useMemo(() => {
+    const displayList = products.filter((p: any) => !p.isBuilderExclusive);
 
-  if (subCategory && subCategory !== activeCategory) {
-     if (subCategory === 'Memória & Disco') {
-       filteredProducts = filteredProducts.filter(p => {
+    let list = activeCategory === 'Todos'
+      ? displayList
+      : displayList.filter(p => p.category === activeCategory || (activeCategory === 'Monitores' && (p.category === 'Displays' || p.category === 'Monitores')));
+
+    if (subCategory && subCategory !== activeCategory) {
+       if (subCategory === 'Memória & Disco') {
+         list = list.filter(p => {
+           const t = p.tags || [];
+           return t.includes('RAM') || t.includes('Armazenamento');
+         });
+       } else if (subCategory === 'Cooling') {
+         list = list.filter(p => {
+           const t = p.tags || [];
+           return t.includes('Air Cooler') || t.includes('Liquid Cooling') || t.includes('Fans');
+         });
+       } else {
+         list = list.filter(p => {
+           const t = p.tags || [];
+           const n = p.name ? p.name.toLowerCase() : '';
+           const subMatch = subCategory.toLowerCase();
+
+           if (subMatch === 'cpu' && (n.includes('cpu') || n.includes('processador') || n.includes('ryzen') || n.includes('core i'))) return true;
+           if (subMatch === 'gpu' && (n.includes('gpu') || n.includes('placa gráfica') || n.includes('placa grafica') || n.includes('rtx') || n.includes('rx ') || n.includes('radeon') || n.includes('gtx'))) return true;
+           if (subMatch === 'motherboard' && (n.includes('motherboard') || n.includes('placa-mãe') || n.includes('placa mãe') || n.includes('b650') || n.includes('z790') || n.includes('x670') || n.includes('b550'))) return true;
+           if (subMatch === 'fonte' && (n.includes('fonte') || n.includes('psu') || n.includes('power supply') || n.includes('corsair rm'))) return true;
+           if (subMatch === 'case' && (n.includes('case') || n.includes('gabinete') || n.includes('caixa') || n.includes('tower'))) return true;
+           if (subMatch === 'teclado' && (n.includes('teclado') || n.includes('keyboard'))) return true;
+           // A "rato" (mouse) but not a mousepad/tapete — group the OR so the
+           // pad exclusion applies to both spellings (precedence fix).
+           if (subMatch === 'rato' && (n.includes('rato') || n.includes('mouse')) && !n.includes('pad') && !n.includes('tapete')) return true;
+           if (subMatch === 'headsets' && (n.includes('headset') || n.includes('auscultador') || n.includes('fone'))) return true;
+
+           return t.includes(subCategory) || p.category === subCategory || p.subCategory === subCategory;
+         });
+       }
+    } else if (subCategory === activeCategory) {
+       // Apenas ignora Acessórios se estiver nas main categories
+       list = list.filter(p => {
          const t = p.tags || [];
-         return t.includes('RAM') || t.includes('Armazenamento');
+         return !t.includes('Acessórios') && !t.includes('Suportes') && p.subCategory !== 'Acessórios' && p.subCategory !== 'Suportes';
        });
-     } else if (subCategory === 'Cooling') {
-       filteredProducts = filteredProducts.filter(p => {
-         const t = p.tags || [];
-         return t.includes('Air Cooler') || t.includes('Liquid Cooling') || t.includes('Fans');
-       });
-     } else {
-       filteredProducts = filteredProducts.filter(p => {
-         const t = p.tags || [];
-         const n = p.name ? p.name.toLowerCase() : '';
-         const subMatch = subCategory.toLowerCase();
-         
-         if (subMatch === 'cpu' && (n.includes('cpu') || n.includes('processador') || n.includes('ryzen') || n.includes('core i'))) return true;
-         if (subMatch === 'gpu' && (n.includes('gpu') || n.includes('placa gráfica') || n.includes('placa grafica') || n.includes('rtx') || n.includes('rx ') || n.includes('radeon') || n.includes('gtx'))) return true;
-         if (subMatch === 'motherboard' && (n.includes('motherboard') || n.includes('placa-mãe') || n.includes('placa mãe') || n.includes('b650') || n.includes('z790') || n.includes('x670') || n.includes('b550'))) return true;
-         if (subMatch === 'fonte' && (n.includes('fonte') || n.includes('psu') || n.includes('power supply') || n.includes('corsair rm'))) return true;
-         if (subMatch === 'case' && (n.includes('case') || n.includes('gabinete') || n.includes('caixa') || n.includes('tower'))) return true;
-         if (subMatch === 'teclado' && (n.includes('teclado') || n.includes('keyboard'))) return true;
-         if (subMatch === 'rato' && (n.includes('rato') || n.includes('mouse') && !n.includes('pad'))) return true;
-         if (subMatch === 'headsets' && (n.includes('headset') || n.includes('auscultador') || n.includes('fone'))) return true;
+    }
 
-         return t.includes(subCategory) || p.category === subCategory || p.subCategory === subCategory;
-       });
-     }
-  } else if (subCategory === activeCategory) {
-     // Apenas ignora Acessórios se estiver nas main categories
-     filteredProducts = filteredProducts.filter(p => {
-       const t = p.tags || [];
-       return !t.includes('Acessórios') && !t.includes('Suportes') && p.subCategory !== 'Acessórios' && p.subCategory !== 'Suportes';
-     });
-  }
+    if (innerSubCategory) {
+      list = list.filter(p => {
+        const t = p.tags || [];
+        const n = p.name ? p.name.toLowerCase() : '';
+        return t.includes(innerSubCategory) || n.includes(innerSubCategory.toLowerCase()) || p.subCategory === innerSubCategory;
+      });
+    }
 
-  if (innerSubCategory) {
-    filteredProducts = filteredProducts.filter(p => {
-      const t = p.tags || [];
-      const n = p.name ? p.name.toLowerCase() : '';
-      return t.includes(innerSubCategory) || n.includes(innerSubCategory.toLowerCase()) || p.subCategory === innerSubCategory;
-    });
-  }
+    if (laptopCondition !== 'Todos') {
+      list = list.filter(p => {
+        const state = p.specs?.['Estado'] || 'Novo';
+        const cond = laptopCondition.toLowerCase();
+        return state.toLowerCase().includes(cond) || (p as any).status?.replace('_', ' ') === cond;
+      });
+    }
 
-  if (laptopCondition !== 'Todos') {
-    filteredProducts = filteredProducts.filter(p => {
-      const state = p.specs?.['Estado'] || 'Novo';
-      const cond = laptopCondition.toLowerCase();
-      return state.toLowerCase().includes(cond) || (p as any).status?.replace('_', ' ') === cond;
-    });
-  }
+    if (selectedBrand !== 'Todos') {
+      list = list.filter(p => {
+        const t = p.tags || [];
+        const n = p.name ? p.name.toLowerCase() : '';
+        return n.includes(selectedBrand.toLowerCase()) || t.includes(selectedBrand);
+      });
+    }
 
-  if (selectedBrand !== 'Todos') {
-    filteredProducts = filteredProducts.filter(p => {
-      const t = p.tags || [];
-      const n = p.name ? p.name.toLowerCase() : '';
-      return n.includes(selectedBrand.toLowerCase()) || t.includes(selectedBrand);
-    });
-  }
+    if (caseType !== 'Todos' && subCategory === 'Case') {
+      list = list.filter(p => {
+        const format = p.specs?.['Formato'] || '';
+        const t = p.tags || [];
+        const n = p.name || '';
+        return format.includes(caseType) || t.includes(caseType) || n.includes(caseType);
+      });
+    }
 
-  if (caseType !== 'Todos' && subCategory === 'Case') {
-    filteredProducts = filteredProducts.filter(p => {
-      const format = p.specs?.['Formato'] || '';
-      const t = p.tags || [];
-      const n = p.name || '';
-      return format.includes(caseType) || t.includes(caseType) || n.includes(caseType);
-    });
-  }
+    list = list.filter(p => p.price <= priceRange);
 
-  filteredProducts = filteredProducts.filter(p => p.price <= priceRange);
-
-  if (priceSort === 'asc') {
-    filteredProducts.sort((a, b) => a.price - b.price);
-  } else if (priceSort === 'desc') {
-    filteredProducts.sort((a, b) => b.price - a.price);
-  }
+    const sorted = [...list];
+    if (priceSort === 'asc') sorted.sort((a, b) => a.price - b.price);
+    else if (priceSort === 'desc') sorted.sort((a, b) => b.price - a.price);
+    return sorted;
+  }, [products, activeCategory, subCategory, innerSubCategory, laptopCondition, selectedBrand, caseType, priceRange, priceSort]);
 
   // Hide cards before paint so they don't flash at full opacity
   useLayoutEffect(() => {
@@ -880,7 +887,7 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
           <div 
             key={product.id} 
             onClick={() => setSelectedIndex(idx)}
-            className="product-card-anim bg-[#0a0a14]/60 backdrop-blur-2xl border border-white/10 rounded-2xl group cursor-pointer relative overflow-hidden flex flex-col transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-10px_rgba(168,85,247,0.3)] hover:border-brand-neon/50 hover:bg-[#110e1b] will-change-transform"
+            className="product-card-anim liquid-glass rounded-2xl group cursor-pointer relative overflow-hidden flex flex-col transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_28px_60px_-14px_rgba(168,85,247,0.4)] hover:border-brand-neon/50 will-change-transform"
           >
             <div className="absolute inset-0 bg-gradient-to-b from-brand-neon/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             
@@ -976,7 +983,7 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
 
       {/* Comparator Floating Dock */}
       {compareItems.length > 0 && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 bg-black/80 backdrop-blur-3xl border border-white/20 p-4 rounded-full shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex items-center gap-6 animate-in slide-in-from-bottom-10">
+        <div className="liquid-glass fixed bottom-10 left-1/2 -translate-x-1/2 z-40 p-4 rounded-full flex items-center gap-6 animate-in slide-in-from-bottom-10">
           <div className="flex -space-x-4">
             {compareItems.map((p, i) => (
               <div key={i} className="w-12 h-12 rounded-full border-2 border-[#110e1b] bg-white/5 overflow-hidden relative shadow-lg">
@@ -1077,11 +1084,11 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
         </div>
       )}
 
-      {selectedIndex !== null && (
-        <ProductModal 
+      {selectedIndex !== null && filteredProducts[selectedIndex] && (
+        <ProductModal
           key={filteredProducts[selectedIndex].id}
-          product={filteredProducts[selectedIndex]} 
-          onClose={() => setSelectedIndex(null)} 
+          product={filteredProducts[selectedIndex]}
+          onClose={() => setSelectedIndex(null)}
         />
       )}
 
