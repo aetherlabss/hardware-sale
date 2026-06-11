@@ -110,7 +110,9 @@ export default async function handler(req: any, res: any) {
 
     const resp = await ai.models.generateContent({
       model,
-      contents: [{ parts }],
+      // Vertex requires an explicit role on each content entry, otherwise it
+      // rejects with "Please use a valid role: user, model."
+      contents: [{ role: 'user', parts }],
       config,
     });
 
