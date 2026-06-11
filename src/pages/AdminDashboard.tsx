@@ -183,7 +183,7 @@ export function AdminDashboard() {
     aiBehavior: 'pro',
     aiTemperature: 0.7,
     supportEmail: 'suporte@hardwaresale.co.mz',
-    supportPhone: '+258 84 000 0000',
+    supportPhone: '+258 86 202 6545',
     maintenanceMode: false,
     disableMocks: false
   });
@@ -208,7 +208,7 @@ export function AdminDashboard() {
     heroDesc: 'Caixa Lian Li com painéis temperados e watercooling integrado de ponta a ponta.',
     statusLabel: 'Sistema Completo',
     startingPrice: 295000,
-    whatsappNumber: '258840000000',
+    whatsappNumber: '258862026545',
     specs: {
       cpu: 'Intel Core i9-14900KS',
       gpu: 'ASUS ROG Strix RTX 4090 24GB',
@@ -1989,7 +1989,7 @@ Retorna APENAS este JSON:
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Número WhatsApp (com indicativo)</label>
-                      <Input value={bomSettings.whatsappNumber} onChange={e => setBomSettings(prev => ({ ...prev, whatsappNumber: e.target.value }))} placeholder="258840000000" className="bg-white/5 border-white/10 h-12 text-white font-mono" />
+                      <Input value={bomSettings.whatsappNumber} onChange={e => setBomSettings(prev => ({ ...prev, whatsappNumber: e.target.value }))} placeholder="258862026545" className="bg-white/5 border-white/10 h-12 text-white font-mono" />
                     </div>
                   </div>
                 </div>

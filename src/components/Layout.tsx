@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { ShoppingCart, Cpu, Package, Home as HomeIcon, ChevronRight, MessageCircle, Mail } from 'lucide-react';
 
 const SOCIAL = {
-  whatsapp: 'https://wa.me/258840000000',
+  whatsapp: 'https://wa.me/258862026545',
   instagram: 'https://instagram.com/hardwaresalemz',
   facebook: 'https://facebook.com/hardwaresalemz',
   email: 'mailto:suporte@hardwaresale.co.mz',
@@ -98,7 +98,7 @@ export function Layout() {
              <p className="text-sm leading-relaxed text-gray-400 font-medium tracking-wide mb-6">A sua fonte de computação em Moçambique. Equipamentos seleccionados com precisão incomparável.</p>
              <div className="space-y-2">
                <a href={SOCIAL.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-gray-500 hover:text-brand-neon transition-colors">
-                 <MessageCircle size={14} /> +258 84 000 0000
+                 <MessageCircle size={14} /> +258 86 202 6545
                </a>
                <a href={SOCIAL.email} className="flex items-center gap-2 text-sm text-gray-500 hover:text-brand-neon transition-colors">
                  <Mail size={14} /> suporte@hardwaresale.co.mz

@@ -21,7 +21,7 @@ export function CheckoutModal({ isOpen, onClose, cartSummary, totalPriceMT }: Ch
 
   const handleWhatsApp = () => {
     const text = encodeURIComponent(`Olá Hardware Sale! Gostaria de encomendar:\n\n${cartSummary}\n\nTotal: ${totalPriceMT.toLocaleString()} MT\nMétodo preferido: ${method === 'mpesa' ? 'M-Pesa' : method === 'emola' ? 'e-Mola' : 'A combinar'}`);
-    window.open(`https://wa.me/258840000000?text=${text}`, '_blank');
+    window.open(`https://wa.me/258862026545?text=${text}`, '_blank');
   };
 
   const isPhoneValid = () => {

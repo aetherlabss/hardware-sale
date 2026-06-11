@@ -506,7 +506,7 @@ export function Checkout() {
     msg += `\n\n*TOTAL A PAGAR:* ${finalTotal.toLocaleString()} MT`;
 
     const encoded = encodeURIComponent(msg);
-    const whatsappNumber = "258840000000"; // Store number
+    const whatsappNumber = "258862026545"; // Store number
     
     // Redirect to WhatsApp
     window.open(`https://wa.me/${whatsappNumber}?text=${encoded}`, '_blank');

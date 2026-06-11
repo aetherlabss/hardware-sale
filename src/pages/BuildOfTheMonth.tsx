@@ -66,7 +66,7 @@ const DEFAULT_BOM: BomConfig = {
     { id: 'warzone',   name: 'COD Warzone 3',  fps: 245, details: '1440p • Foco em Performance • DLSS Off',             color: 'from-cyan-400 to-blue-600', barPercent: 88 },
   ],
   startingPrice: 295000,
-  whatsappNumber: '258840000000',
+  whatsappNumber: '258862026545',
   enabled: true,
 };
 
