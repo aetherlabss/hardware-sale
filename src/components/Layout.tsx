@@ -43,9 +43,9 @@ export function Layout() {
           side containers overlap the centre links, which made some of them
           unclickable, and the pill's 50%-width clamp broke true centering. */}
       <nav className="sticky top-0 w-full z-50 bg-black/50 backdrop-blur-[40px] saturate-[1.8] border-b border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 md:h-20 grid grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-2 md:gap-4">
-          <Link to="/" className="flex items-center gap-3 group min-w-0 justify-self-start">
-            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center overflow-hidden border border-white/10 group-hover:scale-105 transition-transform duration-300 shrink-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-5 md:px-6 h-16 md:h-20 grid grid-cols-[1fr_auto] md:grid-cols-[1fr_auto_1fr] items-center gap-3 md:gap-4">
+          <Link to="/" className="flex items-center gap-3 group min-w-0 justify-self-start py-2 -my-2 pr-2">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-white/10 ring-2 ring-white/[0.04] group-hover:ring-brand-neon/25 group-hover:scale-105 transition-all duration-300 shrink-0">
               <img
                 src="/hardwaresaleogo.jpeg"
                 alt="Hardware Sale Logo"
@@ -53,9 +53,14 @@ export function Layout() {
                 referrerPolicy="no-referrer"
               />
             </div>
-            {/* Name shows on phones (pill hidden there) and from lg: up; hidden
-                only on the tight md–lg band so it never collides with the pill */}
-            <span className="text-lg md:text-xl font-bold tracking-tight text-white group-hover:text-brand-neon transition-colors inline-block md:hidden lg:inline-block leading-tight whitespace-nowrap truncate">Hardware Sale</span>
+            {/* Brand lockup shows on phones (pill hidden there) and from lg: up;
+                hidden only on the tight md–lg band so it never collides with the
+                pill. On phones it is a two-line lockup so the wordmark breathes
+                instead of sitting glued to the logo at full height. */}
+            <span className="flex md:hidden lg:flex flex-col min-w-0 leading-none">
+              <span className="text-base md:text-xl font-bold tracking-tight text-white group-hover:text-brand-neon transition-colors whitespace-nowrap truncate leading-tight">Hardware Sale</span>
+              <span className="text-[8px] md:text-[9px] font-bold uppercase tracking-[0.32em] text-brand-neon/70 whitespace-nowrap mt-0.5">PC Building · MZ</span>
+            </span>
           </Link>
 
           {/* Desktop centre pill — on phones the bottom dock takes over */}
@@ -74,13 +79,15 @@ export function Layout() {
             <Link to="/build-of-the-month" className={`shrink-0 px-4 py-2 ${location.pathname === '/build-of-the-month' ? 'bg-white text-black rounded-xl font-extrabold shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'text-yellow-400 hover:text-white font-bold'} text-sm transition-all flex items-center gap-2 relative`}><span className="absolute -top-1 -right-1 flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span></span><span className="tracking-widest uppercase text-[10px]">BOM</span></Link>
           </div>
 
-          <div className="flex items-center gap-3 justify-self-end">
-            <Link to="/checkout" className="relative group p-1" aria-label={`Carrinho (${cartItemCount} itens)`}>
-              <div className="p-2.5 bg-white/5 rounded-full border border-white/5 group-hover:border-white/10 group-hover:bg-white/10 transition-all shadow-sm">
+          <div className="flex items-center justify-self-end">
+            {/* 40px circular target sized to mirror the logo on the left, so
+                both ends of the bar carry the same visual weight and inset */}
+            <Link to="/checkout" className="relative group" aria-label={`Carrinho (${cartItemCount} itens)`}>
+              <div className="w-10 h-10 flex items-center justify-center bg-white/5 rounded-full border border-white/10 group-hover:border-brand-neon/30 group-hover:bg-white/10 group-active:scale-95 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                 <ShoppingCart className="w-[1.125rem] h-[1.125rem] text-gray-300 group-hover:text-white transition-colors" />
               </div>
               {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-brand-neon text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(168,85,247,0.8)] border-2 border-[#050510]">
+                <span className="absolute -top-0.5 -right-0.5 bg-brand-neon text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center shadow-[0_0_10px_rgba(168,85,247,0.8)] border-2 border-[#050510]">
                   {cartItemCount}
                 </span>
               )}

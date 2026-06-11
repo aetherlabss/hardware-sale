@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useClientProfile, LEVELS, XP_REWARDS, getLevelFromXP, ClientProfile } from '../hooks/useClientProfile';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
@@ -150,6 +150,7 @@ function CheckInCountdown({ lastCheckIn }: { lastCheckIn: number }) {
 
 export function ClientHub() {
   const { profile, loading, sessionId, getAffiliateStats, updateProfile, dailyCheckIn } = useClientProfile();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabId>('perfil');
   const [affiliateStats, setAffiliateStats] = useState<AffStats>({ totalReferrals: 0, conversions: 0, commission: 0 });
   const [linkCopied, setLinkCopied] = useState(false);
@@ -171,6 +172,22 @@ export function ClientHub() {
   const tabContentRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const affiliateLoadedRef = useRef(false);
+
+  // Footer links point at /hub#encomendas etc. — honour the hash as a deep
+  // link into a tab, both on first load and when it changes while mounted.
+  useEffect(() => {
+    const hash = location.hash.replace('#', '') as TabId;
+    if (hash && TABS.some(t => t.id === hash)) setActiveTab(hash);
+    // Depend on the location object (not just .hash) so re-clicking the same
+    // footer link still re-activates the tab after a replaceState() switch.
+  }, [location]);
+
+  // Keep the hash in sync when the user switches tabs, so refresh/share
+  // preserves where they were (replaceState avoids polluting history).
+  const switchTab = useCallback((tab: TabId) => {
+    setActiveTab(tab);
+    window.history.replaceState(null, '', `#${tab}`);
+  }, []);
 
   // Level-up detection
   useEffect(() => {
@@ -241,10 +258,15 @@ export function ClientHub() {
     if (xpBarRef.current) gsap.fromTo(xpBarRef.current, { width: '0%' }, { width: `${pct}%`, duration: 1.4, ease: 'power2.out' });
   }, { dependencies: [profile?.xp, activeTab] });
 
-  // GSAP: tab switch
+  // GSAP: tab switch — staggered card reveal instead of a flat fade
   useEffect(() => {
     if (!tabContentRef.current) return;
-    gsap.fromTo(tabContentRef.current, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.38, ease: 'power2.out' });
+    const cards = tabContentRef.current.querySelectorAll(':scope > div > *');
+    if (cards.length === 0) return;
+    gsap.fromTo(cards,
+      { opacity: 0, y: 16 },
+      { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out', stagger: 0.06, clearProps: 'transform' },
+    );
   }, [activeTab]);
 
   const copyReferralLink = () => {
@@ -276,7 +298,7 @@ export function ClientHub() {
 
   if (loading) {
     return (
-      <div className="min-h-[calc(100vh-80px)] flex items-center justify-center">
+      <div className="min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-5rem)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-2 border-t-brand-neon border-r-brand-magenta border-b-transparent border-l-transparent rounded-full animate-spin" />
           <span className="text-xs font-bold text-gray-400 uppercase tracking-[0.3em] animate-pulse">A carregar perfil...</span>
@@ -300,24 +322,24 @@ export function ClientHub() {
     <>
       {/* Level-up overlay */}
       {levelUpData.show && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
-          <div className="bg-[#0a0a14]/95 border border-brand-neon/40 rounded-[3rem] px-12 py-10 text-center shadow-[0_0_80px_rgba(168,85,247,0.4)] animate-in zoom-in-75 duration-500">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none bg-black/50 backdrop-blur-[6px]">
+          <div className="hub-pop-in liquid-glass rounded-[3rem] px-12 py-10 text-center shadow-[0_0_80px_rgba(168,85,247,0.45)] border-brand-neon/40">
             <div className="text-6xl mb-4">🏆</div>
-            <div className="text-brand-neon text-xs font-black uppercase tracking-widest mb-2">Subiste de nível!</div>
-            <div className="text-4xl font-black text-white">{levelUpData.levelName}</div>
+            <div className="text-brand-neon text-xs font-black uppercase tracking-[0.3em] mb-2">Subiste de nível!</div>
+            <div className="text-4xl font-black text-white font-display">{levelUpData.levelName}</div>
           </div>
         </div>
       )}
 
-      {/* XP toast */}
+      {/* XP toast — centred on phones, top-right on larger screens */}
       {checkInXP !== false && (
-        <div className="fixed top-24 right-6 z-[99] bg-brand-neon text-black font-black px-5 py-2.5 rounded-2xl shadow-[0_0_30px_rgba(168,85,247,0.5)] animate-in slide-in-from-right duration-300 flex items-center gap-2 text-sm">
+        <div className="hub-toast-in fixed top-20 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:top-24 sm:right-6 z-[99] bg-brand-neon text-black font-black px-5 py-2.5 rounded-2xl shadow-[0_0_30px_rgba(168,85,247,0.5)] flex items-center gap-2 text-sm whitespace-nowrap">
           <Zap size={14} /> +{checkInXP} XP — Check-in diário!
         </div>
       )}
 
       {/* Portal layout */}
-      <div className="flex min-h-[calc(100vh-80px)]">
+      <div className="flex min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-5rem)]">
 
         {/* ── Sidebar ── */}
         <aside
@@ -331,8 +353,13 @@ export function ClientHub() {
               <span className="text-[9px] font-black uppercase tracking-[0.22em] text-brand-neon">HW Members</span>
             </div>
             <div className="flex items-center gap-3">
-              <div className={`w-11 h-11 rounded-full bg-gradient-to-br from-brand-neon to-brand-magenta flex items-center justify-center text-base font-black text-black shadow-[0_0_18px_rgba(168,85,247,0.3)] shrink-0 ${currentLevel.level >= 4 ? 'ring-2 ring-brand-magenta/50 ring-offset-2 ring-offset-[#060612]' : ''}`}>
-                {initials}
+              {/* Conic ring = live XP progress towards the next level */}
+              <div className="relative w-12 h-12 shrink-0 hub-ring-glow">
+                <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(var(--color-brand-neon) ${progressPercent * 3.6}deg, rgba(255,255,255,0.08) 0deg)` }} />
+                <div className="absolute inset-[2.5px] rounded-full bg-[#060612]" />
+                <div className={`absolute inset-[5px] rounded-full bg-gradient-to-br from-brand-neon to-brand-magenta flex items-center justify-center text-sm font-black text-black ${currentLevel.level >= 4 ? 'ring-1 ring-brand-magenta/60' : ''}`}>
+                  {initials}
+                </div>
               </div>
               <div className="min-w-0">
                 <div className="text-white font-bold text-sm truncate leading-tight">
@@ -358,9 +385,10 @@ export function ClientHub() {
             {TABS.map(tab => {
               const isActive = activeTab === tab.id;
               return (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${isActive ? 'bg-white/10 text-white border border-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                <button key={tab.id} onClick={() => switchTab(tab.id)}
+                  className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${isActive ? 'bg-white/10 text-white border border-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
                 >
+                  {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-gradient-to-b from-brand-neon to-brand-magenta shadow-[0_0_8px_rgba(168,85,247,0.7)]" />}
                   <tab.icon size={15} className={isActive ? 'text-brand-neon' : ''} />
                   <span className="flex-1 text-left">{tab.label}</span>
                   {tab.id === 'missoes' && (
@@ -391,26 +419,53 @@ export function ClientHub() {
         </aside>
 
         {/* ── Main content ── */}
-        <div className="flex-1 min-w-0 pb-24 lg:pb-12">
+        <div className="flex-1 min-w-0 pb-12">
 
-          {/* Sticky portal header */}
-          <div className="sticky top-20 z-20 bg-[#050510]/95 backdrop-blur-xl border-b border-white/[0.06] px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
-            <div>
-              <div className="lg:hidden text-[9px] font-black uppercase tracking-[0.2em] text-gray-600 mb-0.5 flex items-center gap-1.5">
-                <Crown size={8} className="text-brand-neon" /> HW Members
+          {/* Sticky portal header — matches the h-16/h-20 top navbar so it
+              docks flush under it. Below lg it also carries the tab strip,
+              because the global bottom dock owns the bottom edge on phones. */}
+          <div className="sticky top-16 md:top-20 z-20 bg-[#050510]/95 backdrop-blur-xl border-b border-white/[0.06]">
+            <div className="px-4 sm:px-8 pt-3.5 pb-3 lg:py-3.5 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="lg:hidden text-[9px] font-black uppercase tracking-[0.2em] text-gray-600 mb-0.5 flex items-center gap-1.5">
+                  <Crown size={8} className="text-brand-neon" /> HW Members
+                </div>
+                <h1 className="text-base sm:text-lg font-black text-white tracking-tight truncate">
+                  Área de Membro &mdash; {TABS.find(t => t.id === activeTab)?.label}
+                </h1>
               </div>
-              <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
-                Área de Membro &mdash; {TABS.find(t => t.id === activeTab)?.label}
-              </h1>
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button onClick={handleCheckIn} disabled={!canCheckIn || checkingIn} title={canCheckIn ? 'Check-in diário' : 'Já fizeste check-in hoje'}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${canCheckIn ? 'bg-orange-500/15 text-orange-400 border border-orange-500/25 hover:bg-orange-400 hover:text-black' : 'bg-white/5 text-gray-600 border border-white/8 cursor-not-allowed'}`}
+                >
+                  <Flame size={11} />
+                  {checkingIn ? '...' : canCheckIn ? 'Check-in' : <CheckInCountdown lastCheckIn={profile.lastCheckIn!} />}
+                </button>
+                <button onClick={() => switchTab('perfil')} aria-label="Ver perfil" className="relative w-9 h-9 shrink-0">
+                  <span className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(var(--color-brand-neon) ${progressPercent * 3.6}deg, rgba(255,255,255,0.08) 0deg)` }} />
+                  <span className="absolute inset-[2px] rounded-full bg-[#050510]" />
+                  <span className="absolute inset-[4px] rounded-full bg-gradient-to-br from-brand-neon to-brand-magenta flex items-center justify-center text-[11px] font-black text-black">{initials}</span>
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2.5 shrink-0">
-              <button onClick={handleCheckIn} disabled={!canCheckIn || checkingIn} title={canCheckIn ? 'Check-in diário' : 'Já fizeste check-in hoje'}
-                className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${canCheckIn ? 'bg-orange-500/15 text-orange-400 border border-orange-500/25 hover:bg-orange-400 hover:text-black' : 'bg-white/5 text-gray-600 border border-white/8 cursor-not-allowed'}`}
-              >
-                <Flame size={11} />
-                {checkingIn ? '...' : canCheckIn ? 'Check-in' : <CheckInCountdown lastCheckIn={profile.lastCheckIn!} />}
-              </button>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-neon to-brand-magenta flex items-center justify-center text-xs font-black text-black">{initials}</div>
+            {/* Mobile/tablet tab strip — scrollable liquid-glass segmented control */}
+            <div className="lg:hidden px-3 pb-2.5 flex gap-1.5 overflow-x-auto hide-scroll snap-x">
+              {TABS.map(tab => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button key={tab.id} onClick={() => switchTab(tab.id)}
+                    className={`snap-start shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all border ${isActive ? 'bg-white/10 text-brand-neon border-brand-neon/30 shadow-[0_0_14px_rgba(168,85,247,0.18),inset_0_1px_0_rgba(255,255,255,0.1)]' : 'text-gray-500 border-white/[0.07] bg-white/[0.03] active:bg-white/8'}`}
+                  >
+                    <tab.icon size={13} strokeWidth={isActive ? 2.4 : 2} />
+                    {tab.label}
+                    {tab.id === 'missoes' && (
+                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full ${isActive ? 'bg-brand-neon/20 text-brand-neon' : 'bg-white/8 text-gray-500'}`}>
+                        {completedMissions}/{MISSIONS.length}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -422,7 +477,7 @@ export function ClientHub() {
               <div className="mb-5 bg-gradient-to-r from-brand-neon/10 to-brand-magenta/10 border border-brand-neon/20 rounded-2xl px-5 py-3.5 flex items-center gap-3">
                 <UserCircle2 size={16} className="text-brand-neon shrink-0" />
                 <p className="text-sm text-gray-300 flex-1">Completa o teu perfil para activar mais funcionalidades.</p>
-                <button onClick={() => setActiveTab('perfil')} className="text-xs font-bold text-brand-neon hover:underline shrink-0">Ir →</button>
+                <button onClick={() => switchTab('perfil')} className="text-xs font-bold text-brand-neon hover:underline shrink-0">Ir →</button>
               </div>
             )}
 
@@ -450,23 +505,28 @@ export function ClientHub() {
                 )}
 
                 {/* Profile card */}
-                <div className="bg-[#0a0a14] border border-white/8 rounded-3xl p-6 sm:p-7 shadow-2xl relative overflow-hidden">
+                <div className="liquid-sheen bg-[#0a0a14] bg-gradient-to-b from-white/[0.04] to-transparent border border-white/8 rounded-3xl p-6 sm:p-7 shadow-2xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-52 h-52 bg-brand-neon/6 blur-[80px] rounded-full pointer-events-none" />
                   <div className="absolute bottom-0 left-0 w-40 h-40 bg-brand-magenta/6 blur-[60px] rounded-full pointer-events-none" />
                   <div className="relative z-10 flex flex-col sm:flex-row items-center gap-5">
-                    <div className={`w-20 h-20 rounded-full bg-gradient-to-br from-brand-neon to-brand-magenta flex items-center justify-center text-2xl font-black text-black shadow-[0_0_25px_rgba(168,85,247,0.3)] shrink-0 ${currentLevel.level >= 4 ? 'ring-4 ring-brand-magenta/50 ring-offset-4 ring-offset-[#0a0a14]' : ''}`}>
-                      {initials}
+                    {/* Avatar wrapped in a conic XP-progress ring */}
+                    <div className="relative w-[5.75rem] h-[5.75rem] shrink-0 hub-ring-glow">
+                      <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(var(--color-brand-neon) ${progressPercent * 3.6}deg, rgba(255,255,255,0.08) 0deg)` }} />
+                      <div className="absolute inset-[3px] rounded-full bg-[#0a0a14]" />
+                      <div className={`absolute inset-[7px] rounded-full bg-gradient-to-br from-brand-neon to-brand-magenta flex items-center justify-center text-2xl font-black text-black ${currentLevel.level >= 4 ? 'ring-2 ring-brand-magenta/60' : ''}`}>
+                        {initials}
+                      </div>
                     </div>
                     <div className="flex-1 text-center sm:text-left">
                       <div className="flex flex-col sm:flex-row items-center gap-2 mb-1.5">
-                        <h2 className="text-xl font-black text-white">{profile.name || `Agente ${sessionId.substring(5, 13)}`}</h2>
+                        <h2 className="text-xl font-black text-white font-display">{profile.name || `Agente ${sessionId.substring(5, 13)}`}</h2>
                         <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${currentLevel.level >= 4 ? 'bg-brand-magenta/20 border-brand-magenta/40 text-brand-magenta' : currentLevel.level >= 3 ? 'bg-brand-neon/20 border-brand-neon/40 text-brand-neon' : 'bg-white/10 border-white/20 text-gray-300'}`}>{currentLevel.name}</span>
                       </div>
                       <p className="text-sm text-gray-400">{currentLevel.benefit}</p>
                       {profile.phone && <p className="text-xs text-gray-600 mt-1">{profile.phone}</p>}
                     </div>
                     <div className="text-center shrink-0">
-                      <span ref={xpCounterRef} className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta">{profile.xp.toLocaleString()}</span>
+                      <span ref={xpCounterRef} className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta font-display tabular-nums">{profile.xp.toLocaleString()}</span>
                       <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">XP Total</div>
                     </div>
                   </div>
@@ -547,13 +607,15 @@ export function ClientHub() {
                 {/* Levels grid */}
                 <div className="bg-[#0a0a14] border border-white/8 rounded-3xl p-5 shadow-xl">
                   <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2"><Star size={14} className="text-brand-neon" /> Sistema de Níveis</h3>
-                  <div className="grid grid-cols-5 gap-2">
+                  {/* 5 fixed columns are unreadable at 360px — swipeable
+                      snap-scroll cards on phones, grid from sm: up */}
+                  <div className="flex overflow-x-auto hide-scroll snap-x gap-2 -mx-1 px-1 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-5">
                     {LEVELS.map(level => {
                       const isCurrent = currentLevel.level === level.level;
                       const isUnlocked = profile.xp >= level.minXP;
                       return (
-                        <div key={level.level} className={`p-3 rounded-2xl border text-center transition-all ${isCurrent ? 'bg-brand-neon/10 border-brand-neon/35 shadow-[0_0_12px_rgba(168,85,247,0.1)]' : isUnlocked ? 'bg-white/4 border-white/8' : 'bg-black/40 border-white/4 opacity-40'}`}>
-                          <div className={`text-xl font-black mb-0.5 ${isCurrent ? level.color : isUnlocked ? 'text-white' : 'text-gray-600'}`}>{level.level}</div>
+                        <div key={level.level} className={`snap-start shrink-0 w-[6.25rem] sm:w-auto p-3 rounded-2xl border text-center transition-all ${isCurrent ? 'bg-brand-neon/10 border-brand-neon/35 shadow-[0_0_12px_rgba(168,85,247,0.1)]' : isUnlocked ? 'bg-white/4 border-white/8' : 'bg-black/40 border-white/4 opacity-40'}`}>
+                          <div className={`text-xl font-black mb-0.5 font-display ${isCurrent ? level.color : isUnlocked ? 'text-white' : 'text-gray-600'}`}>{level.level}</div>
                           <div className={`text-[8px] font-black uppercase tracking-wider mb-1 ${level.color}`}>{level.name}</div>
                           <div className="text-[8px] text-gray-500">{level.minXP >= 1000 ? `${level.minXP / 1000}k` : level.minXP}+</div>
                           {isCurrent && <div className="mt-1 text-[7px] bg-brand-neon text-black px-1.5 py-0.5 rounded-full font-black uppercase inline-block">Actual</div>}
@@ -598,11 +660,21 @@ export function ClientHub() {
                     </span>
                   </div>
                 )}
-                {loadingOrders && (
-                  <div className="flex justify-center py-16">
-                    <div className="w-10 h-10 border-2 border-t-brand-neon border-r-brand-magenta border-b-transparent border-l-transparent rounded-full animate-spin" />
+                {loadingOrders && [0, 1, 2].map(i => (
+                  <div key={i} className="card-shimmer bg-[#0a0a14] border border-white/8 rounded-3xl p-5 shadow-xl" style={{ opacity: 1 - i * 0.25 }}>
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                      <div className="space-y-2">
+                        <div className="h-3.5 w-36 bg-white/8 rounded-full" />
+                        <div className="h-2.5 w-20 bg-white/5 rounded-full" />
+                      </div>
+                      <div className="h-5 w-16 bg-white/5 rounded-full" />
+                    </div>
+                    <div className="space-y-2 border-t border-white/5 pt-3">
+                      <div className="h-2.5 w-3/4 bg-white/5 rounded-full" />
+                      <div className="h-2.5 w-1/2 bg-white/5 rounded-full" />
+                    </div>
                   </div>
-                )}
+                ))}
                 {!loadingOrders && orders.length === 0 && (
                   <div className="bg-[#0a0a14] border border-white/8 rounded-3xl p-12 text-center shadow-xl">
                     <ShoppingBag className="w-12 h-12 text-gray-700 mx-auto mb-4" />
@@ -662,9 +734,9 @@ export function ClientHub() {
                     { icon: TrendingUp, value: `${(profile.totalSpent || 0).toLocaleString()} MT`, label: 'Total Gasto', color: 'text-brand-magenta' },
                     { icon: Gift, value: (profile.badges || []).length, label: 'Badges', color: 'text-yellow-400' },
                   ].map(({ icon: Icon, value, label, color }, i) => (
-                    <div key={i} className="bg-[#0a0a14] border border-white/8 rounded-3xl p-6 text-center shadow-xl">
+                    <div key={i} className="bg-[#0a0a14] bg-gradient-to-b from-white/[0.04] to-transparent border border-white/8 rounded-3xl p-6 text-center shadow-xl hover:border-white/14 transition-colors">
                       <Icon className={`w-7 h-7 ${color} mx-auto mb-2.5`} />
-                      <div className={`text-3xl font-black ${color}`}>{value}</div>
+                      <div className={`text-3xl font-black ${color} font-display tabular-nums`}>{value}</div>
                       <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">{label}</div>
                     </div>
                   ))}
@@ -725,12 +797,12 @@ export function ClientHub() {
             {activeTab === 'missoes' && (
               <div className="space-y-5 max-w-3xl">
                 {/* Summary card */}
-                <div className="bg-gradient-to-br from-[#0a0a14] to-[#0e0b1a] border border-brand-neon/15 rounded-3xl p-5 shadow-xl flex items-center gap-5">
+                <div className="liquid-sheen bg-gradient-to-br from-[#0a0a14] to-[#0e0b1a] border border-brand-neon/15 rounded-3xl p-5 shadow-xl flex items-center gap-5">
                   <div className="w-14 h-14 rounded-2xl bg-brand-neon/10 border border-brand-neon/20 flex items-center justify-center shrink-0">
                     <Crosshair size={26} className="text-brand-neon" />
                   </div>
                   <div className="flex-1">
-                    <div className="text-2xl font-black text-white">{completedMissions} <span className="text-gray-500 text-lg">/ {MISSIONS.length}</span></div>
+                    <div className="text-2xl font-black text-white font-display tabular-nums">{completedMissions} <span className="text-gray-500 text-lg">/ {MISSIONS.length}</span></div>
                     <div className="text-xs text-gray-400 font-semibold mb-2">Missões concluídas</div>
                     <div className="h-1.5 bg-black/60 rounded-full overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-brand-neon to-brand-magenta rounded-full transition-all duration-700" style={{ width: `${Math.round((completedMissions / MISSIONS.length) * 100)}%` }} />
@@ -794,16 +866,16 @@ export function ClientHub() {
             {/* ===== AFILIAÇÃO ===== */}
             {activeTab === 'afiliacao' && (
               <div className="space-y-5 max-w-3xl">
-                <div className="bg-gradient-to-br from-[#0a0a14] to-[#110e1b] border border-brand-magenta/15 rounded-3xl p-6 sm:p-7 shadow-2xl relative overflow-hidden">
+                <div className="liquid-sheen bg-gradient-to-br from-[#0a0a14] to-[#110e1b] border border-brand-magenta/15 rounded-3xl p-6 sm:p-7 shadow-2xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-52 h-52 bg-brand-magenta/6 blur-[80px] rounded-full pointer-events-none" />
                   <div className="relative z-10 mb-6">
-                    <h2 className="text-2xl font-black text-white mb-1.5">Programa de Afiliação</h2>
+                    <h2 className="text-2xl font-black text-white mb-1.5 font-display">Programa de Afiliação</h2>
                     <p className="text-gray-400 text-sm">Partilha o teu código e ganha <span className="text-brand-magenta font-bold">5% de comissão</span> por cada venda referida.</p>
                   </div>
                   <div className="bg-black/50 border border-white/8 rounded-2xl p-5 relative z-10">
                     <div className="text-center mb-4">
                       <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">O teu código</span>
-                      <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta mt-1 tracking-wider">{profile.referralCode}</div>
+                      <div className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-neon to-brand-magenta mt-1 tracking-wider font-mono">{profile.referralCode}</div>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2.5">
                       <button onClick={copyReferralCode} className="flex-1 h-11 rounded-xl bg-white/5 border border-white/10 hover:border-brand-neon/30 text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2">
@@ -822,9 +894,9 @@ export function ClientHub() {
                     { icon: CheckCircle2, value: affiliateStats.conversions, label: 'Conversões', color: 'text-brand-magenta' },
                     { icon: TrendingUp, value: `${affiliateStats.commission.toLocaleString()} MT`, label: 'Comissão', color: 'text-yellow-400' },
                   ].map(({ icon: Icon, value, label, color }, i) => (
-                    <div key={i} className="bg-[#0a0a14] border border-white/8 rounded-3xl p-6 text-center shadow-xl">
+                    <div key={i} className="bg-[#0a0a14] bg-gradient-to-b from-white/[0.04] to-transparent border border-white/8 rounded-3xl p-6 text-center shadow-xl hover:border-white/14 transition-colors">
                       <Icon className={`w-7 h-7 ${color} mx-auto mb-2.5`} />
-                      <div className={`text-3xl font-black ${color}`}>{value}</div>
+                      <div className={`text-3xl font-black ${color} font-display tabular-nums`}>{value}</div>
                       <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mt-1">{label}</div>
                     </div>
                   ))}
@@ -856,23 +928,6 @@ export function ClientHub() {
         </div>
       </div>
 
-      {/* ── Bottom tab bar (mobile only) ── */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#060612]/95 backdrop-blur-xl border-t border-white/[0.07] z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        <div className="flex items-stretch h-14">
-          {TABS.map(tab => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors relative ${isActive ? 'text-brand-neon' : 'text-gray-600 hover:text-gray-400'}`}
-              >
-                {isActive && <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-brand-neon rounded-b-full" />}
-                <tab.icon size={16} />
-                <span className="text-[8px] font-bold uppercase tracking-wider">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
     </>
   );
 }

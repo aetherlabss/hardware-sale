@@ -429,10 +429,34 @@ html, body {
 }
 .bubble-breathe { animation: bubble-breathe 4.5s ease-in-out infinite; }
 
+/* ─── CLIENT HUB MOTION ─────────────────────────────────────────────────────
+   The "animate-in" utilities used elsewhere come from tailwindcss-animate,
+   which is NOT installed — they are inert. These are real keyframes the Hub
+   relies on for its level-up overlay and XP toast. */
+@keyframes hub-pop-in {
+  0%   { opacity: 0; transform: scale(0.82) translateY(12px); }
+  60%  { opacity: 1; transform: scale(1.03) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.hub-pop-in { animation: hub-pop-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes hub-toast-in {
+  from { opacity: 0; transform: translateY(-14px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.hub-toast-in { animation: hub-toast-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes hub-ring-glow {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(168, 85, 247, 0.45)); }
+  50%      { filter: drop-shadow(0 0 12px rgba(236, 72, 153, 0.55)); }
+}
+.hub-ring-glow { animation: hub-ring-glow 4s ease-in-out infinite; }
+
 /* Respect users who ask for less motion. */
 @media (prefers-reduced-motion: reduce) {
   .liquid-sheen::after,
   .bubble-breathe,
+  .hub-ring-glow,
   .float-1, .float-2, .float-3 { animation: none !important; }
   .liquid-glass-interactive { transition: none; }
 }
