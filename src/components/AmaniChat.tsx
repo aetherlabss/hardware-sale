@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowUp, X, Loader2, Terminal, Hexagon } from 'lucide-react';
+import { ArrowUp, X, Loader2, Terminal, Hexagon, Eraser } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { askAI } from '../lib/ai';
 import ReactMarkdown from 'react-markdown';
@@ -11,12 +11,37 @@ interface Message {
   content: string;
 }
 
+// Conversation survives page navigations and reloads within the tab session.
+const CHAT_STORAGE_KEY = 'amani_chat_history_v1';
+function loadHistory(): Message[] {
+  try {
+    const raw = sessionStorage.getItem(CHAT_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.slice(-40) : [];
+  } catch { return []; }
+}
+
 export function AmaniChat() {
   const { allComponents } = usePCBuilder();
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [initialMessageTyped, setInitialMessageTyped] = useState(false);
+  const initialHistory = loadHistory();
+  const [messages, setMessages] = useState<Message[]>(initialHistory);
+  const [initialMessageTyped, setInitialMessageTyped] = useState(initialHistory.length > 0);
+  // Monotonic id so a response from a request the user has since cleared/replaced
+  // is dropped instead of being appended out of order.
+  const reqId = useRef(0);
+
+  useEffect(() => {
+    try { sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-40))); } catch { /* private mode */ }
+  }, [messages]);
+
+  const clearConversation = () => {
+    reqId.current++;
+    setMessages([]);
+    setInitialMessageTyped(false);
+    try { sessionStorage.removeItem(CHAT_STORAGE_KEY); } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     if (isOpen && !initialMessageTyped && messages.length === 0) {
@@ -63,6 +88,7 @@ export function AmaniChat() {
     const userMessage = (textOverride ?? input).trim();
     if (!userMessage || isLoading) return;
 
+    const myId = ++reqId.current;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setIsLoading(true);
@@ -115,6 +141,8 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
         silent: true, // we log manually below with the correct payload
       });
 
+      if (reqId.current !== myId) return; // conversation was cleared/replaced mid-flight
+
       const calls = response.functionCalls;
       if (calls && calls.length > 0) {
          const call = calls[0];
@@ -134,9 +162,10 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
       }
     } catch (error: any) {
       console.error("AmaniChat Error:", error instanceof Error ? error.message : "Unknown error");
-      setMessages(prev => [...prev, { role: 'assistant', content: "Serviço indisponível no momento. AI API timeout." }]);
+      if (reqId.current !== myId) return;
+      setMessages(prev => [...prev, { role: 'assistant', content: "Serviço indisponível no momento. Tenta novamente em segundos." }]);
     } finally {
-      setIsLoading(false);
+      if (reqId.current === myId) setIsLoading(false);
     }
   };
 
@@ -144,9 +173,9 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
     <>
       <div className="fixed bottom-8 right-8 z-50">
         {!isOpen && (
-          <button 
+          <button
             onClick={() => setIsOpen(true)}
-            className="h-14 px-6 rounded-[2rem] bg-[#050508]/80 backdrop-blur-2xl border border-white/10 shadow-[0_20px_40px_rgba(0,0,0,0.8)] hover:bg-[#110e1b] transition-all duration-500 flex items-center gap-3 text-gray-300 hover:text-white group hover:scale-105"
+            className="liquid-glass liquid-glass-interactive h-14 px-6 rounded-[2rem] flex items-center gap-3 text-gray-300 hover:text-white group"
           >
             <div className="relative flex h-3 w-3 items-center justify-center">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-neon opacity-75"></span>
@@ -159,7 +188,7 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
       </div>
 
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-[calc(100vw-3rem)] sm:w-[440px] bg-[#030305]/95 backdrop-blur-[50px] rounded-[2.5rem] shadow-[0_30px_100px_rgba(0,0,0,0.9)] flex flex-col overflow-hidden z-50 border border-white/10 max-h-[85vh] sm:max-h-none animate-in fade-in zoom-in-95 duration-500">
+        <div className="liquid-glass fixed bottom-6 right-6 w-[calc(100vw-3rem)] sm:w-[440px] rounded-[2.5rem] flex flex-col overflow-hidden z-50 max-h-[85vh] sm:max-h-none animate-in fade-in zoom-in-95 duration-500">
           {/* AI Assist Header */}
           <div className="p-6 pb-5 border-b border-white/5 flex justify-between items-center bg-gradient-to-b from-white/[0.05] to-transparent">
             <div className="flex items-center gap-4">
@@ -173,9 +202,17 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
                 </p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white transition-all rounded-full hover:bg-white/10 border border-transparent hover:border-white/10">
-              <X size={20} strokeWidth={2} />
-            </button>
+            <div className="flex items-center gap-1">
+              {messages.some(m => m.role === 'user') && (
+                <button onClick={clearConversation} aria-label="Limpar conversa" title="Limpar conversa"
+                  className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-magenta transition-all rounded-full hover:bg-white/10 border border-transparent hover:border-white/10">
+                  <Eraser size={17} strokeWidth={2} />
+                </button>
+              )}
+              <button onClick={() => setIsOpen(false)} aria-label="Fechar" className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white transition-all rounded-full hover:bg-white/10 border border-transparent hover:border-white/10">
+                <X size={20} strokeWidth={2} />
+              </button>
+            </div>
           </div>
           
           {/* Chat Flow */}
