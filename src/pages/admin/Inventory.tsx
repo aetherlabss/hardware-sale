@@ -8,10 +8,23 @@ import { Package, Search, Download, AlertTriangle, Boxes, Layers, CheckSquare, S
 const LOW_STOCK = 3;
 
 type StockState = 'all' | 'in' | 'low' | 'out' | 'untracked' | 'dead';
+type SourceView = 'all' | 'montra' | 'builder' | 'dup';
+type Source = 'montra' | 'builder' | 'ambos';
+
+// Product origin: pieces created in the Smart Builder panel carry
+// isBuilderExclusive (builder-only); Montra products flagged isBuilderReady
+// appear in BOTH; everything else is Montra-only. The inventory used to mix
+// all three in one list, which read as "duplicates" whenever the same part
+// existed as a Montra product AND a builder piece.
+const sourceOf = (p: any): Source =>
+  p.isBuilderExclusive ? 'builder' : p.isBuilderReady === true ? 'ambos' : 'montra';
+
+const normName = (s: any) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 export function Inventory({ products }: { products: any[] }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<StockState>('all');
+  const [view, setView] = useState<SourceView>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -30,19 +43,50 @@ export function Inventory({ products }: { products: any[] }) {
   };
   const isDead = (p: any) => (Number(p.soldCount) || 0) === 0;
 
+  // Names that occur more than once across the whole catalogue — typically the
+  // same part registered both as a Montra product and a builder piece.
+  const dupNames = useMemo(() => {
+    const count = new Map<string, number>();
+    for (const p of products) {
+      const k = normName(p.name);
+      if (k) count.set(k, (count.get(k) || 0) + 1);
+    }
+    return new Set([...count].filter(([, n]) => n > 1).map(([k]) => k));
+  }, [products]);
+
+  // Source-scoped list: the active tab is a hard separation — stats, filters,
+  // selection and CSV export all operate within it.
+  const scoped = useMemo(() => {
+    if (view === 'montra') return products.filter(p => !p.isBuilderExclusive);
+    if (view === 'builder') return products.filter(p => p.isBuilderExclusive || p.isBuilderReady === true);
+    if (view === 'dup') return products.filter(p => dupNames.has(normName(p.name)));
+    return products;
+  }, [products, view, dupNames]);
+
+  const viewCounts = useMemo(() => ({
+    all: products.length,
+    montra: products.filter(p => !p.isBuilderExclusive).length,
+    builder: products.filter(p => p.isBuilderExclusive || p.isBuilderReady === true).length,
+    dup: products.filter(p => dupNames.has(normName(p.name))).length,
+  }), [products, dupNames]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return products.filter(p => {
+    const list = scoped.filter(p => {
       if (q && !(`${p.name} ${p.category}`.toLowerCase().includes(q))) return false;
       if (filter === 'all') return true;
       if (filter === 'dead') return isDead(p);
       return stockStateOf(p) === filter;
     });
-  }, [products, search, filter]);
+    // In the duplicates view, group same-name entries together so pairs are
+    // adjacent and easy to reconcile.
+    if (view === 'dup') return [...list].sort((a, b) => normName(a.name).localeCompare(normName(b.name)));
+    return list;
+  }, [scoped, search, filter, view]);
 
   const stats = useMemo(() => {
     let value = 0, units = 0, low = 0, out = 0, tracked = 0;
-    for (const p of products) {
+    for (const p of scoped) {
       if (typeof p.stockQty === 'number') {
         tracked++;
         units += Math.max(0, p.stockQty);
@@ -51,8 +95,8 @@ export function Inventory({ products }: { products: any[] }) {
         else if (p.stockQty <= LOW_STOCK) low++;
       }
     }
-    return { value, units, low, out, tracked, dead: products.filter(isDead).length };
-  }, [products]);
+    return { value, units, low, out, tracked, dead: scoped.filter(isDead).length };
+  }, [scoped]);
 
   const toggle = (id: string) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleAll = () => setSelected(s => s.size === filtered.length ? new Set() : new Set(filtered.map(p => p.id)));
@@ -105,9 +149,11 @@ export function Inventory({ products }: { products: any[] }) {
   };
 
   const exportCsv = () => {
-    const head = ['id', 'name', 'category', 'price', 'discount', 'status', 'stockQty', 'soldCount'];
+    const head = ['id', 'name', 'category', 'origem', 'price', 'discount', 'status', 'stockQty', 'soldCount'];
     const rows = filtered.map(p => head.map(h => {
-      const v = h === 'stockQty' && typeof p.stockQty !== 'number' ? '' : (p[h] ?? '');
+      const v = h === 'origem' ? sourceOf(p)
+        : h === 'stockQty' && typeof p.stockQty !== 'number' ? ''
+        : (p[h] ?? '');
       return `"${String(v).replace(/"/g, '""')}"`;
     }).join(','));
     const csv = [head.join(','), ...rows].join('\n');
@@ -137,6 +183,22 @@ export function Inventory({ products }: { products: any[] }) {
         <Stat icon={<AlertTriangle size={16} />} label="Stock baixo" value={String(stats.low)} tone={stats.low ? 'orange' : 'neutral'} />
         <Stat icon={<AlertTriangle size={16} />} label="Esgotados" value={String(stats.out)} tone={stats.out ? 'red' : 'neutral'} />
       </div>
+
+      {/* Source tabs — Montra catalogue vs Smart Builder pieces */}
+      <div className="flex gap-1 bg-white/5 border border-white/10 p-1 rounded-xl text-[11px] font-bold uppercase tracking-widest text-gray-500 overflow-x-auto mb-4 w-fit max-w-full">
+        {([['all', 'Todos'], ['montra', 'Montra'], ['builder', 'Smart Builder'], ['dup', 'Duplicados']] as [SourceView, string][]).map(([k, lbl]) => (
+          <button key={k} onClick={() => { setView(k); setSelected(new Set()); }}
+            className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors flex items-center gap-2 ${view === k ? (k === 'dup' && viewCounts.dup > 0 ? 'bg-orange-500/20 text-orange-300' : 'bg-brand-neon/15 text-brand-neon') : 'hover:text-white'}`}>
+            {lbl}
+            <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${view === k ? 'bg-black/30' : 'bg-white/5'} ${k === 'dup' && viewCounts.dup > 0 ? 'text-orange-300' : ''}`}>{viewCounts[k]}</span>
+          </button>
+        ))}
+      </div>
+      {view === 'dup' && viewCounts.dup > 0 && (
+        <p className="text-[11px] text-orange-300/80 mb-4 -mt-2">
+          Produtos com o mesmo nome registados mais de uma vez (normalmente uma vez na Montra e outra como peça do Smart Builder). Agrupados por nome para reconciliares — apaga ou renomeia o que estiver a mais.
+        </p>
+      )}
 
       {/* Filters + search */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -199,13 +261,25 @@ export function Inventory({ products }: { products: any[] }) {
               <tbody>
                 {filtered.map(p => {
                   const st = stockStateOf(p);
+                  const src = sourceOf(p);
+                  const srcBadge = src === 'builder'
+                    ? { label: 'Builder', cls: 'bg-brand-magenta/15 text-brand-magenta border-brand-magenta/30' }
+                    : src === 'ambos'
+                      ? { label: 'Montra + Builder', cls: 'bg-brand-neon/10 text-brand-neon border-brand-neon/30' }
+                      : { label: 'Montra', cls: 'bg-white/5 text-gray-400 border-white/10' };
                   return (
                     <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.02]">
                       <td className="p-3"><button onClick={() => toggle(p.id)} aria-label={`Selecionar ${p.name}`}>{selected.has(p.id) ? <CheckSquare size={16} className="text-brand-neon" /> : <Square size={16} className="text-gray-500" />}</button></td>
                       <td className="p-3">
                         <div className="flex items-center gap-3 min-w-[180px]">
                           <img src={p.images?.[0] || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c'} alt="" className="w-10 h-10 rounded-lg object-cover border border-white/10 bg-white/5 shrink-0" />
-                          <div className="min-w-0"><div className="text-white font-medium truncate max-w-[220px]">{p.name}</div><div className="text-[10px] text-gray-500">{p.category}</div></div>
+                          <div className="min-w-0">
+                            <div className="text-white font-medium truncate max-w-[220px]">{p.name}</div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-gray-500">{p.category}</span>
+                              <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border ${srcBadge.cls}`}>{srcBadge.label}</span>
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="p-3 text-right text-white whitespace-nowrap">{formatMT(p.price)}{p.discount > 0 && <span className="block text-[10px] text-brand-magenta">-{p.discount}%</span>}</td>
