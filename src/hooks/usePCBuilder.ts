@@ -12,6 +12,9 @@ export interface ComponentItem {
   wattage?: number;
   image: string;
   specs: string[];
+  /** Stock state ('stock' | 'encomenda' | …) surfaced here so the builder can
+   *  filter without an O(n) products.find() per component per render. */
+  status?: string;
 }
 
 export function usePCBuilder() {
@@ -97,7 +100,8 @@ export function usePCBuilder() {
           socket: extractedSocket,
           wattage: extractedWattage,
           image: p.images?.[0] || p.image || 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c',
-          specs: specsList
+          specs: specsList,
+          status: (p as any).status,
         };
       });
   }, [products]);

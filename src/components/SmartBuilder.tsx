@@ -2,13 +2,47 @@ import { useState, useEffect, useMemo } from 'react';
 import { usePCBuilder, ComponentItem } from '../hooks/usePCBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { ShoppingCart, AlertTriangle, Lightbulb, CheckCircle2, Settings, Cpu, Loader2, Sparkles, Mic, Bot } from 'lucide-react';
+import { ShoppingCart, AlertTriangle, Lightbulb, CheckCircle2, Settings, Loader2, Sparkles, Mic, Bot, Gauge } from 'lucide-react';
 import { useCart } from '../store/useCart';
-import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
 import { askAI } from '../lib/ai';
+import {
+  GAMES, estimateFps, detectBottleneck, gamingTier, workstationTier, aiTier,
+  scoreGpu, type Resolution,
+} from '../lib/benchmarks';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+// Versioned, TTL-bounded, size-capped cache for AmaniChat build analyses, so the
+// localStorage entry can't grow without limit or serve stale text across deploys.
+const AI_CACHE_PREFIX = 'amani_build_cache_v2_';
+const AI_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const AI_CACHE_MAX = 40;
+
+function readBuildCache(key: string): string | null {
+  try {
+    const raw = localStorage.getItem(AI_CACHE_PREFIX + key);
+    if (!raw) return null;
+    const { t, v } = JSON.parse(raw) as { t: number; v: string };
+    if (Date.now() - t > AI_CACHE_TTL) { localStorage.removeItem(AI_CACHE_PREFIX + key); return null; }
+    return v;
+  } catch { return null; }
+}
+
+function writeBuildCache(key: string, value: string): void {
+  try {
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith(AI_CACHE_PREFIX));
+    if (keys.length >= AI_CACHE_MAX) {
+      // Drop the oldest quarter to keep the cache bounded.
+      keys
+        .map((k) => ({ k, t: (JSON.parse(localStorage.getItem(k) || '{}').t) || 0 }))
+        .sort((a, b) => a.t - b.t)
+        .slice(0, Math.ceil(AI_CACHE_MAX / 4))
+        .forEach(({ k }) => localStorage.removeItem(k));
+    }
+    localStorage.setItem(AI_CACHE_PREFIX + key, JSON.stringify({ t: Date.now(), v: value }));
+  } catch { /* quota / privacy mode — feature degrades to no cache */ }
+}
 
 export function SmartBuilder() {
   const {
@@ -31,7 +65,27 @@ export function SmartBuilder() {
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [stockFilter, setStockFilter] = useState<'Todos' | 'stock' | 'encomenda'>('Todos');
-  const { products } = useStore();
+  const [resolution, setResolution] = useState<Resolution>('1440p');
+
+  // Pre-group components by type once per (catalogue, stock filter) change so the
+  // 10 component pickers don't each re-scan allComponents (and never do an
+  // O(products) lookup per item — `status` now lives on the component itself).
+  const grouped = useMemo(() => {
+    const pass = (c: ComponentItem) => stockFilter === 'Todos' || c.status === stockFilter;
+    const byType = (t: ComponentItem['type']) => allComponents.filter((c) => c.type === t && pass(c));
+    return {
+      motherboard: compatibleMotherboards.filter(pass),
+      cpu: compatibleCPUs.filter(pass),
+      ram: compatibleRAMs.filter(pass),
+      storage: byType('storage'),
+      cooler: byType('cooler'),
+      gpu: byType('gpu'),
+      psu: byType('psu'),
+      case: byType('case'),
+      fans: byType('fans'),
+      peripheral: byType('peripheral'),
+    };
+  }, [allComponents, compatibleMotherboards, compatibleCPUs, compatibleRAMs, stockFilter]);
 
   const handleVoiceCommand = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -119,38 +173,54 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
     }
   }, [selections.selectedCPU, selections.selectedGPU, selections.selectedRAM, totalPrice, selectedItems]);
 
-  // Feature 2: "Upgrades Inteligentes" de Um Clique (Amani Upsell)
+  // Feature 2: "Upgrades Inteligentes" de Um Clique (Amani Upsell).
+  // Picks the CHEAPEST component that is genuinely a step up — for GPUs by the
+  // benchmark index, for RAM by capacity — and only within a sane premium so we
+  // never push a marginally pricier (or even weaker) part. In-stock wins ties.
+  const MAX_UPSELL_PREMIUM = 0.6; // ≤ 60% more than the current part
+  const ramGb = (c: ComponentItem) => parseInt(`${c.name} ${c.specs.join(' ')}`.match(/(\d+)\s*gb/i)?.[1] || '0', 10);
+
   const activeUpsell = useMemo(() => {
-    // Check GPU first (highest impact)
+    const cheapestBetter = (
+      type: ComponentItem['type'],
+      current: ComponentItem,
+      isBetter: (cand: ComponentItem) => boolean,
+    ) => {
+      const cap = current.priceMT * (1 + MAX_UPSELL_PREMIUM);
+      return grouped[type === 'gpu' ? 'gpu' : 'ram']
+        .filter((c) => c.id !== current.id && c.priceMT > current.priceMT && c.priceMT <= cap && isBetter(c))
+        .sort((a, b) => (a.priceMT - b.priceMT) || ((b.status === 'stock' ? 1 : 0) - (a.status === 'stock' ? 1 : 0)))[0] || null;
+    };
+
+    // GPU first — highest performance impact.
     if (selections.selectedGPU) {
-      const betterGpu = allComponents.find(c => c.type === 'gpu' && c.priceMT > selections.selectedGPU!.priceMT);
-      if (betterGpu) {
-        const diff = betterGpu.priceMT - selections.selectedGPU!.priceMT;
+      const cur = selections.selectedGPU;
+      const curScore = scoreGpu(cur.name);
+      const better = cheapestBetter('gpu', cur, (c) => scoreGpu(c.name) > curScore + 4);
+      if (better) {
+        const diff = better.priceMT - cur.priceMT;
+        const gain = Math.round((scoreGpu(better.name) / Math.max(1, curScore) - 1) * 100);
         return {
-          type: 'gpu',
-          current: selections.selectedGPU,
-          better: betterGpu,
-          diff,
-          text: `Suba o seu poder gráfico! Por apenas mais ${diff.toLocaleString()} MT, mude para a ${betterGpu.name} e atinja taxas de 4K nativo @ 144Hz.`
+          type: 'gpu' as const, current: cur, better, diff,
+          text: `Sobe de patamar gráfico: por mais ${diff.toLocaleString()} MT, a ${better.name} entrega ~${gain}% mais desempenho. Mais FPS e folga para 4K.`,
         };
       }
     }
-    // Check RAM
+    // Then RAM — more capacity for multitasking / creation.
     if (selections.selectedRAM) {
-      const betterRam = allComponents.find(c => c.type === 'ram' && c.priceMT > selections.selectedRAM!.priceMT);
-      if (betterRam) {
-        const diff = betterRam.priceMT - selections.selectedRAM!.priceMT;
+      const cur = selections.selectedRAM;
+      const curGb = ramGb(cur);
+      const better = cheapestBetter('ram', cur, (c) => ramGb(c) > curGb);
+      if (better) {
+        const diff = better.priceMT - cur.priceMT;
         return {
-          type: 'ram',
-          current: selections.selectedRAM,
-          better: betterRam,
-          diff,
-          text: `Aumente a largura de banda! Por apenas mais ${diff.toLocaleString()} MT, mude para ${betterRam.name} para multitarefas e renderização ultra-fluida DDR5.`
+          type: 'ram' as const, current: cur, better, diff,
+          text: `Mais memória, mais folga: por mais ${diff.toLocaleString()} MT passas para ${better.name} — multitarefa e edição muito mais fluidas.`,
         };
       }
     }
     return null;
-  }, [selections.selectedGPU, selections.selectedRAM, allComponents]);
+  }, [selections.selectedGPU, selections.selectedRAM, grouped]);
 
   const applyUpsell = () => {
     if (activeUpsell) {
@@ -186,24 +256,26 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
       return;
     }
 
-    const cacheKey = 'amani_build_cache_' + [...parts].sort().join('|');
-    const cachedResponse = localStorage.getItem(cacheKey);
+    const cacheKey = [...parts].sort().join('|');
+    const cachedResponse = readBuildCache(cacheKey);
 
     if (cachedResponse) {
       setAiFeedback(cachedResponse);
       return;
     }
 
+    let cancelled = false;
     const timer = setTimeout(async () => {
       setIsAiThinking(true);
       try {
         const prompt = `Actua como Amani, a assistente de hardware da Hardware Sale. O utilizador está a montar um PC com: ${parts.join(', ')}. Faz uma análise técnica concisa (máx 3 frases) sobre gargalos, compatibilidade ou se é uma boa combinação. Fala directamente com o utilizador, com clareza.`;
         const { text } = await askAI({ prompt, temperature: 0.6 });
+        if (cancelled) return;
         setAiFeedback(text || null);
-        if (text) localStorage.setItem(cacheKey, text);
-      } catch (err) { console.error(err); } finally { setIsAiThinking(false); }
+        if (text) writeBuildCache(cacheKey, text);
+      } catch (err) { console.error(err); } finally { if (!cancelled) setIsAiThinking(false); }
     }, 1500);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [selections.selectedCPU, selections.selectedGPU, selections.selectedRAM, selections.selectedMotherboard, selections.selectedPSU]);
 
   const handleAddToCart = () => {
@@ -282,59 +354,27 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
   const totalSteps = 9;
   const progressPercent = Math.round((selectedItems / totalSteps) * 100);
 
-  const getGpuScore = (name: string) => {
-    if (name.includes('4090')) return 100;
-    if (name.includes('7900 XTX')) return 85;
-    if (name.includes('4080')) return 80;
-    if (name.includes('4070 Ti')) return 65;
-    return 50;
-  };
-  const getCpuScore = (name: string) => {
-    if (name.includes('7800X3D')) return 105;
-    if (name.includes('14900K')) return 100;
-    if (name.includes('7950X3D')) return 100;
-    if (name.includes('14700K')) return 90;
-    if (name.includes('13600K')) return 80;
-    return 60;
-  };
-  const calculateFPS = (base: number) => {
-    if (!selections.selectedGPU || !selections.selectedCPU) return 0;
-    return Math.round(base * (getGpuScore(selections.selectedGPU.name) / 100) * (getCpuScore(selections.selectedCPU.name) / 100));
-  };
+  const gpuName = selections.selectedGPU?.name;
+  const cpuName = selections.selectedCPU?.name;
 
-  const getGamingTier = () => {
-    const name = selections.selectedGPU?.name.toLowerCase() || '';
-    if (name.includes('4090')) return { tier: 'S+ Extreme', color: 'text-brand-neon' };
-    if (name.includes('4080')) return { tier: 'S Ultra', color: 'text-brand-magenta' };
-    if (name.includes('4070') || name.includes('7900')) return { tier: 'A High', color: 'text-white' };
-    return { tier: 'B Competitivo', color: 'text-gray-400' };
-  };
-
-  const getWorkstationTier = () => {
-    const cpuName = selections.selectedCPU?.name.toLowerCase() || '';
-    const ramName = selections.selectedRAM?.name.toLowerCase() || '';
-    if ((cpuName.includes('i9') || cpuName.includes('7950')) && ramName.includes('64gb')) {
-      return { tier: 'S+ Divino', color: 'text-brand-neon' };
-    }
-    if (cpuName.includes('i7') || cpuName.includes('7800') || ramName.includes('32gb')) {
-      return { tier: 'S Avançado', color: 'text-brand-magenta' };
-    }
-    return { tier: 'A Estável', color: 'text-white' };
-  };
-
-  const getAiTier = () => {
-    const gpuName = selections.selectedGPU?.name.toLowerCase() || '';
-    if (gpuName.includes('4090')) return { tier: 'S+ Core (24GB)', color: 'text-brand-neon' };
-    if (gpuName.includes('4080')) return { tier: 'S Core (16GB)', color: 'text-brand-magenta' };
-    if (gpuName.includes('4070')) return { tier: 'A Accelerated', color: 'text-white' };
-    return { tier: 'B Basic', color: 'text-gray-400' };
-  };
-
-  const fpsData = [
-    { game: 'Cyberpunk 2077 (4K RT)', base: 85, color: 'bg-yellow-500' },
-    { game: 'Warzone (1440p)', base: 220, color: 'bg-green-500' },
-    { game: 'Valorant (1080p)', base: 700, color: 'bg-brand-neon' }
-  ];
+  // Live, data-driven estimates from the shared benchmark engine. Recompute only
+  // when the GPU, CPU, RAM or target resolution actually change.
+  const fpsRows = useMemo(
+    () => GAMES.map((g) => ({ game: g.name, fps: estimateFps(gpuName, cpuName, g, resolution) })),
+    [gpuName, cpuName, resolution],
+  );
+  const maxFps = Math.max(1, ...fpsRows.map((r) => r.fps));
+  const bottleneck = useMemo(
+    () => detectBottleneck(gpuName, cpuName, resolution),
+    [gpuName, cpuName, resolution],
+  );
+  const tiers = useMemo(() => ({
+    gaming: gamingTier(gpuName, cpuName),
+    workstation: workstationTier(cpuName, selections.selectedRAM?.name),
+    ai: aiTier(gpuName),
+  }), [gpuName, cpuName, selections.selectedRAM]);
+  const tierColor = (rank: number) =>
+    rank >= 5 ? 'text-brand-neon' : rank >= 4 ? 'text-brand-magenta' : rank >= 3 ? 'text-white' : 'text-gray-400';
 
   return (
     <section className="px-6 max-w-7xl mx-auto relative z-10" id="smart-builder">
@@ -359,7 +399,7 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
 
         <div className="mt-8 flex justify-center animate-in fade-in zoom-in-95 duration-700">
           <button onClick={handleVoiceCommand}
-            className={`group relative flex items-center gap-4 px-8 py-4 rounded-full font-bold text-sm transition-all duration-500 shadow-[0_0_40px_rgba(168,85,247,0.3)] ${isListening ? 'bg-red-500 text-white scale-105 shadow-[0_0_60px_rgba(239,68,68,0.5)]' : 'bg-[#110e1b] border border-brand-neon/30 hover:bg-brand-neon hover:text-black text-brand-neon'}`}
+            className={`group relative flex items-center gap-4 px-8 py-4 rounded-full font-bold text-sm transition-all duration-500 ${isListening ? 'bg-red-500 text-white scale-105 shadow-[0_0_60px_rgba(239,68,68,0.5)]' : 'liquid-glass liquid-glass-interactive text-brand-neon hover:text-white'}`}
           >
             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors ${isListening ? 'bg-white/20' : 'bg-brand-neon/20 group-hover:bg-black/20'}`}>
               <Mic className={`w-5 h-5 ${isListening ? 'animate-pulse' : ''}`} />
@@ -372,15 +412,15 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
         <div className="xl:col-span-8 space-y-4">
-          {renderComponentSelect('1. Motherboard (Placa-Mãe)', compatibleMotherboards.filter(c => (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedMotherboard, setters.setSelectedMotherboard)}
-          {renderComponentSelect('2. CPU (Processador)', compatibleCPUs.filter(c => (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedCPU, setters.setSelectedCPU)}
-          {renderComponentSelect('3. RAM (Memória)', compatibleRAMs.filter(c => (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedRAM, setters.setSelectedRAM)}
-          {renderComponentSelect('4. Armazenamento', allComponents.filter(c => c.type === 'storage' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedStorage, setters.setSelectedStorage)}
-          {renderComponentSelect('5. CPU Cooler', allComponents.filter(c => c.type === 'cooler' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedCooler, setters.setSelectedCooler)}
-          {renderComponentSelect('6. GPU (Placa Gráfica)', allComponents.filter(c => c.type === 'gpu' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedGPU, setters.setSelectedGPU)}
-          {renderComponentSelect('7. Fonte de Alimentação', allComponents.filter(c => c.type === 'psu' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedPSU, setters.setSelectedPSU)}
-          {renderComponentSelect('8. Case (Gabinete)', allComponents.filter(c => c.type === 'case' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedCase, setters.setSelectedCase)}
-          {renderComponentSelect('9. Fans (Ventoinhas)', allComponents.filter(c => c.type === 'fans' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)), selections.selectedFans, setters.setSelectedFans)}
+          {renderComponentSelect('1. Motherboard (Placa-Mãe)', grouped.motherboard, selections.selectedMotherboard, setters.setSelectedMotherboard)}
+          {renderComponentSelect('2. CPU (Processador)', grouped.cpu, selections.selectedCPU, setters.setSelectedCPU)}
+          {renderComponentSelect('3. RAM (Memória)', grouped.ram, selections.selectedRAM, setters.setSelectedRAM)}
+          {renderComponentSelect('4. Armazenamento', grouped.storage, selections.selectedStorage, setters.setSelectedStorage)}
+          {renderComponentSelect('5. CPU Cooler', grouped.cooler, selections.selectedCooler, setters.setSelectedCooler)}
+          {renderComponentSelect('6. GPU (Placa Gráfica)', grouped.gpu, selections.selectedGPU, setters.setSelectedGPU)}
+          {renderComponentSelect('7. Fonte de Alimentação', grouped.psu, selections.selectedPSU, setters.setSelectedPSU)}
+          {renderComponentSelect('8. Case (Gabinete)', grouped.case, selections.selectedCase, setters.setSelectedCase)}
+          {renderComponentSelect('9. Fans (Ventoinhas)', grouped.fans, selections.selectedFans, setters.setSelectedFans)}
 
           <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <h4 className="flex items-center gap-3 text-sm font-semibold text-gray-300 uppercase tracking-widest mb-6">
@@ -390,7 +430,7 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
               Periféricos Opcionais
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {allComponents.filter(c => c.type === 'peripheral' && (stockFilter === 'Todos' || (products.find((p: any) => p.id === c.id) as any)?.status === stockFilter)).map(comp => {
+              {grouped.peripheral.map(comp => {
                 const isSelected = selections.selectedPeripherals.some(p => p.id === comp.id);
                 return (
                   <div key={comp.id}
@@ -428,7 +468,7 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
         </div>
 
         <div className="xl:col-span-4 relative">
-          <Card className="border-white/5 sticky top-28 bg-black/40 backdrop-blur-3xl rounded-[2.5rem] shadow-[0_0_80px_rgba(168,85,247,0.1)] hover:border-brand-neon/30 transition-all duration-500 hover:shadow-[0_0_100px_rgba(168,85,247,0.15)]">
+          <Card className="liquid-glass sticky top-28 rounded-[2.5rem] transition-all duration-500">
             <CardHeader className="border-b border-white/5 bg-white/5 rounded-t-[2.5rem] p-6">
               <CardTitle className="text-xl text-white font-semibold flex items-center gap-3 tracking-tight">
                 <Settings className="w-6 h-6 text-brand-neon" /> Telemetria da Build
@@ -456,27 +496,44 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
                 </div>
               </div>
 
-              <div className="bg-black/50 border border-white/5 rounded-[1.5rem] p-5 shadow-inner">
-                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Cpu className="w-3 h-3 text-brand-neon" /> Simulador de FPS
-                </h4>
+              <div className="liquid-glass rounded-[1.5rem] p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <Gauge className="w-3 h-3 text-brand-neon" /> Simulador de FPS
+                  </h4>
+                  <div className="flex gap-1 p-0.5 rounded-full bg-black/40 border border-white/10">
+                    {(['1080p', '1440p', '4K'] as Resolution[]).map((r) => (
+                      <button key={r} onClick={() => setResolution(r)}
+                        className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-full transition-all ${resolution === r ? 'bg-brand-neon text-black' : 'text-gray-500 hover:text-white'}`}
+                      >{r}</button>
+                    ))}
+                  </div>
+                </div>
                 <div className="space-y-4">
-                  {fpsData.map(game => {
-                    const fps = calculateFPS(game.base);
-                    const widthPercent = Math.min(100, (fps / game.base) * 100);
+                  {fpsRows.map(({ game, fps }) => {
+                    const widthPercent = Math.min(100, (fps / maxFps) * 100);
                     return (
-                      <div key={game.game}>
+                      <div key={game}>
                         <div className="flex justify-between text-xs font-semibold mb-1">
-                          <span className="text-gray-300">{game.game}</span>
-                          <span className="text-white">{fps > 0 ? `${fps} FPS` : '--'}</span>
+                          <span className="text-gray-300 truncate pr-2">{game}</span>
+                          <span className="text-white tabular-nums shrink-0">{fps > 0 ? `${fps} FPS` : '--'}</span>
                         </div>
                         <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-                          <div className={`h-full ${game.color} transition-all duration-1000 ease-out shadow-[0_0_10px_currentColor]`} style={{ width: fps > 0 ? `${widthPercent}%` : '0%' }}></div>
+                          <div className="h-full bg-gradient-to-r from-brand-neon to-brand-magenta transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(168,85,247,0.6)]" style={{ width: fps > 0 ? `${widthPercent}%` : '0%' }}></div>
                         </div>
                       </div>
                     );
                   })}
+                  {fpsRows.every((r) => r.fps === 0) && (
+                    <p className="text-[11px] text-gray-500 font-medium">Escolhe um CPU e uma GPU para ver os FPS estimados.</p>
+                  )}
                 </div>
+                {bottleneck.component && (
+                  <div className={`mt-4 flex gap-3 items-start text-[11px] leading-relaxed font-medium p-3 rounded-xl border ${bottleneck.component === 'cpu' ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' : 'bg-sky-500/10 border-sky-500/30 text-sky-200'}`}>
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{bottleneck.message}</span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -589,15 +646,15 @@ Retorna APENAS um objeto JSON válido com os IDs ideais:
               <div className="grid grid-cols-3 gap-3 text-center my-2">
                 <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
                   <span className="text-[8px] font-black uppercase text-gray-500 tracking-wider">Gaming</span>
-                  <div className={`text-xs font-black uppercase mt-1 ${getGamingTier().color}`}>{getGamingTier().tier}</div>
+                  <div className={`text-xs font-black uppercase mt-1 ${tierColor(tiers.gaming.rank)}`}>{tiers.gaming.label}</div>
                 </div>
                 <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
                   <span className="text-[8px] font-black uppercase text-gray-500 tracking-wider">Workstation</span>
-                  <div className={`text-xs font-black uppercase mt-1 ${getWorkstationTier().color}`}>{getWorkstationTier().tier}</div>
+                  <div className={`text-xs font-black uppercase mt-1 ${tierColor(tiers.workstation.rank)}`}>{tiers.workstation.label}</div>
                 </div>
                 <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
                   <span className="text-[8px] font-black uppercase text-gray-500 tracking-wider">AI Engine</span>
-                  <div className={`text-xs font-black uppercase mt-1 ${getAiTier().color}`}>{getAiTier().tier}</div>
+                  <div className={`text-xs font-black uppercase mt-1 ${tierColor(tiers.ai.rank)}`}>{tiers.ai.label}</div>
                 </div>
               </div>
 
