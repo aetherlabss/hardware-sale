@@ -171,7 +171,7 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
 
   return (
     <>
-      <div className="fixed bottom-8 right-8 z-50">
+      <div className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-50">
         {!isOpen && (
           <button
             onClick={() => setIsOpen(true)}
@@ -188,7 +188,7 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
       </div>
 
       {isOpen && (
-        <div className="liquid-glass fixed bottom-6 right-6 w-[calc(100vw-3rem)] sm:w-[440px] rounded-[2.5rem] flex flex-col overflow-hidden z-50 max-h-[85vh] sm:max-h-none animate-in fade-in zoom-in-95 duration-500">
+        <div className="liquid-glass fixed bottom-24 md:bottom-6 right-4 md:right-6 w-[calc(100vw-2rem)] sm:w-[440px] rounded-[2.5rem] flex flex-col overflow-hidden z-50 max-h-[72vh] md:max-h-none animate-in fade-in zoom-in-95 duration-500">
           {/* AI Assist Header */}
           <div className="p-6 pb-5 border-b border-white/5 flex justify-between items-center bg-gradient-to-b from-white/[0.05] to-transparent">
             <div className="flex items-center gap-4">
@@ -216,7 +216,7 @@ ${allComponents.map(c => `${c.id}: ${c.name} (${c.type}) - ${c.priceMT} MT`).joi
           </div>
           
           {/* Chat Flow */}
-          <div className="flex-1 h-[450px] overflow-y-auto p-6 space-y-6 custom-scrollbar bg-transparent">
+          <div className="flex-1 h-[340px] md:h-[450px] overflow-y-auto p-5 md:p-6 space-y-6 custom-scrollbar bg-transparent">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (

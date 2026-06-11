@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { ShoppingCart, Cpu, Package, Home as HomeIcon, ChevronRight, MessageCircle, Mail } from 'lucide-react';
+import { ShoppingCart, Cpu, Package, Home as HomeIcon, ChevronRight, MessageCircle, Mail, Trophy, CircleUser } from 'lucide-react';
 
 const SOCIAL = {
   whatsapp: 'https://wa.me/258862026545',
@@ -28,39 +28,48 @@ export function Layout() {
 
   const cartItemCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
+  const MOBILE_TABS = [
+    { to: '/', label: 'Home', icon: HomeIcon },
+    { to: '/products', label: 'Montra', icon: Package },
+    { to: '/builder', label: 'Builder', icon: Cpu },
+    { to: '/build-of-the-month', label: 'BOM', icon: Trophy },
+    { to: '/hub', label: 'Hub', icon: CircleUser },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#050510] text-[#f8f8fc] font-sans flex flex-col selection:bg-brand-neon/30 selection:text-white">
-      <nav className="sticky top-0 w-full z-50 bg-[#00000080] backdrop-blur-[40px] border-b border-white/5 saturate-[1.8]">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between relative">
-          <Link to="/" className="flex items-center gap-3 md:gap-4 group h-full relative z-10 w-1/4">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-white/10 group-hover:scale-105 transition-transform duration-300 shrink-0">
-              <img 
-                src="/hardwaresaleogo.jpeg" 
-                alt="Hardware Sale Logo" 
+    <div className="min-h-screen bg-[#050510] text-[#f8f8fc] font-sans flex flex-col selection:bg-brand-neon/30 selection:text-white pb-24 md:pb-0">
+      <nav className="sticky top-0 w-full z-50 bg-black/50 backdrop-blur-[40px] saturate-[1.8] border-b border-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between relative">
+          <Link to="/" className="flex items-center gap-3 md:gap-4 group h-full relative z-10 w-auto md:w-1/4">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center overflow-hidden border border-white/10 group-hover:scale-105 transition-transform duration-300 shrink-0">
+              <img
+                src="/hardwaresaleogo.jpeg"
+                alt="Hardware Sale Logo"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white group-hover:text-brand-neon transition-colors hidden lg:inline-block leading-tight shrink-0 whitespace-nowrap">Hardware Sale</span>
+            <span className="text-lg md:text-xl font-bold tracking-tight text-white group-hover:text-brand-neon transition-colors inline-block leading-tight shrink-0 whitespace-nowrap">Hardware Sale</span>
           </Link>
-          
-          <div 
-            className="absolute left-1/2 -translate-x-1/2 flex gap-1 items-center bg-[#1a1a2480] px-1 md:px-2 py-1 md:py-1.5 rounded-xl md:rounded-[1.2rem] border border-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] my-auto overflow-x-auto custom-scrollbar max-w-[50vw] sm:max-w-none z-10"
+
+          {/* Desktop centre pill — on phones the bottom dock takes over */}
+          <div
+            className="liquid-glass absolute left-1/2 -translate-x-1/2 hidden md:flex gap-1 items-center px-2 py-1.5 rounded-[1.2rem] my-auto overflow-x-auto custom-scrollbar z-10"
             onWheel={(e) => {
               if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
                 e.currentTarget.scrollLeft += e.deltaY;
               }
             }}
           >
-            <Link to="/" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/' ? 'bg-white/10 text-white rounded-lg md:rounded-xl font-semibold shadow-sm' : 'text-gray-400 hover:text-white font-medium'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2`}><HomeIcon className="w-3.5 h-3.5 md:w-4 md:h-4"/> <span className="hidden min-[400px]:inline">Home</span></Link>
-            <Link to="/products" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/products' ? 'bg-white/10 text-white rounded-lg md:rounded-xl font-semibold shadow-sm' : 'text-gray-400 hover:text-white font-medium'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2`}><Package className="w-3.5 h-3.5 md:w-4 md:h-4"/> <span className="hidden min-[400px]:inline">Montra</span></Link>
-            <Link to="/builder" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/builder' ? 'bg-white/10 text-white rounded-lg md:rounded-xl font-semibold shadow-sm' : 'text-gray-400 hover:text-white font-medium'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2`}><Cpu className="w-3.5 h-3.5 md:w-4 md:h-4"/> <span className="hidden min-[400px]:inline">Builder</span></Link>
-            <Link to="/upgrade" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/upgrade' ? 'bg-brand-neon/20 text-brand-neon rounded-lg md:rounded-xl font-bold border border-brand-neon/30 shadow-[0_0_15px_rgba(20,241,149,0.2)]' : 'text-brand-magenta hover:text-brand-neon font-bold'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2`}><span className="hidden min-[400px]:inline tracking-widest uppercase text-[10px]">Upgrade</span></Link>
-            <Link to="/build-of-the-month" className={`shrink-0 px-2 md:px-4 py-1.5 md:py-2 ${location.pathname === '/build-of-the-month' ? 'bg-white text-black rounded-lg md:rounded-xl font-extrabold shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'text-yellow-400 hover:text-white font-bold'} text-[11px] md:text-sm transition-all flex items-center gap-1.5 md:gap-2 relative`}><span className="absolute -top-1 -right-1 flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span></span><span className="tracking-widest uppercase text-[10px]">BOM</span></Link>
+            <Link to="/" className={`shrink-0 px-4 py-2 ${location.pathname === '/' ? 'bg-white/10 text-white rounded-xl font-semibold shadow-sm' : 'text-gray-400 hover:text-white font-medium'} text-sm transition-all flex items-center gap-2`}><HomeIcon className="w-4 h-4"/> Home</Link>
+            <Link to="/products" className={`shrink-0 px-4 py-2 ${location.pathname === '/products' ? 'bg-white/10 text-white rounded-xl font-semibold shadow-sm' : 'text-gray-400 hover:text-white font-medium'} text-sm transition-all flex items-center gap-2`}><Package className="w-4 h-4"/> Montra</Link>
+            <Link to="/builder" className={`shrink-0 px-4 py-2 ${location.pathname === '/builder' ? 'bg-white/10 text-white rounded-xl font-semibold shadow-sm' : 'text-gray-400 hover:text-white font-medium'} text-sm transition-all flex items-center gap-2`}><Cpu className="w-4 h-4"/> Builder</Link>
+            <Link to="/upgrade" className={`shrink-0 px-4 py-2 ${location.pathname === '/upgrade' ? 'bg-brand-neon/20 text-brand-neon rounded-xl font-bold border border-brand-neon/30 shadow-[0_0_15px_rgba(20,241,149,0.2)]' : 'text-brand-magenta hover:text-brand-neon font-bold'} text-sm transition-all flex items-center gap-2`}><span className="tracking-widest uppercase text-[10px]">Upgrade</span></Link>
+            <Link to="/build-of-the-month" className={`shrink-0 px-4 py-2 ${location.pathname === '/build-of-the-month' ? 'bg-white text-black rounded-xl font-extrabold shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'text-yellow-400 hover:text-white font-bold'} text-sm transition-all flex items-center gap-2 relative`}><span className="absolute -top-1 -right-1 flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span></span><span className="tracking-widest uppercase text-[10px]">BOM</span></Link>
           </div>
 
-          <div className="flex items-center gap-3 relative z-10 w-1/4 justify-end">
-            <Link to="/checkout" className="relative group p-1">
+          <div className="flex items-center gap-3 relative z-10 w-auto md:w-1/4 justify-end">
+            <Link to="/checkout" className="relative group p-1" aria-label={`Carrinho (${cartItemCount} itens)`}>
               <div className="p-2.5 bg-white/5 rounded-full border border-white/5 group-hover:border-white/10 group-hover:bg-white/10 transition-all shadow-sm">
                 <ShoppingCart className="w-[1.125rem] h-[1.125rem] text-gray-300 group-hover:text-white transition-colors" />
               </div>
@@ -72,6 +81,21 @@ export function Layout() {
             </Link>
           </div>
         </div>
+      </nav>
+
+      {/* Mobile bottom dock — iOS-style liquid-glass tab bar */}
+      <nav aria-label="Navegação móvel" className="liquid-glass md:hidden fixed bottom-3 inset-x-3 z-50 rounded-[1.8rem] px-1.5 py-1.5 flex items-stretch justify-around" style={{ paddingBottom: 'max(0.375rem, env(safe-area-inset-bottom))' }}>
+        {MOBILE_TABS.map(({ to, label, icon: Icon }) => {
+          const active = location.pathname === to;
+          return (
+            <Link key={to} to={to}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-2xl transition-all duration-300 ${active ? 'bg-white/10 text-brand-neon shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]' : 'text-gray-400 active:bg-white/5'}`}
+            >
+              <Icon className={`w-5 h-5 ${active ? 'drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]' : ''}`} strokeWidth={active ? 2.4 : 2} />
+              <span className="text-[9px] font-bold uppercase tracking-wider">{label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
       <main className="flex-grow">

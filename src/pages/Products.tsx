@@ -640,7 +640,9 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
       });
     }
 
-    list = list.filter(p => p.price <= priceRange);
+    // Slider at the top end means "no cap" — otherwise products priced above
+    // the slider maximum (350k) could never be shown at all.
+    if (priceRange < 350000) list = list.filter(p => p.price <= priceRange);
 
     const sorted = [...list];
     if (priceSort === 'asc') sorted.sort((a, b) => a.price - b.price);
@@ -881,8 +883,8 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
         </div>
       </div>
 
-      {/* Product Grid - Compact Dense Design */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      {/* Product Grid - Compact Dense Design (2-up on phones) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
         {filteredProducts.map((product, idx) => (
           <div 
             key={product.id} 
@@ -904,7 +906,7 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
               )}
             </div>
             
-            <div className="h-48 overflow-hidden relative p-6 flex items-center justify-center bg-black rounded-t-2xl transition-colors duration-500">
+            <div className="h-32 sm:h-48 overflow-hidden relative p-3 sm:p-6 flex items-center justify-center bg-black rounded-t-2xl transition-colors duration-500">
               <img 
                 src={product.images && product.images.length > 0 ? product.images[0] : 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?auto=format&fit=crop&w=500&q=80'} 
                 alt={product.name} 
@@ -915,7 +917,7 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
               
               {/* FPS Simulator Badge for Desktops */}
               {product.category === "Desktop's" && (product.specs?.['FPS_Valorant'] || product.specs?.['FPS_Fortnite']) && (
-                <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md border border-brand-neon/30 rounded-lg px-2 py-1 flex flex-col items-center shadow-lg group-hover:border-brand-neon group-hover:scale-110 transition-all duration-500 opacity-0 group-hover:opacity-100">
+                <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md border border-brand-neon/30 rounded-lg px-2 py-1 flex flex-col items-center shadow-lg group-hover:border-brand-neon group-hover:scale-110 transition-all duration-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
                   <span className="text-[8px] font-black text-brand-neon uppercase tracking-tighter">Est. FPS</span>
                   <div className="flex items-baseline gap-1">
                     <span className="text-base font-black text-white">{product.specs['FPS_Valorant'] || product.specs['FPS_Fortnite']}</span>
@@ -925,13 +927,13 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
               )}
             </div>
             
-            <div className="p-4 pt-2 flex flex-col justify-between grow relative z-10">
+            <div className="p-3 sm:p-4 pt-2 flex flex-col justify-between grow relative z-10">
                <div>
-                  <h3 className="text-sm font-bold text-white mb-1 line-clamp-2 leading-snug group-hover:text-brand-neon transition-colors">{product.name}</h3>
-                  <div className="text-[10px] text-gray-500 uppercase tracking-widest font-bold line-clamp-1 group-hover:text-gray-400">{product.category}</div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white mb-1 line-clamp-2 leading-snug group-hover:text-brand-neon transition-colors">{product.name}</h3>
+                  <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase tracking-widest font-bold line-clamp-1 group-hover:text-gray-400">{product.category}</div>
                </div>
-               <div className="flex items-center justify-between mt-4">
-                  <div className="text-lg font-black text-white group-hover:text-brand-neon transition-colors">
+               <div className="flex items-center justify-between mt-3 sm:mt-4 gap-2">
+                  <div className="text-sm sm:text-lg font-black text-white group-hover:text-brand-neon transition-colors min-w-0">
                     {product.discount > 0 ? (
                       <div className="flex flex-col">
                         <span className="text-xs text-gray-500 line-through font-medium leading-none mb-1">{product.price.toLocaleString()} MT</span>
@@ -944,7 +946,9 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
                       <>{product.price.toLocaleString()} <span className="text-[10px] text-gray-500 font-bold">MT</span></>
                     )}
                   </div>
-                  <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">
+                  {/* Touch devices have no hover: actions stay visible on
+                      phones and only animate in on hover from sm: up. */}
+                  <div className="flex gap-1.5 shrink-0 transition-opacity opacity-100 translate-y-0 sm:opacity-0 sm:group-hover:opacity-100 sm:translate-y-2 sm:group-hover:translate-y-0">
                     <button 
                       onClick={(e) => handleToggleCompare(e, product)}
                       className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-300 shadow-md ${compareItems.some(p => p.id === product.id) ? 'bg-brand-magenta text-white border-brand-magenta' : 'bg-white/10 text-gray-300 border-white/20 hover:bg-brand-magenta hover:text-white'}`}
@@ -983,7 +987,7 @@ Faz uma comparação directa em 3 frases curtas. Diz em que situação o Produto
 
       {/* Comparator Floating Dock */}
       {compareItems.length > 0 && (
-        <div className="liquid-glass fixed bottom-10 left-1/2 -translate-x-1/2 z-40 p-4 rounded-full flex items-center gap-6 animate-in slide-in-from-bottom-10">
+        <div className="liquid-glass fixed bottom-24 md:bottom-10 left-1/2 -translate-x-1/2 z-40 p-3 md:p-4 rounded-full flex items-center gap-4 md:gap-6 animate-in slide-in-from-bottom-10 max-w-[calc(100vw-1.5rem)]">
           <div className="flex -space-x-4">
             {compareItems.map((p, i) => (
               <div key={i} className="w-12 h-12 rounded-full border-2 border-[#110e1b] bg-white/5 overflow-hidden relative shadow-lg">
