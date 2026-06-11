@@ -81,7 +81,13 @@ export function Inventory({ products }: { products: any[] }) {
       if (q && !(`${p.name} ${p.category}`.toLowerCase().includes(q))) return false;
       if (filter === 'all') return true;
       if (filter === 'dead') return isDead(p);
-      return stockStateOf(p) === filter;
+      const st = stockStateOf(p);
+      // "Em stock" means sellable now, so it includes low-stock items — this
+      // shop mostly holds 1 unit per part, and with LOW_STOCK=3 every single
+      // qty=1 product was landing ONLY under "Baixo", leaving the Em-stock
+      // tab nearly empty. "Baixo" stays as the alert subset.
+      if (filter === 'in') return st === 'in' || st === 'low';
+      return st === filter;
     });
     // In the duplicates view, group same-name entries together so pairs are
     // adjacent and easy to reconcile.
