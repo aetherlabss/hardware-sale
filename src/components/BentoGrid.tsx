@@ -8,7 +8,7 @@ export function BentoGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-7xl mx-auto px-4 md:px-0">
       {/* Mega Highlight Feature */}
-      <Card onClick={() => navigate('/build-of-the-month')} className="md:col-span-2 md:row-span-2 relative overflow-hidden group cursor-pointer border-brand-magenta/20 shadow-2xl bg-brand-dark/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-brand-magenta/40 will-change-transform">
+      <Card onClick={() => navigate('/build-of-the-month')} className="liquid-glass md:col-span-2 md:row-span-2 relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:border-brand-magenta/40 will-change-transform">
         <div className="absolute inset-0 z-0 select-none pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1587202372775-e229f172b9d7?q=80&w=1974&auto=format&fit=crop" 
@@ -43,7 +43,7 @@ export function BentoGrid() {
       </Card>
       
       {/* Side Featured 1 */}
-      <Card onClick={() => navigate('/products?cat=Components&sub=CPU')} className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-brand-neon/30 hover:bg-black/60 shadow-lg will-change-transform">
+      <Card onClick={() => navigate('/products?cat=Components&sub=CPU')} className="liquid-glass relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:border-brand-neon/30 hover:bg-black/60 shadow-lg will-change-transform">
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?q=80&w=2000&auto=format&fit=crop" 
@@ -71,7 +71,7 @@ export function BentoGrid() {
       </Card>
 
       {/* Side Featured 2 */}
-      <Card onClick={() => navigate('/products?cat=Monitores')} className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-[#14F195]/30 hover:bg-black/60 shadow-lg will-change-transform">
+      <Card onClick={() => navigate('/products?cat=Monitores')} className="liquid-glass relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:border-[#14F195]/30 hover:bg-black/60 shadow-lg will-change-transform">
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1547119957-637f8679db1e?q=80&w=1964&auto=format&fit=crop" 
@@ -99,7 +99,7 @@ export function BentoGrid() {
       </Card>
 
       {/* Side Featured 3 (New) */}
-      <Card onClick={() => navigate('/products?cat=Components&sub=Cooling')} className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-blue-400/30 hover:bg-black/60 shadow-lg xl:mt-0 will-change-transform">
+      <Card onClick={() => navigate('/products?cat=Components&sub=Cooling')} className="liquid-glass relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:border-blue-400/30 hover:bg-black/60 shadow-lg xl:mt-0 will-change-transform">
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1591488320449-011701bb6704?q=80&w=2070&auto=format&fit=crop" 
@@ -127,7 +127,7 @@ export function BentoGrid() {
       </Card>
 
       {/* Side Featured 4 (New) */}
-      <Card className="relative overflow-hidden group cursor-pointer border-white/5 bg-black/40 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:border-orange-400/30 hover:bg-black/60 shadow-lg xl:mt-0 will-change-transform">
+      <Card className="liquid-glass relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:border-orange-400/30 hover:bg-black/60 shadow-lg xl:mt-0 will-change-transform">
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1555616635-640b71bdb185?q=80&w=2070&auto=format&fit=crop" 
@@ -152,7 +152,7 @@ export function BentoGrid() {
       </Card>
 
       {/* Wide Bottom 1 */}
-      <Card className="md:col-span-2 relative overflow-hidden group cursor-pointer border-white/5 bg-brand-dark/20 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:bg-brand-dark/40 shadow-xl will-change-transform">
+      <Card className="liquid-glass md:col-span-2 relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:bg-brand-dark/40 shadow-xl will-change-transform">
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
           <img 
             src="https://images.unsplash.com/photo-1591489378430-ef2f4c626635?q=80&w=2070&auto=format&fit=crop" 
@@ -176,7 +176,7 @@ export function BentoGrid() {
       </Card>
 
       {/* Wide Bottom 2 */}
-      <Card className="md:col-span-2 relative overflow-hidden group cursor-pointer border-brand-magenta/20 bg-brand-magenta/5 backdrop-blur-2xl rounded-[2.5rem] transition-all duration-500 hover:bg-brand-magenta/10 shadow-xl will-change-transform">
+      <Card className="liquid-glass md:col-span-2 relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:bg-brand-magenta/10 shadow-xl will-change-transform">
         <div className="absolute inset-0 z-0 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none text-brand-magenta">
            <Infinity className="w-full h-full opacity-5" />
         </div>

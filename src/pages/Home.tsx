@@ -4,9 +4,10 @@ import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Hero3D } from '../components/Hero3D';
 import { BentoGrid } from '../components/BentoGrid';
-import { ArrowDown, Package, Zap, Wrench, PackageCheck, Headphones, ChevronRight, Star, Cpu, ArrowRight } from 'lucide-react';
+import { ArrowDown, Package, Zap, Wrench, PackageCheck, Headphones, ChevronRight, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MagneticButton } from '../components/ui/magnetic-button';
+import { LiquidGlass } from '../components/ui/liquid-glass';
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
@@ -175,7 +176,7 @@ export function Home() {
         <Hero3D />
         
         <div className="relative z-10 text-center px-4 max-w-5xl mx-auto flex flex-col items-center mt-10" style={{ transformStyle: 'preserve-3d' }}>
-          <div className="hero-badge mb-8 px-6 py-2 rounded-full border border-brand-neon/30 bg-brand-neon/10 backdrop-blur-md flex items-center gap-3">
+          <div className="hero-badge liquid-glass bubble-breathe mb-8 px-6 py-2 rounded-full flex items-center gap-3">
             <span className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-neon opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-neon"></span>
@@ -203,9 +204,9 @@ export function Home() {
                 <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none"></span>
               </button>
             </MagneticButton>
-            <button 
+            <button
               onClick={() => navigate('/builder')}
-              className="group px-10 py-5 rounded-full flex items-center justify-center gap-3 text-white font-bold text-sm border border-brand-neon/40 bg-black/50 backdrop-blur-xl transition-all hover:bg-brand-neon/10 hover:border-brand-neon hover:scale-105 hover:shadow-[0_0_30px_rgba(20,241,149,0.3)] relative overflow-hidden"
+              className="liquid-glass group px-10 py-5 rounded-full flex items-center justify-center gap-3 text-white font-bold text-sm transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(168,85,247,0.35)] relative overflow-hidden"
             >
               Smart Builder AI 
               <Zap className="w-4 h-4 text-brand-neon group-hover:animate-pulse" />
@@ -304,7 +305,7 @@ export function Home() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative z-10">
-          <div className="bg-black/60 backdrop-blur-3xl p-10 rounded-[2.5rem] border border-white/10 hover:border-brand-neon/50 hover:bg-black/80 transition-all duration-500 group shadow-2xl hover:shadow-[0_0_30px_rgba(20,241,149,0.15)] hover:-translate-y-2">
+          <LiquidGlass interactive className="p-10 rounded-[2.5rem] group">
             <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center mb-8 border border-white/20 group-hover:scale-110 transition-all duration-500 group-hover:border-brand-neon/50 group-hover:from-brand-neon/20 shadow-inner">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-10 h-10 text-white group-hover:text-brand-neon transition-colors" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2L2 7l10 5 10-5-10-5z" />
@@ -314,9 +315,9 @@ export function Home() {
             </div>
             <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-brand-neon transition-colors">Seleção Criteriosa</h3>
             <p className="text-gray-400 leading-relaxed font-medium">Cada processador e GPU comercializado passa por uma validação rigorosa focando em marcas de renome mundial, sem margem para falhas.</p>
-          </div>
-          
-          <div className="bg-gradient-to-b from-[#1a1025] to-black/80 backdrop-blur-3xl p-10 rounded-[2.5rem] border border-brand-magenta/30 hover:border-brand-magenta/60 transition-all duration-500 group relative overflow-hidden shadow-[0_0_40px_rgba(168,85,247,0.15)] -translate-y-4 hover:-translate-y-6 hover:shadow-[0_0_60px_rgba(168,85,247,0.3)]">
+          </LiquidGlass>
+
+          <LiquidGlass interactive className="p-10 rounded-[2.5rem] group relative overflow-hidden md:-mt-4 shadow-[0_0_40px_rgba(168,85,247,0.15)]">
             <div className="absolute top-0 right-0 w-64 h-64 bg-brand-neon/10 blur-[80px] rounded-full pointer-events-none group-hover:bg-brand-neon/20 transition-colors duration-500"></div>
             <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-brand-magenta/30 to-transparent flex items-center justify-center mb-8 border border-brand-magenta/40 group-hover:scale-110 transition-all duration-500 relative z-10 shadow-inner group-hover:from-brand-magenta/50">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-10 h-10 text-white group-hover:text-brand-magenta transition-colors drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -326,9 +327,9 @@ export function Home() {
             </div>
             <h3 className="text-2xl font-bold text-white mb-4 relative z-10 group-hover:text-brand-magenta transition-colors">Desempenho Extremo</h3>
             <p className="text-gray-300 font-medium leading-relaxed relative z-10">Componentes dimensionados para rodar AAA em 4K nativo @ 144Hz ou lidar com renderizações volumétricas complexas. Prontos para setups sem limite.</p>
-          </div>
-          
-          <div className="bg-black/60 backdrop-blur-3xl p-10 rounded-[2.5rem] border border-white/10 hover:border-brand-neon/50 hover:bg-black/80 transition-all duration-500 group shadow-2xl hover:shadow-[0_0_30px_rgba(20,241,149,0.15)] hover:-translate-y-2">
+          </LiquidGlass>
+
+          <LiquidGlass interactive className="p-10 rounded-[2.5rem] group">
             <div className="w-20 h-20 rounded-[1.5rem] bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center mb-8 border border-white/20 group-hover:scale-110 transition-all duration-500 group-hover:border-brand-neon/50 group-hover:from-brand-neon/20 shadow-inner">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-10 h-10 text-white group-hover:text-brand-neon transition-colors" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -337,7 +338,7 @@ export function Home() {
             </div>
             <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-brand-neon transition-colors">Blindagem Premium</h3>
             <p className="text-gray-400 leading-relaxed font-medium">Garantia local imediata e assistência técnica especializada garantem que o seu workflow ou ranking nunca sejam interrompidos.</p>
-          </div>
+          </LiquidGlass>
         </div>
       </section>
 
@@ -352,14 +353,14 @@ export function Home() {
               <div className="absolute inset-0 bg-brand-magenta/10 blur-[150px] rounded-full pointer-events-none"></div>
               <div className="grid grid-cols-2 gap-6 relative z-10">
                 <div className="space-y-6 pt-12">
-                  <div className="bg-[#0a0a14]/80 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] shadow-2xl group hover:border-brand-neon/50 hover:bg-[#0a0a14] transition-all duration-500 hover:-translate-y-2">
+                  <div className="liquid-glass p-8 rounded-[2rem] group hover:border-brand-neon/50 transition-all duration-500 hover:-translate-y-2">
                     <div className="w-12 h-12 rounded-[1rem] bg-white/5 flex items-center justify-center mb-6 border border-white/10 group-hover:bg-brand-neon/20 group-hover:border-brand-neon/30 transition-colors">
                       <Wrench className="w-6 h-6 text-gray-300 group-hover:text-brand-neon transition-colors" />
                     </div>
                     <h4 className="font-bold text-white text-xl leading-tight">Montagem<br/>White-Glove</h4>
                     <p className="text-sm text-gray-400 mt-3 font-medium">Gestão de cabos cirúrgica e otimização térmica perfeita.</p>
                   </div>
-                  <div className="bg-[#1a1025]/90 backdrop-blur-xl border border-brand-magenta/30 p-8 rounded-[2rem] shadow-[0_0_30px_rgba(168,85,247,0.1)] group hover:border-brand-magenta hover:-translate-y-2 transition-all duration-500">
+                  <div className="liquid-glass p-8 rounded-[2rem] shadow-[0_0_30px_rgba(168,85,247,0.1)] group hover:border-brand-magenta hover:-translate-y-2 transition-all duration-500">
                     <div className="w-12 h-12 rounded-[1rem] bg-brand-magenta/20 flex items-center justify-center mb-6 border border-brand-magenta/30">
                       <Zap className="w-6 h-6 text-brand-magenta" />
                     </div>
@@ -368,14 +369,14 @@ export function Home() {
                   </div>
                 </div>
                 <div className="space-y-6">
-                  <div className="bg-[#0a0a14]/80 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] shadow-2xl group hover:border-brand-neon/50 hover:bg-[#0a0a14] transition-all duration-500 hover:-translate-y-2">
+                  <div className="liquid-glass p-8 rounded-[2rem] group hover:border-brand-neon/50 transition-all duration-500 hover:-translate-y-2">
                     <div className="w-12 h-12 rounded-[1rem] bg-white/5 flex items-center justify-center mb-6 border border-white/10 group-hover:bg-brand-neon/20 group-hover:border-brand-neon/30 transition-colors">
                       <PackageCheck className="w-6 h-6 text-gray-300 group-hover:text-brand-neon transition-colors" />
                     </div>
                     <h4 className="font-bold text-white text-xl leading-tight">Entrega VIP<br/>Maputo</h4>
                     <p className="text-sm text-gray-400 mt-3 font-medium">Equipe dedicada instala o setup na sua casa no mesmo dia.</p>
                   </div>
-                  <div className="bg-[#0a0a14]/80 backdrop-blur-xl border border-white/10 p-8 rounded-[2rem] shadow-2xl group hover:border-brand-neon/50 hover:bg-[#0a0a14] transition-all duration-500 hover:-translate-y-2">
+                  <div className="liquid-glass p-8 rounded-[2rem] group hover:border-brand-neon/50 transition-all duration-500 hover:-translate-y-2">
                     <div className="w-12 h-12 rounded-[1rem] bg-white/5 flex items-center justify-center mb-6 border border-white/10 group-hover:bg-brand-neon/20 group-hover:border-brand-neon/30 transition-colors">
                       <Headphones className="w-6 h-6 text-gray-300 group-hover:text-brand-neon transition-colors" />
                     </div>
@@ -450,7 +451,7 @@ export function Home() {
               <div key={i}
                 onMouseMove={handleTilt}
                 onMouseLeave={handleTiltLeave}
-                className="stagger-card tilt-card card-shimmer shrink-0 w-[85vw] max-w-[360px] md:w-[420px] md:max-w-none bg-white/5 border border-white/10 p-8 rounded-3xl hover:border-brand-neon/40 transition-colors duration-500 group relative overflow-hidden backdrop-blur-md"
+                className="stagger-card tilt-card card-shimmer liquid-glass shrink-0 w-[85vw] max-w-[360px] md:w-[420px] md:max-w-none p-8 rounded-3xl hover:border-brand-neon/40 transition-colors duration-500 group relative overflow-hidden"
               >
                 <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
                   <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className="text-brand-neon"><path d="M14.017 21L16.41 14.174C16.666 13.435 16.8 12.639 16.8 11.804V3H24V11.804C24 15.652 22.846 18.739 20.538 21H14.017ZM1.25 21L3.642 14.174C3.898 13.435 4.027 12.639 4.027 11.804V3H11.227V11.804C11.227 15.652 10.073 18.739 7.765 21H1.25Z"/></svg>
